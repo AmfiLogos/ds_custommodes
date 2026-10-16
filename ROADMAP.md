@@ -10,7 +10,7 @@ Dungeon Settlers Modded is made of three repos. Each item below is listed once, 
 
 ## Now
 
-- **PvP between Mac and Windows stays in sync.** The fix is done here and ships in v13.1 (see the [multiplayer roadmap](https://github.com/AmfiLogos/ds_multiplayer/blob/main/ROADMAP.md)).
+- **PvP between Mac and Windows stays in sync.** The fix is done here and ships in v0.1.14 (see the [multiplayer roadmap](https://github.com/AmfiLogos/ds_multiplayer/blob/main/ROADMAP.md)).
 - **Plainer text.** We are rewriting the text in the Custom Modes windows and hover cards in plain words. Some of the current text reads like a programmer's notes.
 
 ## Next
