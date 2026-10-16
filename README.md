@@ -1,5 +1,7 @@
 # Custom Modes for Dungeon Settlers
 
+**Roadmap:** what we work on now and next, and where you can help: [ROADMAP.md](ROADMAP.md).
+
 Custom Modes is a code mod for Dungeon Settlers. It adds:
 
 - **My Units**
