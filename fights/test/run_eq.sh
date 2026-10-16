@@ -29,7 +29,8 @@ for k, v in B.items():
 json.dump({'owner': json.load(open(owner)), 'gal': team, 'gal_solo': solo[:4]}, open(out, 'w'))
 print('build sets: owner, gal', len(team), 'gal_solo', len(solo[:4]))
 EOF
-# 2. every case on both engines
+# 2. every case on both engines (sg_cli rebuilt first: never an old binary)
+${H:h}/build.sh
 node $H/ref_node.js $BUILDER $SAVES $REF $H/cases.json $B/eq_builds.json $BLOBS
 $B/sg_cli $BUILDER $SAVES $QJ $H/cases.json $B/eq_builds.json $BLOBS
 # 3. compare every file
@@ -41,6 +42,9 @@ for f in $REF/*; do
 done
 for f in $QJ/*; do n=${f:t}; [[ $n == timing.txt || -f $REF/$n ]] || { echo "EXTRA in quickjs: $n"; diff=$((diff+1)); }; done
 echo "files identical: $same, different/missing: $diff"
-echo "saves: $(ls $REF/*.save.json | wc -l | tr -d ' ') ok, errors (same text both sides): $(ls $REF/*.error.txt 2>/dev/null | wc -l | tr -d ' ')"
+# every case but the error_* ones must give a save (an error on both sides is "identical" too)
+want=$(python3 -I -c 'import json,sys; print(sum(not c["id"].startswith("error_") for c in json.load(open(sys.argv[1]))))' $H/cases.json)
+saves=($REF/*.save.json(N)); errs=($REF/*.error.txt(N))
+echo "saves: $#saves of $want ok, errors (same text both sides): $#errs"
 cat $QJ/timing.txt | head -3
-[[ $diff == 0 ]]
+[[ $diff == 0 && $#saves == $want ]]

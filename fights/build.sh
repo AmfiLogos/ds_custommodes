@@ -24,6 +24,7 @@ OBJS=()
 for s in $SRCS; do
   o=$B/obj/$(obj ${s:r}).o; OBJS+=($o)
   [[ $o -nt $C/$s && $o -nt $H/sg_prelude.js && $o -nt $H/sg_glue.js ]] || nice -n 19 clang $CF -c $C/$s -o $o &
+  while (( $(jobs | wc -l) >= 4 )); do sleep 0.2; done
 done
 wait
 for o in $OBJS; do [[ -f $o ]] || { echo "missing $o" >&2; exit 1; }; done

@@ -9,5 +9,6 @@ set -e
 H=${0:A:h}; R=${MP_ROOT:-${H:h:h:h}}; [[ -n $MP_ROOT || -f $R/src/mp_api.h ]] || R=$HOME/ds_multiplayer; B=$R/build_bld
 N=${1:-300}; SEED=${2:-13}; BUILDER=${3:-$HOME/dungeonsettlersdb/site/builder}
 O=$B/eq; [[ -d $O ]] && mkdir -p $B/old && mv $O $B/old/eq_$(date +%s); mkdir -p $O
+${H:h}/build.sh   # never an old bld_cli
 $B/bld_cli $BUILDER $O $N $SEED
 node $H/ref_node.js $BUILDER $O
