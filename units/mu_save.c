@@ -60,7 +60,7 @@ static const jv *save_of(const char *path, char *err, size_t errn) {
         }
     char e[300] = "";
     jv *s = jload(path, e, sizeof e);
-    if (!s) { snprintf(err, errn, "The save could not be read (%s).", e); return NULL; }
+    if (!s) { snprintf(err, errn, "The save could not be read. It may be damaged."); FE_LOG("save %s could not be read: %s", path, e); return NULL; }
     if (s->t != JN_OBJ || !jget(s, "EntityContainerSaveData") || !jget(s, "EntityComponentSaveData")) {
         jfree(s); snprintf(err, errn, "This file is not a Dungeon Settlers save."); return NULL;
     }

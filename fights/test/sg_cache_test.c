@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
     sgc_sources_free(&s);
     /* nothing cached + unreachable: a clear error */
     sgc c2; snprintf(p, sizeof p, "%s/b", scr); sgc_init(&c2, p);
-    CHECK(sgc_scripts(&c2, 86400, &s, st, sizeof st, err, sizeof err) == -1 && strstr(err, "needs the wiki"), "none -> %s", err);
+    CHECK(sgc_scripts(&c2, 86400, &s, st, sizeof st, err, sizeof err) == -1 && strstr(err, "did not send its files"), "none -> %s", err);
     /* a wiki between two deploys (tags differ): refused, the cache keeps the old set */
     snprintf(q, sizeof q, "%s/split", scr); mkdir(q, 0755);
     snprintf(p, sizeof p, "%s/builder", q); mkdir(p, 0755);
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
     spit(p, "{\"cut\":", 7);
     CHECK(sgc_template(&c, tf, &text, &len, err, sizeof err) == 0 && same_file(p, q), "cut-off template fetched again");
     free(text);
-    CHECK(sgc_template(&c, "boss_golem_1.json", &text, &len, err, sizeof err) == -1 && strstr(err, "no save template"), "missing: %s", err);
+    CHECK(sgc_template(&c, "boss_golem_1.json", &text, &len, err, sizeof err) == -1 && strstr(err, "missing a file"), "missing: %s", err);
 
     fight(&c, "offline-wiki");
     printf("%d checks, %d failed\n", checks, fails);

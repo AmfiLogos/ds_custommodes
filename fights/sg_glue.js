@@ -21,9 +21,11 @@ var CMF = (function () {
     slugTeam: slugifyTeamName, diffLabel: diffLabel });
 
   // ---- lift top-level declarations out of the builder.js source
+  // the player sees msg; the missing declaration rides in the stack, which only the log shows
+  function liftErr(msg, decl) { var e = new Error(msg); try { e.stack = '(' + decl.trim() + ') ' + (e.stack || ''); } catch (x) {} return e; }
   function lift(src, decl) {
     var at = src.indexOf('\n' + decl);
-    if (at < 0) throw new Error('The wiki builder no longer has ' + decl.trim() + ' - Test Fights needs an update.');
+    if (at < 0) throw liftErr('The wiki changed. Test Fights needs an update to use it.', decl);
     at += 1;
     if (decl.indexOf('var ') === 0) return src.slice(at, src.indexOf(';', at) + 1);
     // a function: match its braces, skipping strings and comments
@@ -36,7 +38,7 @@ var CMF = (function () {
       else if (ch === '{') depth++;
       else if (ch === '}' && --depth === 0) return src.slice(at, i + 1);
     }
-    throw new Error('Could not read ' + decl.trim() + ' from the wiki builder.');
+    throw liftErr("Could not read the wiki's builder files.", decl);
   }
   var UI = (function () {
     var src = typeof __CM_BUILDER_SRC === 'string' ? __CM_BUILDER_SRC : '';

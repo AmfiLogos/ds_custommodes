@@ -33,12 +33,14 @@ static const DSLUi *U;
 static bld_engine *E;                      /* worker thread only */
 static int eng;                            /* main thread's view of the engine */
 static char eng_msg[700];
+static char eng_why[600];                                           /* the engine error behind eng_msg: log only */
 
 typedef struct { bld_job j; int kind; char *in, *out, *build, *link; char err[700]; char root[1100]; char game_build[32]; } Job;
 enum { J_OPEN = 1, J_LOAD, J_ACT, J_SAVE };
 
 static int eng_ensure(Job *b) {
     if (E) return 0;
+    eng_why[0] = 0;
     sgc c; sgc_init(&c, b->root);
     sg_sources src; char e[500] = "", st[200] = "";
     if (sgc_scripts(&c, SCRIPTS_MAX_AGE, &src, st, sizeof st, e, sizeof e)) {
@@ -47,7 +49,7 @@ static int eng_ensure(Job *b) {
     }
     E = bld_open(src.data_js, src.data_n, src.builder_js, src.builder_n, NULL, e, sizeof e);
     sgc_sources_free(&src);
-    if (!E) { snprintf(b->err, sizeof b->err, "The wiki's Unit Builder did not start: %s", e); return -1; }
+    if (!E) { snprintf(b->err, sizeof b->err, "The wiki's Unit Builder could not start. Try again later."); snprintf(eng_why, sizeof eng_why, "%s", e); return -1; }
     char *tag = bld_call(E, "tag", NULL, e, sizeof e), t[64] = "";
     if (tag) { sscanf(tag, "\"%63[^\"]", t); free(tag); }
     if (b->game_build[0] && t[0] && strcmp(t, b->game_build)) {
@@ -168,7 +170,7 @@ static void finish_save(Job *b) {
     size_t L = strlen(p); while (L && p[L - 1] == ' ') p[--L] = 0;
     char id[17] = ""; int rc = -1;
     if (!lib) snprintf(m, sizeof m, "Could not read My Units: %s", e);
-    else if (!bv) snprintf(m, sizeof m, "The build could not be read: %s", e);
+    else if (!bv) { snprintf(m, sizeof m, "This build could not be read."); mu_log("builder: build could not be read: %s", e); }
     else if (W.unit_id[0] && mu_find(lib, W.unit_id)) {
         /* Edit: that unit keeps its id (its teams keep it); its build and name are replaced */
         wk_build wb;
@@ -212,7 +214,7 @@ static void job_done(bld_job *j) {
     Job *b = (Job *)j;
     if (!b->out && !E) {
         eng = ENG_FAILED; snprintf(eng_msg, sizeof eng_msg, "%s", b->err[0] ? b->err : "The wiki's Unit Builder gave no answer.");
-        mu_log("builder: engine failed: %s", eng_msg);
+        mu_log("builder: engine failed: %s%s%s", eng_msg, eng_why[0] ? " | " : "", eng_why); eng_why[0] = 0;
         W.saving = 0;
         if (W.open) refresh();
     } else {
@@ -345,7 +347,7 @@ static float draw_skills(DSLObj p, float y) {
     y = heading(p, y, "Skills");
     y = note(p, y, t, 22);
     const jv *trees = arr("trees");
-    if (!trees || !trees->cnt) return note(p, y, "Pick a background first - it decides which trees this unit has.", 24);
+    if (!trees || !trees->cnt) return note(p, y, "Pick a background first. It decides which skill trees this unit has.", 24);
     float cw = (W.mw - 24 - 16) / 3, ch = 52;
     for (size_t ti = 0; ti < trees->cnt; ti++) {
         jv *tr = trees->v[ti]; char k[100], n[160], head[300];

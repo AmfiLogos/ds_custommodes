@@ -21,6 +21,6 @@
   "loader>=2.0.0"
  ],
  "conflicts": [],
- "description": "Custom Modes: Foreign Expedition and PvP (need Multiplayer; hidden without it). Later: My Units, Gallery, Test Fights, Unit Builder.",
+ "description": "Adds My Units, Unit Builder, Gallery and Test Fights to the title screen. With Multiplayer on, you can also host Foreign Expedition and PvP.",
  "scope": "gameplay"
 }

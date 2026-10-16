@@ -8,6 +8,7 @@
 #include "mpmenu_kit.h"
 #include "rig.h"
 #include "net/dsnet.h"
+#include "fe/fe_json.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -78,6 +79,7 @@ static int pvp_world_build(const char *path, const char *save_name) {
 
 __attribute__((visibility("default"))) int cm_mp_start(const DSLHost *host, DSLPlugin *self, const mp_api_table *api) {
     H = host; ME = self; A = api;
+    fe_log_hook = rig_log;                                               /* fe/fe_json.h: the detail behind short save messages */
     if (!api || api->size < sizeof(mp_api_table)) { rig_log("custom-modes: multiplayer API too old (size %u): Foreign Expedition and PvP off", api ? api->size : 0); return 1; }
     int bad = 0;
     /* Foreign Expedition */

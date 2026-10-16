@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+void (*fe_log_hook)(const char *fmt, ...);
+
 /* ---------------------------------------------------------------- build */
 static jv *mk(int t) { jv *v = calloc(1, sizeof *v); v->t = (uint8_t)t; return v; }
 jv *jnull(void) { return mk(JN_NULL); }

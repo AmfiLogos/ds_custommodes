@@ -145,8 +145,8 @@ void pvp_mods_summary(int vanilla, int host, char *out, size_t n) {
     char l[500] = ""; size_t at = 0;
     for (int i = 0; i < m->ngame; i++) { char nm[160]; pvp_modset_name(m->game[i], nm, sizeof nm); at += (size_t)snprintf(l + at, at < sizeof l ? sizeof l - at : 0, "%s%s", at ? ", " : "", nm); }
     if (vanilla) {
-        if (m->ngame) snprintf(out, n, "Client mods are fine. Gameplay mods: none allowed; turn off %s.", l);
-        else snprintf(out, n, "Client mods are fine. Gameplay mods: none allowed.");
+        if (m->ngame) snprintf(out, n, "Mods that only change your screen are fine. Gameplay mods are not: turn off %s.", l);
+        else snprintf(out, n, "Mods that only change your screen are fine. Gameplay mods are not.");
     } else if (host) snprintf(out, n, m->ngame ? "Every player needs the host's gameplay mods: %s." : "The host has no gameplay mod: nobody may have one.", l);
     else snprintf(out, n, "Every player needs the host's gameplay mods (the launcher gets them).");
 }

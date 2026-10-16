@@ -71,9 +71,9 @@ jv *mu_load(char *err, size_t errn) {
     struct stat st;
     if (stat(p, &st) != 0) return empty_lib();
     char e[300]; jv *l = jload(p, e, sizeof e);
-    if (!l) { snprintf(err, errn, "My Units file is damaged (%s): %s", p, e); return NULL; }
-    if (!jstreq(jget(l, "format"), MU_FORMAT)) { snprintf(err, errn, "My Units file has another format: %s", p); jfree(l); return NULL; }
-    if (jnumv(jget(l, "version")) > MU_VERSION) { snprintf(err, errn, "My Units file was written by a newer launcher (version %d)", (int)jnumv(jget(l, "version"))); jfree(l); return NULL; }
+    if (!l) { snprintf(err, errn, "The My Units file is damaged and could not be read: %s", p); FE_LOG("my units: %s: %s", p, e); return NULL; }
+    if (!jstreq(jget(l, "format"), MU_FORMAT)) { snprintf(err, errn, "The My Units file is not in the right format: %s", p); jfree(l); return NULL; }
+    if (jnumv(jget(l, "version")) > MU_VERSION) { snprintf(err, errn, "The My Units file comes from a newer version of this mod. Update the mod."); FE_LOG("my units: file version %d, this mod reads up to %d", (int)jnumv(jget(l, "version")), MU_VERSION); jfree(l); return NULL; }
     if (!jis(jget(l, "units"), JN_ARR)) jset(l, "units", jarr());
     if (!jis(jget(l, "teams"), JN_ARR)) jset(l, "teams", jarr());
     return l;
@@ -207,7 +207,7 @@ int mu_team_new(jv *lib, const char *name, char ids[][17], int n, char tid_out[1
     jv *teams = jget(lib, "teams");
     if (!teams) { snprintf(err, errn, "not a My Units library"); return -1; }
     if (n < 1 || n > MU_TEAM_MAX) { snprintf(err, errn, "a team holds 1 to %d units", MU_TEAM_MAX); return -1; }
-    for (int i = 0; i < n; i++) if (!mu_find(lib, ids[i])) { snprintf(err, errn, "unit %s is not in My Units any more", ids[i]); return -1; }
+    for (int i = 0; i < n; i++) if (!mu_find(lib, ids[i])) { snprintf(err, errn, "this unit is not in My Units any more"); FE_LOG("my units: unit %s is not in My Units any more", ids[i]); return -1; }
     char tname[200] = "";
     if (name && *name) snprintf(tname, sizeof tname, "%s", name);
     else for (int i = 0; i < n && i < 4; i++) {
@@ -236,7 +236,7 @@ int mu_team_id_at(const jv *lib, size_t i, char out[17]) {
 }
 int mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t errn) {
     const jv *u = mu_find(lib, id);
-    if (!u) { snprintf(err, errn, "unit %s is not in My Units any more", id); return -1; }
+    if (!u) { snprintf(err, errn, "this unit is not in My Units any more"); FE_LOG("my units: unit %s is not in My Units any more", id); return -1; }
     char e[300];
     if (wk_from_json(jget(u, "build"), out, e, sizeof e)) { snprintf(err, errn, "%s", e); return -1; }
     /* the library name wins over the build's own name field (the launcher renames the entry, not the build) */

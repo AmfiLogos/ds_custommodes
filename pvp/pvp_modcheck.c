@@ -80,7 +80,7 @@ int pvp_modset_check(int vanilla, const pvp_modset *host, const pvp_modset *peer
         if (!peer->ngame) return 0;
         names(peer, NULL, l, sizeof l);
         if (self) snprintf(why, n, "Vanilla check is on: turn off your gameplay mod%s %s, or set Vanilla check to Off.", peer->ngame > 1 ? "s" : "", l);
-        else snprintf(why, n, "Vanilla check is on: %s has the gameplay mod%s %s. %s must turn %s off (Switch to vanilla profile in the launcher).",
+        else snprintf(why, n, "Vanilla check is on: %s has the gameplay mod%s %s. %s must turn %s off in the Mods window.",
                       who, peer->ngame > 1 ? "s" : "", l, who, peer->ngame > 1 ? "them" : "it");
         return 1;
     }

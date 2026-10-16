@@ -5,6 +5,7 @@
 #include "cm_home.h"
 #include "cm_il.h"
 #include "mu_save.h"
+#include "fe/fe_json.h"
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
@@ -20,6 +21,7 @@ size_t mu_bring_test_state(char *out, size_t cap);
 
 void cm_units_init(const DSLHost *host, DSLPlugin *self) {
     mu_ui_init(host, self);
+    fe_log_hook = mu_log;                                                /* the detail behind short save / link / My Units messages */
     if (!mu_kit()) { host->log(self, "My Units: no widget kit (loader older than API 3)"); return; }
     cm_home_add("my-units", "My Units", NULL, 10, mu_window_open);
     cm_test_register("mu", mu_window_test_find, mu_window_test_state);

@@ -936,7 +936,7 @@ static void messages_frame(void) {
             seen_fight = g.fight_start;
             if (g.arena) center(g.mode == PVP_MODE_CTF ? "Round %d - Capture the flag!" : "Round %d - Fight!", g.round);
         }
-        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center("Planning pause - give your orders, then press Ready"); }
+        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center("Planning pause: give your orders, then press Ready"); }
         if (ctf_seq != seen_ctf) {
             seen_ctf = ctf_seq; char nm[48]; pvp_ui_unit_name(ctf_last_unit, nm, sizeof nm);
             const char *fl = team_name(ctf_last_team);

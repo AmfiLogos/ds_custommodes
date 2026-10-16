@@ -178,7 +178,7 @@ void gal_page_free(gal_page *p) { if (p) { free(p->items); memset(p, 0, sizeof *
 static int fetch_json(const char *url, size_t max, cmh_resp *r, char *err, size_t errn) {
     if (cmh_get(url, GAL_TIMEOUT_MS, max, r, err, errn)) return -1;
     if (r->status != 200) {
-        snprintf(err, errn, r->status == 404 ? "this build is no longer in the gallery" : "the gallery answered %d", r->status);
+        snprintf(err, errn, r->status == 404 ? "this build is no longer in the gallery" : "the Gallery did not answer (error %d)", r->status);
         cmh_free(r); return -1;
     }
     return 0;

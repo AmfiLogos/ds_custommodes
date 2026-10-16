@@ -164,11 +164,13 @@ static int is_fight(void) { return !strcmp(mode_id(), "boss") || !strcmp(mode_id
 /* ------------------------------------------------------------------ the engine on the worker thread */
 static sg_engine *E; static sgc C; static int engine_state;       /* 0 none, 1 opening, 2 ready, 3 failed */
 static char eng_msg[600], status[1200]; static int status_warn, busy;
+static char eng_why[600];                                           /* the engine error behind eng_msg: log only */
 typedef struct { cm_job j; char *in, *out, *file; size_t file_n; char err[600]; int problems; char status[200]; } Job;
 
 /* worker thread: the engine, opened once (scripts from the cache, refreshed after SCRIPTS_MAX_AGE) */
 static int eng_ensure(char *err, size_t errn, char *st_out, size_t sn) {
     if (E) { if (st_out) snprintf(st_out, sn, "running"); return 0; }
+    eng_why[0] = 0;
     char root[1100], d[1024];
     if (cmw_game_data(d, sizeof d)) { snprintf(err, errn, "The game's data folder is not known."); return -1; }
     snprintf(root, sizeof root, "%s/Mods/custom-modes/wiki", d);
@@ -180,7 +182,7 @@ static int eng_ensure(char *err, size_t errn, char *st_out, size_t sn) {
     }
     E = sg_open(&src, sgc_template, &C, NULL, e, sizeof e);
     sgc_sources_free(&src);
-    if (!E) { snprintf(err, errn, "The wiki's save generator did not start: %s", e); return -1; }
+    if (!E) { snprintf(err, errn, "Test Fights could not start the wiki's fight maker. Try again later."); snprintf(eng_why, sizeof eng_why, "%s", e); return -1; }
     if (st_out) snprintf(st_out, sn, "%s", s2);
     return 0;
 }
@@ -189,7 +191,7 @@ static void job_open_run(cm_job *j) {
     Job *b = (Job *)j; char e[400] = "";
     if (eng_ensure(b->err, sizeof b->err, b->status, sizeof b->status)) return;
     b->out = sg_panel(E, e, sizeof e);
-    if (!b->out) snprintf(b->err, sizeof b->err, "The wiki's save generator did not start: %s", e);
+    if (!b->out) { snprintf(b->err, sizeof b->err, "Test Fights could not start the wiki's fight maker. Try again later."); snprintf(eng_why, sizeof eng_why, "%s", e); }
 }
 static void paint_all(void);
 static void job_open_done(cm_job *j) {
@@ -206,7 +208,7 @@ static void job_open_done(cm_job *j) {
     } else {
         engine_state = 3;
         snprintf(eng_msg, sizeof eng_msg, "%s", b->err[0] ? b->err : "The wiki's save generator gave no answer.");
-        cmw_log("tf: engine failed: %s", eng_msg);
+        cmw_log("tf: engine failed: %s%s%s", eng_msg, eng_why[0] ? " | " : "", eng_why); eng_why[0] = 0;
     }
     free(b->in); free(b->out); free(b);
     paint_all();
@@ -433,7 +435,7 @@ static void paint_right(void) {
         ml[i] = !strcmp(P.modes[i], "dps") ? "DPS Check" : !strcmp(P.modes[i], "boss") ? "Boss fight" : !strcmp(P.modes[i], "arena") ? "Custom fight" : "Finished base";
     cmw_named(U->value_row(right, 0, y, w, "Test", ml, P.nmodes, st.mode, mode_change, NULL), CMW_VALUE, "fights:r.mode", mode_change, NULL, ml[st.mode]);
     y += 50;
-    if (!strcmp(mode_id(), "dps")) { char dur[40]; fmt_n(P.dummy_dur, dur, sizeof dur); snprintf(md, sizeof md, "A practice %s with %s durability that taunts you - hit it and read your squad's damage.", P.dummy_n, dur); }
+    if (!strcmp(mode_id(), "dps")) { char dur[40]; fmt_n(P.dummy_dur, dur, sizeof dur); snprintf(md, sizeof md, "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.", P.dummy_n, dur); }
     else if (!strcmp(mode_id(), "boss")) snprintf(md, sizeof md, "Your squad standing at a boss door, boss alive and never beaten.");
     else if (!strcmp(mode_id(), "arena")) snprintf(md, sizeof md, "The same boss room with the boss taken out and the monsters you choose put in instead.");
     else snprintf(md, sizeof md, "A fully built base with all research done. Your squad walks in ready to play.");
@@ -508,7 +510,7 @@ static void paint_right(void) {
             if (st.kit[i]) { sl += P.kits[i].slots; wt += P.kits[i].w; any = 1; }
         }
         char t[300];
-        if (!any) snprintf(t, sizeof t, "No kit ticked - the squad walks in with nothing but its gear.");
+        if (!any) snprintf(t, sizeof t, "No kit ticked: the squad walks in with only its gear.");
         else snprintf(t, sizeof t, "%d slot(s) and %g weight per character.", sl, (double)((long long)(wt * 100 + 0.5)) / 100);
         y += txt(right, NULL, 12, y, w - 12, t, 14, SUB) + 4;
         if (any && P.insc_n[0]) {
