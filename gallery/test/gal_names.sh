@@ -12,6 +12,7 @@ pages=()
 for k in team char; do for s in popular recent; do for p in 0 1; do
   curl -sf -m 20 "$W/api/gallery?kind=$k&sort=$s&page=$p" -o $D/$k-$s-$p.json && pages+=($D/$k-$s-$p.json)
 done; done; done
+${H:h:h}/fights/build.sh   # builds gal_test: never an old binary
 $B/gal_test --names $D/words.json $pages > $D/names_c.tsv
 node -e '
 const T = require(process.argv[1]); const fs = require("fs");

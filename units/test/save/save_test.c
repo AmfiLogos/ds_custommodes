@@ -77,7 +77,7 @@ static void card_sort(mu_card *c) {
 static int round_trip(const char *builds_path, const char *tmp) {
     char e[400];
     FILE *f = fopen(builds_path, "r"); CHECK(f, "open %s", builds_path); if (!f) return 0;
-    static wk_build A[400]; static char ug[400][40]; static jv *bars[400]; int na = 0, nskip = 0;
+    static wk_build A[400]; static char ug[400][40]; static jv *bars[400]; int na = 0, nskip = 0, nrace = 0;
     jv *save = jobj(), *hdr = jobj(), *ecd = jobj(), *ucs = jobj(), *base = jobj(), *pl = jarr(), *ecs = jobj(), *ec = jobj(), *pu = jobj();
     jset(hdr, "Version", jstrv("DS_B.0.4.29")); jset(save, "CampaignSaveHeader", hdr);
     jset(base, "PlayerGuidList", pl); jset(ucs, "Base", base); jset(ecd, "UnitContainerSaveData", ucs); jset(save, "EntityContainerSaveData", ecd);
@@ -86,7 +86,7 @@ static int round_trip(const char *builds_path, const char *tmp) {
     while (fgets(line, sizeof line, f) && na < 400) {
         if (line[0] != '{') continue;
         jv *j = jparse(line, strlen(line), e, sizeof e); if (!j) { nskip++; continue; }
-        if (wk_from_json(j, &A[na], e, sizeof e)) { jfree(j); nskip++; if (getenv("SHOW_SKIPS")) printf("SKIP %s\n", e); continue; }
+        if (wk_from_json(j, &A[na], e, sizeof e)) { jfree(j); nskip++; nrace += !strncmp(e, "race ", 5); if (getenv("SHOW_SKIPS")) printf("SKIP %s\n", e); continue; }
         jfree(j);
         char notes[2000];
         jv *ent = pb_entry(&A[na], "test", notes, sizeof notes, e, sizeof e);
@@ -112,6 +112,7 @@ static int round_trip(const char *builds_path, const char *tmp) {
     static mu_save_unit U[400];
     int n = mu_save_units(sp, U, 400, e, sizeof e);
     CHECK(n == na, "round trip: %d units listed of %d written (%s)", n, na, e);
+    CHECK(na > 0 && nskip == nrace, "round trip: %d builds written, %d refused, only %d of them the generator's bogus races", na, nskip, nrace);
     int ok_all = 0, card_same = 0, maj_same = 0, tags_cmp = 0, tags_skip = 0;
     for (int i = 0; i < na; i++) {
         wk_build B; mu_save_extra x; const wk_build *a = &A[i];
@@ -210,6 +211,7 @@ static void ref_save(const char *save, const char *ref) {
         CHECK(ok, "%s: reader != builder import\n builder: %s\n reader:  %s", g, a, b); free(a); free(b);
     }
     fclose(f);
+    CHECK(n > 0, "builder import vs reader, %s: 0 units compared", save);
     const char *bn = strrchr(save, '/');
     printf("== builder import vs reader, %s: %d units, %d identical (after %d portrait + %d acquired-trait differences, by design)\n", bn ? bn + 1 : save, n, same, port, acq);
 }

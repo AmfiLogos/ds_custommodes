@@ -2,6 +2,7 @@
 # mu_save tests: real saves (read only copies) + the round trip through the save writer. ASan + UBSan.
 #   custom/units/test/save/run.sh            (from anywhere; needs node + ~/dungeonsettlersdb for the round-trip builds)
 set -e
+setopt pipefail
 H=${0:A:h}; C=${H:h:h:h}; T=$H/tmp   # C = this repo (Custom Modes)
 mkdir -p $T $H/old
 [ ! -d $T/run ] || mv $T/run $H/old/run_$(date +%s)
