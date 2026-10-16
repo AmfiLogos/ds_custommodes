@@ -18,8 +18,9 @@ It is made for Steam build 25846389 of Dungeon Settlers.
 ## The three repositories
 
 - ds_custommodes (this repo): the Custom Modes mod.
-- [ds_multiplayer](https://github.com/AmfiLogos/ds_multiplayer): the Multiplayer mod. Its releases page has the installers.
+- [ds_multiplayer](https://github.com/AmfiLogos/ds_multiplayer): the Multiplayer mod.
 - [ds_modloader](https://github.com/AmfiLogos/ds_modloader): the mod loader, the Mac app and the Windows installer.
+  Its releases page has the installers.
   Read its README for install steps, save folders, known limits and bug reports.
 
 ## What you need
@@ -31,8 +32,9 @@ It is made for Steam build 25846389 of Dungeon Settlers.
 
 Do not build this repo to play. Custom Modes is inside the installers (`Dungeon-Settlers-Modded-Mac.dmg`,
 `Dungeon-Settlers-Modded-Setup.exe`) on the
-[ds_multiplayer releases page](https://github.com/AmfiLogos/ds_multiplayer/releases).
-This repo's releases page has `custom-modes-<version>.zip`, to add or update the mod by hand.
+[ds_modloader releases page](https://github.com/AmfiLogos/ds_modloader/releases).
+This repo's releases page has `custom-modes-<version>.zip` (tag `custom-modes-v<version>`), to add or update the
+mod by hand.
 
 ## Known limits
 
