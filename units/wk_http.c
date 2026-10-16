@@ -25,16 +25,16 @@ static int win_get(const char *url, int timeout_ms, int *status, char *loc, size
     int rc = -1; HINTERNET s = NULL, c = NULL, r = NULL;
     s = WinHttpOpen(L"DungeonSettlersMod/1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!s) s = WinHttpOpen(L"DungeonSettlersMod/1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!s) { snprintf(err, errn, "WinHttpOpen failed (%lu)", GetLastError()); goto out; }
+    if (!s) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     WinHttpSetTimeouts(s, timeout_ms, timeout_ms, timeout_ms, timeout_ms);
     c = WinHttpConnect(s, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
-    if (!c) { snprintf(err, errn, "WinHttpConnect failed (%lu)", GetLastError()); goto out; }
+    if (!c) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     r = WinHttpOpenRequest(c, L"GET", path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-    if (!r) { snprintf(err, errn, "WinHttpOpenRequest failed (%lu)", GetLastError()); goto out; }
+    if (!r) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     DWORD dis = WINHTTP_DISABLE_REDIRECTS; WinHttpSetOption(r, WINHTTP_OPTION_DISABLE_FEATURE, &dis, sizeof dis);
     if (!WinHttpSendRequest(r, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(r, NULL)) {
         DWORD e = GetLastError();
-        snprintf(err, errn, e == ERROR_WINHTTP_TIMEOUT ? "timed out" : e == ERROR_WINHTTP_NAME_NOT_RESOLVED ? "no internet (name not resolved)" : e == ERROR_WINHTTP_CANNOT_CONNECT ? "could not connect" : "WinHTTP error %lu", e);
+        snprintf(err, errn, e == ERROR_WINHTTP_TIMEOUT ? "timed out" : e == ERROR_WINHTTP_NAME_NOT_RESOLVED ? "no internet (name not resolved)" : e == ERROR_WINHTTP_CANNOT_CONNECT ? "could not connect" : "connection error %lu", e);
         goto out;
     }
     DWORD st = 0, sl = sizeof st;
@@ -93,15 +93,15 @@ static size_t h_cb(char *d, size_t sz, size_t nm, void *u) {
 static void *curl_lib; static int curl_tried;
 static int curl_get(const char *url, int timeout_ms, int *status, char *loc, size_t locn, char *body, size_t bodyn, char *err, size_t errn) {
     if (!curl_tried) { curl_tried = 1; curl_lib = dlopen("/usr/lib/libcurl.4.dylib", RTLD_NOW | RTLD_LOCAL); }
-    if (!curl_lib) { snprintf(err, errn, "libcurl not loadable: %s", dlerror() ? dlerror() : "?"); return -1; }
+    if (!curl_lib) { snprintf(err, errn, "the system's download library is missing"); return -1; }
     void *(*init)(void) = (void *(*)(void))dlsym(curl_lib, "curl_easy_init");
     int (*setopt)(void *, int, ...) = (int (*)(void *, int, ...))dlsym(curl_lib, "curl_easy_setopt");
     int (*perform)(void *) = (int (*)(void *))dlsym(curl_lib, "curl_easy_perform");
     int (*getinfo)(void *, int, ...) = (int (*)(void *, int, ...))dlsym(curl_lib, "curl_easy_getinfo");
     void (*cleanup)(void *) = (void (*)(void *))dlsym(curl_lib, "curl_easy_cleanup");
     const char *(*strerr)(int) = (const char *(*)(int))dlsym(curl_lib, "curl_easy_strerror");
-    if (!init || !setopt || !perform || !getinfo || !cleanup) { snprintf(err, errn, "libcurl: missing functions"); return -1; }
-    void *c = init(); if (!c) { snprintf(err, errn, "curl_easy_init failed"); return -1; }
+    if (!init || !setopt || !perform || !getinfo || !cleanup) { snprintf(err, errn, "the system's download library is missing"); return -1; }
+    void *c = init(); if (!c) { snprintf(err, errn, "the download could not start"); return -1; }
     char lb[2] = ""; sink sb = { body, 0, body ? bodyn : 0 }, sh = { loc ? loc : lb, 0, loc ? locn : sizeof lb };
     setopt(c, C_URL, url); setopt(c, C_FOLLOW, 0L); setopt(c, C_NOSIGNAL, 1L);
     setopt(c, C_TIMEOUT_MS, (long)timeout_ms); setopt(c, C_CONNECT_MS, (long)timeout_ms);
@@ -135,7 +135,7 @@ static int cf_get(const char *url, int timeout_ms, int *status, char *loc, size_
     CFHTTPMessageSetHeaderFieldValue(rq, CFSTR("User-Agent"), CFSTR("DungeonSettlersMod/1"));
     CFReadStreamRef s = CFReadStreamCreateForHTTPRequest(NULL, rq);
     CFRelease(rq); CFRelease(u);
-    if (!s) { snprintf(err, errn, "CFReadStreamCreateForHTTPRequest failed"); return -1; }
+    if (!s) { snprintf(err, errn, "the download could not start"); return -1; }
     CFReadStreamSetProperty(s, kCFStreamPropertyHTTPShouldAutoredirect, kCFBooleanFalse);
     cfctx x = { 0, 0, body, 0, body ? bodyn : 0 };
     CFStreamClientContext cc = { 0, &x, NULL, NULL, NULL };
@@ -152,13 +152,13 @@ static int cf_get(const char *url, int timeout_ms, int *status, char *loc, size_
     if (!x.done) { snprintf(err, errn, "timed out"); goto out; }
     if (x.failed) {
         CFErrorRef e = CFReadStreamCopyError(s); long code = e ? (long)CFErrorGetCode(e) : 0;
-        char dom[80] = ""; if (e) { CFStringRef d = CFErrorGetDomain(e); if (d) CFStringGetCString(d, dom, sizeof dom, kCFStringEncodingUTF8); CFRelease(e); }
-        snprintf(err, errn, "%s (%s %ld)", code == -1009 || code == 8 || code == 12 ? "no internet" : "connection failed", dom, code);
+        if (e) CFRelease(e);
+        snprintf(err, errn, "%s (error %ld)", code == -1009 || code == 8 || code == 12 ? "no internet" : "connection failed", code);
         goto out;
     }
     {
         CFHTTPMessageRef rs = (CFHTTPMessageRef)CFReadStreamCopyProperty(s, kCFStreamPropertyHTTPResponseHeader);
-        if (!rs) { snprintf(err, errn, "no HTTP answer"); goto out; }
+        if (!rs) { snprintf(err, errn, "the server did not answer"); goto out; }
         *status = (int)CFHTTPMessageGetResponseStatusCode(rs);
         if (loc && locn) {
             CFStringRef l = CFHTTPMessageCopyHeaderFieldValue(rs, CFSTR("Location"));

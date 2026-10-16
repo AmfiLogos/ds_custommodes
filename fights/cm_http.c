@@ -59,12 +59,12 @@ static int net_get(const char *url, int timeout_ms, size_t max_bytes, cmh_resp *
     sink b = { 0 }; b.max = max_bytes;
     s = WinHttpOpen(L"DungeonSettlersMod/1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!s) s = WinHttpOpen(L"DungeonSettlersMod/1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!s) { snprintf(err, errn, "WinHttpOpen failed (%lu)", GetLastError()); goto out; }
+    if (!s) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     WinHttpSetTimeouts(s, timeout_ms, timeout_ms, timeout_ms, timeout_ms);
     c = WinHttpConnect(s, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
-    if (!c) { snprintf(err, errn, "WinHttpConnect failed (%lu)", GetLastError()); goto out; }
+    if (!c) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     q = WinHttpOpenRequest(c, L"GET", path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-    if (!q) { snprintf(err, errn, "WinHttpOpenRequest failed (%lu)", GetLastError()); goto out; }
+    if (!q) { snprintf(err, errn, "could not connect (error %lu)", GetLastError()); goto out; }
     DWORD dis = WINHTTP_DISABLE_REDIRECTS; WinHttpSetOption(q, WINHTTP_OPTION_DISABLE_FEATURE, &dis, sizeof dis);
 #ifdef WINHTTP_OPTION_DECOMPRESSION
     DWORD dec = WINHTTP_DECOMPRESSION_FLAG_ALL; WinHttpSetOption(q, WINHTTP_OPTION_DECOMPRESSION, &dec, sizeof dec);
@@ -74,16 +74,16 @@ static int net_get(const char *url, int timeout_ms, size_t max_bytes, cmh_resp *
         if (e == ERROR_WINHTTP_TIMEOUT) snprintf(err, errn, "timed out");
         else if (e == ERROR_WINHTTP_NAME_NOT_RESOLVED) snprintf(err, errn, "no internet (name not resolved)");
         else if (e == ERROR_WINHTTP_CANNOT_CONNECT) snprintf(err, errn, "could not connect");
-        else snprintf(err, errn, "WinHTTP error %lu", e);
+        else snprintf(err, errn, "connection error %lu", e);
         goto out;
     }
     DWORD st = 0, sl = sizeof st;
     WinHttpQueryHeaders(q, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &st, &sl, WINHTTP_NO_HEADER_INDEX);
     for (;;) {
         char buf[65536]; DWORD got = 0;
-        if (!WinHttpReadData(q, buf, sizeof buf, &got)) { snprintf(err, errn, "read failed (%lu)", GetLastError()); goto out; }
+        if (!WinHttpReadData(q, buf, sizeof buf, &got)) { snprintf(err, errn, "the download broke off (error %lu)", GetLastError()); goto out; }
         if (!got) break;
-        if (sink_add(&b, buf, got)) { snprintf(err, errn, "answer larger than %zu bytes", max_bytes); goto out; }
+        if (sink_add(&b, buf, got)) { snprintf(err, errn, "the wiki sent more data than expected"); goto out; }
     }
     r->status = (int)st; r->body = b.p ? b.p : calloc(1, 1); r->n = b.n; b.p = NULL;
     rc = 0;
@@ -109,15 +109,15 @@ static size_t w_cb(char *d, size_t sz, size_t nm, void *u) {
 static void *curl_lib; static int curl_tried;
 static int net_get(const char *url, int timeout_ms, size_t max_bytes, cmh_resp *r, char *err, size_t errn) {
     if (!curl_tried) { curl_tried = 1; curl_lib = dlopen("/usr/lib/libcurl.4.dylib", RTLD_NOW | RTLD_LOCAL); }
-    if (!curl_lib) { snprintf(err, errn, "libcurl not loadable"); return -1; }
+    if (!curl_lib) { snprintf(err, errn, "the system's download library is missing"); return -1; }
     void *(*init)(void) = (void *(*)(void))dlsym(curl_lib, "curl_easy_init");
     int (*setopt)(void *, int, ...) = (int (*)(void *, int, ...))dlsym(curl_lib, "curl_easy_setopt");
     int (*perform)(void *) = (int (*)(void *))dlsym(curl_lib, "curl_easy_perform");
     int (*getinfo)(void *, int, ...) = (int (*)(void *, int, ...))dlsym(curl_lib, "curl_easy_getinfo");
     void (*cleanup)(void *) = (void (*)(void *))dlsym(curl_lib, "curl_easy_cleanup");
     const char *(*strerr)(int) = (const char *(*)(int))dlsym(curl_lib, "curl_easy_strerror");
-    if (!init || !setopt || !perform || !getinfo || !cleanup) { snprintf(err, errn, "libcurl: missing functions"); return -1; }
-    void *c = init(); if (!c) { snprintf(err, errn, "curl_easy_init failed"); return -1; }
+    if (!init || !setopt || !perform || !getinfo || !cleanup) { snprintf(err, errn, "the system's download library is missing"); return -1; }
+    void *c = init(); if (!c) { snprintf(err, errn, "the download could not start"); return -1; }
     sink b = { 0 }; b.max = max_bytes;
     setopt(c, C_URL, url); setopt(c, C_FOLLOW, 0L); setopt(c, C_NOSIGNAL, 1L);
     setopt(c, C_TIMEOUT_MS, (long)timeout_ms); setopt(c, C_CONNECT_MS, (long)(timeout_ms < 10000 ? timeout_ms : 10000));
@@ -127,10 +127,10 @@ static int net_get(const char *url, int timeout_ms, size_t max_bytes, cmh_resp *
     setopt(c, C_WRITEFN, w_cb); setopt(c, C_WRITEDATA, &b);
     int e = perform(c); long code = 0;
     if (e) {
-        if (b.over) snprintf(err, errn, "answer larger than %zu bytes", max_bytes);
+        if (b.over) snprintf(err, errn, "the wiki sent more data than expected");
         else if (e == 6) snprintf(err, errn, "no internet (name not resolved)");
         else if (e == 28) snprintf(err, errn, "timed out");
-        else snprintf(err, errn, "%s", strerr ? strerr(e) : "curl error");
+        else snprintf(err, errn, "%s", strerr ? strerr(e) : "connection error");
         cleanup(c); free(b.p);
         return -1;
     }

@@ -137,7 +137,7 @@ static int decode_long(const char *t, wk_build *out, int max, int *code, char *e
         int fp = wk_code_fp(buf[0] == '~' ? buf + 1 : buf);
         if (fp >= 0 && fp != wk_fp()) return set_err(code, WKL_OTHER_DATA, err, errn, "This link was made with other wiki data (another game version): make it again on the wiki.");
     }
-    if (k < 1) { if (code) *code = WKL_BAD; snprintf(err, errn, "This link is damaged or cut short (%s). Copy it again.", e[0] ? e : "?"); return -1; }
+    if (k < 1) { if (code) *code = WKL_BAD; snprintf(err, errn, "This link is damaged or cut short. Copy it again."); FE_LOG("wiki link: damaged or cut short: %s", e[0] ? e : "?"); return -1; }
     if (fpm) return set_err(code, WKL_OTHER_DATA, err, errn, "This link was made with other wiki data (another game version): make it again on the wiki.");
     if (code) *code = WKL_OK;
     return k;
@@ -171,7 +171,7 @@ int wkl_resolve(const char *text, wk_build *out, int max, int timeout_ms, int *c
     char tgt[16384];
     if ((st == 301 || st == 302 || st == 303 || st == 307 || st == 308) ? wkl_target_of(loc, NULL, tgt, sizeof tgt) : st == 200 ? wkl_target_of(NULL, body, tgt, sizeof tgt) : -1) {
         if (code) *code = WKL_SERVER;
-        snprintf(err, errn, "The wiki gave an unexpected answer for this short link (HTTP %d). Try again later, or open it on the wiki and copy the long link.", st);
+        snprintf(err, errn, "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.", st);
         return -1;
     }
     return decode_long(tgt, out, max, code, err, errn);

@@ -5,6 +5,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* where the save, link and My Units code sends the detail behind a short player message (parser errors, paths,
+   ids). NULL (tests, tools): nothing is logged. Set by the module's init to its log. */
+extern void (*fe_log_hook)(const char *fmt, ...);
+#define FE_LOG(...) do { if (fe_log_hook) fe_log_hook(__VA_ARGS__); } while (0)
+
 enum { JN_NULL, JN_FALSE, JN_TRUE, JN_NUM, JN_STR, JN_ARR, JN_OBJ };
 
 typedef struct jv {

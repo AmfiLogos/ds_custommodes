@@ -105,7 +105,7 @@ static void pv_value(int r, char *out, size_t cap) {
                   else snprintf(out, cap, "Best of %d", pv_bo[pv.bo]); break;
     case PVR_TIME: snprintf(out, cap, "%d:%02d per round", pv_secs[pv.secs] / 60, pv_secs[pv.secs] % 60); break;
     case PVR_PAUSE: snprintf(out, cap, "%s", pv.pause ? "Planning pause every 7 s" : "No pause"); break;
-    case PVR_ARENA: if (pv_here()) snprintf(out, cap, "This settlement"); else snprintf(out, cap, "Dungeon floor %d (tested)", PV_FLOOR + 1); break;
+    case PVR_ARENA: if (pv_here()) snprintf(out, cap, "This settlement"); else snprintf(out, cap, "Dungeon floor %d", PV_FLOOR + 1); break;
     }
 }
 static const char *pv_label[PVR_N] = { "Mode", "To win", "Round time", "Pause", "Arena", "Vanilla check" };
@@ -474,7 +474,10 @@ static void br_send(void) {
     char *r = pvp_units_exec("pvp_units_bring", b.p); free(b.p);
     int ok = r && strstr(r, "\"ok\":true");
     char names[160] = ""; size_t q = 0; for (int i = 0, k = 0; i < br_nunits; i++) if (br_pick[i]) q += (size_t)snprintf(names + q, sizeof names - q, "%s%s", k++ ? ", " : "", br_unit_name[i]);
-    snprintf(br_sent, sizeof br_sent, ok ? "Brought: %s. The host starts the match with them." : "Could not bring the units: %s", ok ? names : (r ? r : "?"));
+    char er[300] = ""; if (!ok && r) jstr(r, "error", er, sizeof er);
+    if (ok) snprintf(br_sent, sizeof br_sent, "Brought: %s. The host starts the match with them.", names);
+    else if (er[0]) snprintf(br_sent, sizeof br_sent, "Could not bring the units: %s", er);
+    else snprintf(br_sent, sizeof br_sent, "Could not bring the units. Try again.");
     rig_log("pvp ui: Bring %d unit(s) from %s: %s", n, br_files[br_save], r ? r : "(no answer)");
     free(r);
     br_refresh();
@@ -652,7 +655,7 @@ static void pr_frame(const pvp_state *s) {
 /* ---- every frame (from mpmenu_frame) */
 static void pvp_ui_tips(void) {
     if (!pv_open && !pr_open) {
-        tip_try(pvb(PVB_ESC), "PvP Match", "Opens the PvP match setup: two teams of players fight each other on a dungeon floor with no monsters. The world comes back as it was after the match.");
+        tip_try(pvb(PVB_ESC), "PvP Match", "Opens the PvP match setup, where two teams of players fight each other. After the match, the world is back as it was.");
         tip_try(pvb(PVB_READY), "Ready", "You have given your orders. The planning pause ends when every player pressed Ready, or after 5 seconds.");
         return;
     }
@@ -662,7 +665,7 @@ static void pvp_ui_tips(void) {
         else tip_try(pvb(PVB_START), "Start Match", "Sends everyone to the arena floor with the teams and rules shown. The match begins by itself once everyone has arrived.");
         tip_try(pvb(PVB_CLOSE), "Close", "Closes this window. Nothing is sent.");
         tip_try(pvb(PVB_BRING), "Bring Units", "Fight with units from one of your own saves instead of this world's units. They are copies: your save stays as it is.");
-        for (int i = 0; i < 8; i++) tip_try(pvb(PVB_P0 + i), "Team", "The host clicks a player to move him to the other team. Each player brings the units he owns.");
+        for (int i = 0; i < 8; i++) tip_try(pvb(PVB_P0 + i), "Team", "The host clicks a player to move them to the other team. Each player brings the units they own.");
         tip_try(pvt(h_pv_teamh[1]), "Blue Team", pv_here() ? "Starts at one end of the settlement." : "Starts at the arrival point of the arena.");
         tip_try(pvt(h_pv_teamh[2]), "Red Team", pv_here() ? "Starts at the other end of the settlement." : "Starts at the far end of the arena, by the exit portal (which does not work in a match).");
     }
@@ -827,7 +830,7 @@ int pvp_v1_lobby_start(char *err, size_t errn) {
     int rc = pvp_ui_start_match ? pvp_ui_start_match(pv.mode, teams, &r, -1, 0, 0) : -9;
     rig_log("pvp v1: lobby Start: teams %d/%d brought units, rc %d", per[1], per[2], rc);
     if (rc == -4) { snprintf(err, errn, "%s", pvp_mods_last ? pvp_mods_last() : "The Vanilla check refused the start."); return -1; }
-    if (rc) { snprintf(err, errn, "The match could not start (%d).", rc); return -1; }
+    if (rc) { snprintf(err, errn, "The match could not start. Try again."); return -1; }
     return 0;
 }
 /* host choice "PvP": its rules on the host page, in their own panel, open (owner v12 5), each row with the game's tooltip.

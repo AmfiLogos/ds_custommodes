@@ -109,7 +109,7 @@ static void reset_task(jv *d) {
 jv *fe_export_unit(const jv *save, const char *g, char *err, size_t errn) {
     jv *ec = ec_of(save);
     const char *sd = fe_side_of(save, g);
-    if (!sd || !jget(ec, g)) { snprintf(err, errn, "unit %s is not a clan unit of this save", g); return NULL; }
+    if (!sd || !jget(ec, g)) { snprintf(err, errn, "a unit is not in this save's clan"); FE_LOG("fe save: unit %s is not a clan unit of this save", g); return NULL; }
     jv *ecd = jget(save, "EntityContainerSaveData");
     jv *comps = jcopy(jget(ec, g));
     reset_task(fe_comp(comps, 7));                                  /* a job in the home world means nothing elsewhere */
@@ -138,7 +138,7 @@ jv *fe_export_unit(const jv *save, const char *g, char *err, size_t errn) {
         jv *x = todo->v[todo->cnt - 1]; char ig[64]; snprintf(ig, sizeof ig, "%s", x->s); jarr_del(todo, todo->cnt - 1);
         if (jget(items, ig)) continue;
         jv *ie = jget(ec, ig);
-        if (!ie) { snprintf(err, errn, "item %s of unit %s has no entity in this save", ig, g); jfree(todo); jfree(items); jfree(u); return NULL; }
+        if (!ie) { snprintf(err, errn, "an item of one unit is missing from this save"); FE_LOG("fe save: item %s of unit %s has no entity in this save", ig, g); jfree(todo); jfree(items); jfree(u); return NULL; }
         jv *it = jobj(), *cc = jcopy(ie);
         item_guids_of(cc, todo);
         jset(it, "components", cc);
@@ -577,7 +577,7 @@ static void rep(jv *report, const char *g, const char *fmt, ...) {
 char *fe_apply_results(const jv *home, const jv *result, const jv *manifests, const char *ledger_path, const char *out_dir,
                        const jv *choices, jv *report, char *err, size_t errn) {
     const char *rid = jget(result, "run_id") ? jget(result, "run_id")->s : "";
-    if (!fe_result_hash_ok(result)) { snprintf(err, errn, "these results are damaged (hash mismatch)"); return NULL; }
+    if (!fe_result_hash_ok(result)) { snprintf(err, errn, "these results are damaged"); return NULL; }
     char e2[200];
     jv *led = jload(ledger_path, e2, sizeof e2); if (!led) { led = jobj(); jset(led, "claims", jobj()); }
     jv *claim = jget(jget(led, "claims"), rid);
@@ -599,7 +599,7 @@ char *fe_apply_results(const jv *home, const jv *result, const jv *manifests, co
         jfree(led); return NULL;
     }
     char mk[80]; snprintf(mk, sizeof mk, FE_MARK "%s", rid);
-    if (jget(jpath(home, "ReportSaveData.InGameRecordData.Counts"), mk)) { snprintf(err, errn, "Already brought home (marker in this save)."); jfree(led); return NULL; }
+    if (jget(jpath(home, "ReportSaveData.InGameRecordData.Counts"), mk)) { snprintf(err, errn, "These results are already in this save."); jfree(led); return NULL; }
     jv *out = jcopy(home), *ec = ec_of(out), *rules = jget(result, "rules");
     jv *home_diff = fe_difficulty_keys(out);
     char need[600] = "";
@@ -691,10 +691,10 @@ char *fe_apply_results(const jv *home, const jv *result, const jv *manifests, co
     jset(oh, "IsAutoSave", jbool(jtruthy(jget(oh, "IronModeEnabled")))); jset(oh, "SaveTime", jstrv(ts));
     jset(jget(out, "ClanSaveData"), "CurrentPopulation", jnum_i(fe_clan_count(out)));
     char probs[600];
-    if (fe_check_refs(out, NULL, probs, sizeof probs)) { snprintf(err, errn, "the merged save failed the reference check: %s", probs); jfree(out); jfree(led); jfree(left); return NULL; }
+    if (fe_check_refs(out, NULL, probs, sizeof probs)) { snprintf(err, errn, "the new save failed its safety check, so it was not written (details in the log)"); FE_LOG("fe save: the merged save failed the reference check: %s", probs); jfree(out); jfree(led); jfree(left); return NULL; }
     char path[1500]; snprintf(path, sizeof path, "%s/%s.json", out_dir, stem);
     mkdir(out_dir, 0755);
-    if (jsave_new(out, path)) { snprintf(err, errn, "could not write %s (exists already?)", path); jfree(out); jfree(led); jfree(left); return NULL; }
+    if (jsave_new(out, path)) { snprintf(err, errn, "could not write the new save (a save with that name may exist already)"); FE_LOG("fe save: could not write %s", path); jfree(out); jfree(led); jfree(left); return NULL; }
     jfree(out);
     jv *c = jobj(); now_str(ts, sizeof ts, "%Y-%m-%d %H:%M");
     jset(c, "date", jstrv(ts)); jset(c, "file", jstrv(path)); jset(c, "left_items", left);
