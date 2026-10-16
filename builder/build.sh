@@ -3,7 +3,8 @@
 # custom/fights, our engine wrapper, and the My Units store / link reader of custom/units for the Save checks.
 # Output in <repo>/build_bld/ (git-ignored). usage: custom/builder/build.sh
 set -e
-H=${0:A:h}; C=${H:h}; R=${C:h}; B=$R/build_bld; mkdir -p $B/obj
+# R = the ds_multiplayer root (headers src/ sdk/, build output): MP_ROOT, else the parent folder when this repo sits in it as custom/, else ~/ds_multiplayer
+H=${0:A:h}; C=${H:h}; R=${MP_ROOT:-${C:h}}; [[ -n $MP_ROOT || -f $R/src/mp_api.h ]] || R=$HOME/ds_multiplayer; B=$R/build_bld; mkdir -p $B/obj
 CF=(-arch arm64 -mmacosx-version-min=12.0 -D_DARWIN_C_SOURCE -O2 -Wall -Wno-unused-function -fwrapv -I$R/sdk -I$R/src
     -I$C -I$C/fe -I$C/fights -I$C/units -I$C/builder)
 SRCS=(fights/qjs_quickjs.c fights/qjs_cutils.c fights/qjs_dtoa.c fights/qjs_regexp.c fights/qjs_unicode.c fights/tinf/tinflate.c

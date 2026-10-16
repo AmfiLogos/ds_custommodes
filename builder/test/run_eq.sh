@@ -5,7 +5,8 @@
 # to the same unit in C (wk_link). Needs: build.sh run first; the wiki source (default ~/dungeonsettlersdb/site/builder).
 # usage: custom/builder/test/run_eq.sh [count] [seed] [wiki builder dir]
 set -e
-H=${0:A:h}; R=${H:h:h:h}; B=$R/build_bld
+# R = the ds_multiplayer root (headers src/ sdk/, build output): MP_ROOT, else the parent folder when this repo sits in it as custom/, else ~/ds_multiplayer
+H=${0:A:h}; R=${MP_ROOT:-${H:h:h:h}}; [[ -n $MP_ROOT || -f $R/src/mp_api.h ]] || R=$HOME/ds_multiplayer; B=$R/build_bld
 N=${1:-300}; SEED=${2:-13}; BUILDER=${3:-$HOME/dungeonsettlersdb/site/builder}
 O=$B/eq; [[ -d $O ]] && mkdir -p $B/old && mv $O $B/old/eq_$(date +%s); mkdir -p $O
 $B/bld_cli $BUILDER $O $N $SEED

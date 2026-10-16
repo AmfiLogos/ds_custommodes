@@ -3,7 +3,8 @@
 # for live gallery pages (fetched here into build_c4/, not committed) and the live builds/words.json.
 # usage: custom/gallery/test/gal_names.sh [wiki site dir]
 set -e
-H=${0:A:h}; R=${H:h:h:h}; B=$R/build_c4; SITE=${1:-$HOME/dungeonsettlersdb/site}
+# R = the ds_multiplayer root (headers src/ sdk/, build output): MP_ROOT, else the parent folder when this repo sits in it as custom/, else ~/ds_multiplayer
+H=${0:A:h}; R=${MP_ROOT:-${H:h:h:h}}; [[ -n $MP_ROOT || -f $R/src/mp_api.h ]] || R=$HOME/ds_multiplayer; B=$R/build_c4; SITE=${1:-$HOME/dungeonsettlersdb/site}
 D=$B/gal_live; mkdir -p $D
 W=https://dungeonsettlers.wiki
 curl -sf -m 20 $W/builds/words.json -o $D/words.json

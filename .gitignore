@@ -1,4 +1,15 @@
-# Only source, scripts and notes go in git. Never game files, dumps, builds, saves or test output.
+# Only source, scripts and notes go in git. Never game files, dumps, builds, test binaries, saves or test output.
+# 1. Files: only names with an extension (source, scripts, data), plus the few text files listed. A test binary
+#    (extensionless Mach-O / ELF, e.g. pvp_test_bin) is never added.
+*
+!*/
+!*.*
+!Makefile
+!LICENSE
+!Changelog
+!VERSION
+!/gallery/test/data/api/gallery
+# 2. Top level: only these.
 /*
 !/.gitignore
 !/README.md
@@ -17,7 +28,9 @@
 !/home/
 !/pvp/
 !/units/
-# game binaries and dumps (copyright: never publish)
+# 3. Binaries, debug files, game files and dumps (copyright: never publish)
+*_bin
+*.dSYM/
 *.dll
 *.dylib
 *.exe
@@ -25,17 +38,22 @@
 *.so
 *.o
 *.a
+*.obj
+*.pdb
+*.bundle
+*.assets
 dump/
 dump.cs
 il2cpp.h
 script.json
 methods.tsv
-# builds, copies, test output
+# 4. Builds, copies, test output
 build/
 build_*/
 old/
 old_versions/
 out/
+tmp/
 *.zip
 *.png
 *.jpg

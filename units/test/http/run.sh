@@ -4,7 +4,9 @@
 # disable-executable-page-protection, read from the installed game when present). Output: one line per backend and
 # thread. DSMP_HTTP=curl / cf forces one backend for wkl_resolve.
 set -e
-D=$(cd "$(dirname "$0")" && pwd); U="$D/../.."; C="$D/../../.."; O="$D/../../../../build/units/http"; mkdir -p "$O"
+D=$(cd "$(dirname "$0")" && pwd); U="$D/../.."; C="$D/../../.."
+R="${MP_ROOT:-$C/..}"; [ -n "$MP_ROOT" ] || [ -f "$R/src/mp_api.h" ] || R="$HOME/ds_multiplayer"   # ds_multiplayer root: MP_ROOT, else the parent of this repo when it is custom/ there, else ~/ds_multiplayer
+O="$R/build/units/http"; mkdir -p "$O"
 G="$HOME/Library/Application Support/Steam/steamapps/common/Dungeon Settlers/DungeonSettlers.app"
 if [ -d "$G" ]; then codesign -d --entitlements :- "$G" > "$O/game.entitlements" 2>/dev/null; echo "entitlements: from the installed game"
 else cat > "$O/game.entitlements" <<'PL'
