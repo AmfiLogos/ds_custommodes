@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Standalone build of Custom Modes for the mod loader: mac-arm64 and win-x64, the same bytes the loader build makes.
+# Standalone build of Custom Modes for the mod loader: mac-arm64 and win-x64. The Mac files are byte-identical to the
+# loader build's; the Windows DLLs differ by their build time stamp and the build folder in quickjs' __FILE__ strings.
 # Custom Modes needs the multiplayer mod's headers (src/: mp_api.h, mp_dlsym.h ...), dsl_sdk.h (sdk/) and, for Windows,
 # its build (win/build_win.sh also builds multiplayer.dll, which custom-modes-mp.dll links to). They come from ONE pinned
 # ds_multiplayer commit (mp_pin.txt), exported read-only with `git archive` into build/mp/<sha>/.
@@ -30,8 +31,11 @@ fi
 if [[ $WHAT == (win|all) ]]; then
   G=${MP_GAME:-$MP_REPO/win/25846389}
   [[ -e $T/win/25846389 ]] || ln -s ${G:A} $T/win/25846389
+  # this folder (minus build/, which holds the pinned tree) replaces the pinned tree's custom/ (the Windows tools scan it all)
+  mkdir -p $H/build/old; [[ -d $T/custom ]] && mv $T/custom $H/build/old/custom-$(date +%Y%m%d-%H%M%S)
+  rsync -a --exclude /build/ --exclude /.git/ $H/ $T/custom/
   # the multiplayer module folder this also writes is not used here (DSL_MODJSON only has to be a mod.json)
-  DSMP_TARGET=module DSL_SDK=$SDK DSMP_CUSTOM=$H DSL_MODJSON=$H/mod.json CM_MODJSON=$H/mod.json nice -n 19 zsh $T/win/build_win.sh | tail -3
+  DSMP_TARGET=module DSL_SDK=$SDK DSL_MODJSON=$H/mod.json nice -n 19 zsh $T/win/build_win.sh | tail -3
   O=$H/build/win/custom-modes; mkdir -p $O
   for f in custom-modes.dll custom-modes-mp.dll; do cp $T/win/build/mods/custom-modes/$f $O/$f.tmp; mv -f $O/$f.tmp $O/$f
     ~/tools/llvm-mingw/bin/llvm-strip --strip-debug $O/$f; done
