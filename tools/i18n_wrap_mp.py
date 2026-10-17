@@ -77,8 +77,8 @@ def wrap_arg(src, a, b, edits):
             e += m2.end()
         k = e
         before = seg[:s].rstrip()
-        if re.search(r"\b(TR|TRN|TR_NOOP)\s*\($", before) or re.search(r"\b(TR|TRN)\s*\([^()]*,\s*$", before):
-            continue
+        if re.search(r"\b(TR|TRN|TR_NOOP)\s*\($", before) or re.search(r"\b(TR|TRN|cmt_game)\s*\([^()]*,\s*$", before):
+            continue                                      # cmt_game(key, "English"): the game's text, English fallback
         lits = LIT.findall(seg[s:e])
         if not texty('"' + "".join(x[1:-1] for x in lits) + '"'):
             continue
@@ -109,9 +109,10 @@ def process(path, check):
                 fmt = src[args[2][0]:args[2][1]].strip()
                 if not fmt.startswith('"'):
                     continue
-            if name == "snprintf" and len(args) == 3 and "%" not in src[args[2][0]:args[2][1]]:
+            fi = {"snprintf": 2, "center": 0}.get(name)       # printf-style sinks: index of the format
+            if fi is not None and len(args) == fi + 1 and "%" not in src[args[fi][0]:args[fi][1]]:
                 n0 = len(edits)                               # no conversion: snprintf(b, n, "%s", TR("...")), so a
-                wrap_arg(src, args[2][0], args[2][1], edits)  # translation is never read as a format
+                wrap_arg(src, args[fi][0], args[fi][1], edits)  # translation is never read as a format
                 if len(edits) > n0:
                     edits[-1] = edits[-1] + ("%s",)
                 continue

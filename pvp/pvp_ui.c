@@ -82,7 +82,7 @@ static int pvp_ui_present(int *ids, char (*names)[32], int max) {
     uint32_t pm = dsnet_present_mask(c); int n = 0;
     for (int p = 0; p < 32 && n < max; p++) if (pm >> p & 1) {
         const char *nm = dsnet_player_name(c, p);
-        ids[n] = p; snprintf(names[n], 32, "%s", nm && nm[0] ? nm : p == 0 ? "Host" : "Player"); n++;
+        ids[n] = p; snprintf(names[n], 32, "%s", nm && nm[0] ? nm : p == 0 ? TR("Host") : TR("Player")); dsi_utf8_fix_end(names[n]); n++;
     }
     return n;
 }
@@ -100,23 +100,24 @@ static int pv_vanilla_shown(const pvp_state *s, int host) {
 static void pv_value(int r, char *out, size_t cap) {
     switch (r) {
     case PVR_VANILLA: { const pvp_state *s = pvp_ui_state ? pvp_ui_state() : NULL;
-                        snprintf(out, cap, "%s", pv_vanilla_shown(s, pvp_ui_is_host && pvp_ui_is_host()) ? "On: vanilla only" : "Off: mods allowed"); break; }
-    case PVR_MODE: snprintf(out, cap, "%s", pv.mode == PVP_MODE_CTF ? "Capture the Flag" : "Fight"); break;
-    case PVR_WIN: if (pv.mode == PVP_MODE_CTF) snprintf(out, cap, TR("%d capture%s to win"), pv_bo[pv.bo], pv_bo[pv.bo] > 1 ? "s" : "");
+                        snprintf(out, cap, "%s", pv_vanilla_shown(s, pvp_ui_is_host && pvp_ui_is_host()) ? TR("On: vanilla only") : TR("Off: mods allowed")); break; }
+    case PVR_MODE: snprintf(out, cap, "%s", pv.mode == PVP_MODE_CTF ? TR("Capture the Flag") : TR("Fight")); break;
+    case PVR_WIN: if (pv.mode == PVP_MODE_CTF) snprintf(out, cap, TRN("%d capture to win", "%d captures to win", pv_bo[pv.bo]), pv_bo[pv.bo]);
                   else snprintf(out, cap, TR("Best of %d"), pv_bo[pv.bo]); break;
     case PVR_TIME: snprintf(out, cap, TR("%d:%02d per round"), pv_secs[pv.secs] / 60, pv_secs[pv.secs] % 60); break;
-    case PVR_PAUSE: snprintf(out, cap, "%s", pv.pause ? "Planning pause every 7 s" : "No pause"); break;
+    case PVR_PAUSE: snprintf(out, cap, "%s", pv.pause ? TR("Planning pause every 7 s") : TR("No pause")); break;
     case PVR_ARENA: if (pv_here()) snprintf(out, cap, "%s", TR("This settlement")); else snprintf(out, cap, TR("Dungeon floor %d"), PV_FLOOR + 1); break;
     }
+    dsi_utf8_fix_end(out);
 }
-static const char *pv_label[PVR_N] = { "Mode", "To win", "Round time", "Pause", "Arena", "Vanilla check" };
+static const char *pv_label[PVR_N] = { TR_NOOP("Mode"), TR_NOOP("To win"), TR_NOOP("Round time"), TR_NOOP("Pause"), TR_NOOP("Arena"), TR_NOOP("Vanilla check") };   /* TR() when drawn */
 static const char *pv_tip[PVR_N] = {
-    "Fight: a team wins the round when the other team has no unit left standing. Capture the Flag: take the other team's banner flag and bring it to your own banner while your flag is home.",
-    "Fight: how many rounds are played at most; the first team to win most of them wins the match. Capture the Flag: how many captures win the match.",
-    "Time for one round of game time at normal speed. When it runs out: Fight gives the round to the team with more health left; Capture the Flag counts it as a draw.",
-    "No pause: nobody can pause during the match. Planning pause: the game stops every 7 seconds of fighting so everyone can give orders; it goes on after 5 seconds or when everyone pressed Ready.",
-    "Where the match is played. A dungeon floor: the same map for everyone, with no monsters, no items and no portal. In a PvP world or an expedition hub: this settlement. Teams start at opposite ends.",
-    "On: vanilla only. No gameplay mods for anyone. Client mods (screen and controls) are fine.\n\nOff: mods allowed. The host's gameplay mods are required, and the launcher shares them with every player." };
+    TR_NOOP("Fight: a team wins the round when the other team has no unit left standing. Capture the Flag: take the other team's banner flag and bring it to your own banner while your flag is home."),
+    TR_NOOP("Fight: how many rounds are played at most; the first team to win most of them wins the match. Capture the Flag: how many captures win the match."),
+    TR_NOOP("Time for one round of game time at normal speed. When it runs out: Fight gives the round to the team with more health left; Capture the Flag counts it as a draw."),
+    TR_NOOP("No pause: nobody can pause during the match. Planning pause: the game stops every 7 seconds of fighting so everyone can give orders; it goes on after 5 seconds or when everyone pressed Ready."),
+    TR_NOOP("Where the match is played. A dungeon floor: the same map for everyone, with no monsters, no items and no portal. In a PvP world or an expedition hub: this settlement. Teams start at opposite ends."),
+    TR_NOOP("On: vanilla only. No gameplay mods for anyone. Client mods (screen and controls) are fine.\n\nOff: mods allowed. The host's gameplay mods are required, and the launcher shares them with every player.") };
 
 static void pv_build(Obj v) {
     if (!scan_done) assets_scan_now();
@@ -161,7 +162,7 @@ static void pv_build(Obj v) {
     for (int r = 0; r < PVR_N; r++) {
         float yc = PY(PV_RULES_TOP + 56 + 38 * r);
         KEEP(h_pv_rrow[r], mk_img(tpl_img, R, -1, r % 2 ? C_ROW2 : C_ROW1, 0, yc, W - 48, 36));
-        KEEP(h_pv_rlab[r], mk_txt(tpl_txt, R, 0, 15, 513, 0, PX(44 + 90), yc, 180, 30, C_SUB)); cmt_set(pvt(h_pv_rlab[r]), pv_label[r]);
+        KEEP(h_pv_rlab[r], mk_txt(tpl_txt, R, 0, 15, 513, 0, PX(44 + 90), yc, 180, 30, C_SUB)); cmt_set(pvt(h_pv_rlab[r]), TR(pv_label[r]));
         KEEP(h_pv_rval[r], mk_txt(tpl_txt, R, 0, 16, 514, 0, PX(470), yc, 380, 30, C_MAIN));
         for (int a = 0; a < 2; a++) {
             Obj b = mk_button(src, R, 1, S_NBTN, C_WHITE, PX(a ? 690 : 250), yc, 28, 28, 16, a ? "\xE2\x80\xBA" : "\xE2\x80\xB9", C_MAIN);
@@ -172,7 +173,7 @@ static void pv_build(Obj v) {
     KEEP(h_pv_note, mk_txt(tpl_txt, R, 0, 13, 514, 1, 0, PY(H - 90), W - 60, 34, C_ORANGE));
     mk_img(tpl_img, R, -1, C_BAND, 0, PY(H - 32), W - 4, 60);
     mk_img(tpl_img, R, -1, C_COPPER, 0, PY(H - 62), W - 4, 1);
-    KEEP(h_pvb[PVB_CLOSE], mk_button(src, R, 1, S_NBTN, C_WHITE, PX(24 + 90), PY(H - 32), 180, 34, 16, TR("Close"), C_MAIN));
+    KEEP(h_pvb[PVB_CLOSE], mk_button(src, R, 1, S_NBTN, C_WHITE, PX(24 + 90), PY(H - 32), 180, 34, 16, cmt_game("TEXTKEY_Common_Close", "Close"), C_MAIN));
     KEEP(h_pvb[PVB_START], mk_button(src, R, 1, S_RECRUIT, C_WHITE, PX(W - 24 - 110), PY(H - 32), 220, 42, 18, TR("Start Match"), C_START));
     KEEP(h_pvb[PVB_BRING], mk_button(src, R, 1, S_NBTN, C_WHITE, 0, PY(H - 32), 220, 34, 16, TR("Bring Units..."), C_MAIN));
     u_active(root, false);
@@ -202,7 +203,7 @@ static void pv_refresh(void) {
         int t = pv.team[ids[i]] ? pv.team[ids[i]] : PVP_TEAM_BLUE;
         float x0 = t == 1 ? 24 : 392, top = PV_TEAM_TOP + PV_BLOCK * row[t]; row[t]++;
         place(b, x0 + 172 - 380, H2 - (top + 16), 330, 32);
-        char l[64]; snprintf(l, sizeof l, "%s%s", nm[i], ids[i] == (c ? dsnet_player_id(c) : -1) ? " (you)" : "");
+        char l[96]; if (ids[i] == (c ? dsnet_player_id(c) : -1)) snprintf(l, sizeof l, TR("%s (you)"), nm[i]); else snprintf(l, sizeof l, "%s", nm[i]);
         cmt_set(btn_label(b, 1), l); txt_color(btn_label(b, 1), t == 1 ? C_BLUE : C_RED);
         u_active(b, true);
         /* before the match, when units were brought: show the brought units (they fight; the world's units step aside),
@@ -223,7 +224,7 @@ static void pv_refresh(void) {
                 if (inim) img_set(inim, sp, sp ? C_WHITE : C_ROW2);
                 u_active(fr, true);
                 char un[64] = ""; Obj txt = !strncmp(rn, "TEXTKEY", 7) ? F(0x80EBAC, Obj (*)(Obj, void *))(u_str(rn), NULL) : NULL;   /* TextKeyExtensions.GetText */
-                if (txt) str_utf8(txt, un, sizeof un);
+                if (txt) utf16_to_utf8(txt, un, sizeof un);
                 if (!un[0] || !strncmp(un, "TEXTKEY", 7)) snprintf(un, sizeof un, "%s", rn);   /* a typed name is the key itself */
                 place(nt, cx, H2 - (top + 32 + 4 + 44 + 10), 80, 16); cmt_set(nt, un); u_active(nt, true);
                 if (pv_ncol < 16) snprintf(pv_col_names[pv_ncol++], 64, "%s", un);
@@ -248,13 +249,13 @@ static void pv_refresh(void) {
             Obj inner = mm_is(u_tr(fr), K_TR) && F(0x510EAE4, int (*)(Obj, void *))(u_tr(fr), NULL) > 0 ? F(0x510FC60, Obj (*)(Obj, int, void *))(u_tr(fr), 0, NULL) : NULL;
             Obj inim = inner ? image_of(inner) : NULL;
             if (inim) img_set(inim, u_alive(sp) ? sp : NULL, u_alive(sp) ? C_WHITE : C_ROW2);
-            char un[48] = ""; str_utf8(F(0xFA467C, Obj (*)(Obj, void *))(u, NULL), un, sizeof un);   /* GetDisplayName */
+            char un[48] = ""; utf16_to_utf8(F(0xFA467C, Obj (*)(Obj, void *))(u, NULL), un, sizeof un);   /* GetDisplayName */
             place(nt, cx, H2 - (top + 32 + 4 + 44 + 10), 80, 16); cmt_set(nt, un); u_active(nt, true);
             if (pv_ncol < 16) snprintf(pv_col_names[pv_ncol++], 64, "%s", un);
         }
     }
     cmt_set(pvt(h_pv_teamh[1]), TR("Blue")); cmt_set(pvt(h_pv_teamh[2]), TR("Red"));
-    for (int t = 1; t <= 2; t++) { char u[48]; snprintf(u, sizeof u, TR("%d unit%s"), units[t], units[t] == 1 ? "" : "s"); cmt_set(pvt(h_pv_units[t]), u); }
+    for (int t = 1; t <= 2; t++) { char u[96]; snprintf(u, sizeof u, TRN("%d unit", "%d units", units[t]), units[t]); cmt_set(pvt(h_pv_units[t]), u); }
     for (int r = 0; r < PVR_N; r++) {
         char v[64]; pv_value(r, v, sizeof v); cmt_set(pvt(h_pv_rval[r]), v);
         for (int a = 0; a < 2; a++) u_active(pvb(PVB_ARROW0 + 2 * r + a), host && !busy_match && r != PVR_ARENA);
@@ -263,14 +264,16 @@ static void pv_refresh(void) {
     const char *refused = pvp_mods_last ? pvp_mods_last() : "";
     if (!busy_match && pv_err[0]) note = pv_err;                                        /* host: Start Match was refused */
     else if (!host && !busy_match && refused && refused[0]) note = refused;            /* guest: the host's refusal */
-    else if (host && !busy_match && (!units[1] || !units[2])) note = "Each team needs at least one unit (claim units with right-click on their portraits).";
-    else if (host && !busy_match) note = "Nothing that happens in the match stays: the world comes back as it was before.";
+    else if (host && !busy_match && (!units[1] || !units[2])) note = TR("Each team needs at least one unit (claim units with right-click on their portraits).");
+    else if (host && !busy_match) note = TR("Nothing that happens in the match stays: the world comes back as it was before.");
     { char vs[400] = ""; if (pvp_mods_summary) pvp_mods_summary(pv_vanilla_shown(s, host), host, vs, sizeof vs); cmt_set(pvt(h_pv_vsub), vs); }
     u_active(pvb(PVB_START), host && !busy_match);
     u_active(pvb(PVB_BRING), !busy_match && pvp_units_exec != NULL);
-    char nb[160];
+    char nb[400];
     if (!busy_match && note != pv_err && note != refused && pvp_units_roster && pvp_units_roster(-1, NULL, NULL, NULL) > 0) {
-        snprintf(nb, sizeof nb, TR("The teams fight with the %d brought unit(s) shown above; the world's units step aside until the end."), pvp_units_roster(-1, NULL, NULL, NULL));
+        int nr = pvp_units_roster(-1, NULL, NULL, NULL);
+        snprintf(nb, sizeof nb, TRN("The teams fight with the %d brought unit shown above; the world's units step aside until the end.",
+                                    "The teams fight with the %d brought units shown above; the world's units step aside until the end.", nr), nr);
         note = nb;
     }
     cmt_set(pvt(h_pv_note), note); snprintf(pv_note_txt, sizeof pv_note_txt, "%s", note);
@@ -296,7 +299,7 @@ static void pv_start(void) {
     int rc = pvp_ui_start_match ? pvp_ui_start_match(pv.mode, teams, &r, pv_here() ? -1 : PV_REGION, PV_FLOOR, PV_SEED) : -9;   /* region -1: here */
     rig_log("pvp ui: Start Match: rc %d", rc);
     if (rc == -4) {                                                       /* Vanilla check refused: stay, say why */
-        snprintf(pv_err, sizeof pv_err, "%s", pvp_mods_last ? pvp_mods_last() : "Start Match was refused.");
+        snprintf(pv_err, sizeof pv_err, "%s", pvp_mods_last ? pvp_mods_last() : TR("Start Match was refused."));
         pv_refresh(); return;
     }
     pv_show(0);
@@ -349,7 +352,7 @@ static void pv_click_do(int k) {
 #include <sys/stat.h>
 static uintptr_t h_br_root, h_br_title, h_br_hint, h_br_status, h_br_por[12], h_br_lv[12];
 static int br_open, br_nsaves, br_save = -1, br_nunits, br_pick[12];
-static char br_files[8][300], br_stems[8][96], br_unit_guid[12][40], br_unit_name[12][48], br_unit_port[12][64], br_sent[200];
+static char br_files[8][300], br_stems[8][96], br_unit_guid[12][40], br_unit_name[12][48], br_unit_port[12][64], br_sent[600];
 static int br_unit_lvl[12];
 static int br_share(void) {                                              /* 4 units in total, split between the players */
     int ids[8]; char nm[8][32]; int n = pvp_ui_present(ids, nm, 8); if (n < 1) n = 1;
@@ -390,7 +393,7 @@ static void br_read_units(int k) {
             jv *nk = pr ? jget(pr, "UnitNameTextKey") : NULL, *pid = pr ? jget(pr, "UnitPortraitID") : NULL;
             char key[96] = ""; if (nk && nk->t == JN_STR) snprintf(key, sizeof key, "%.*s", (int)nk->n, nk->s);
             Obj txt = key[0] ? F(0x80EBAC, Obj (*)(Obj, void *))(u_str(key), NULL) : NULL;     /* TextKeyExtensions.GetText */
-            br_unit_name[u][0] = 0; if (txt) str_utf8(txt, br_unit_name[u], sizeof br_unit_name[u]);
+            br_unit_name[u][0] = 0; if (txt) utf16_to_utf8(txt, br_unit_name[u], sizeof br_unit_name[u]);
             if (!br_unit_name[u][0] || !strncmp(br_unit_name[u], "TEXTKEY", 7)) snprintf(br_unit_name[u], sizeof br_unit_name[u], "%s", key);   /* a renamed unit keeps its name in the key */
             snprintf(br_unit_port[u], sizeof br_unit_port[u], "%.*s", pid && pid->t == JN_STR ? (int)pid->n : 0, pid && pid->t == JN_STR ? pid->s : "");
             br_unit_lvl[u] = (int)jnumv(jpath(st, "ProgressionStats.Level"));
@@ -424,7 +427,7 @@ static void br_build(Obj v) {
     }
     KEEP(h_br_status, mk_txt(tpl_txt, R, 0, 13, 514, 1, 0, BY(H - 90), W - 60, 34, C_ORANGE));
     mk_img(tpl_img, R, -1, C_BAND, 0, BY(H - 32), W - 4, 60); mk_img(tpl_img, R, -1, C_COPPER, 0, BY(H - 62), W - 4, 1);
-    KEEP(h_pvb[PVB_BR_BACK], mk_button(src, R, 1, S_NBTN, C_WHITE, BX(24 + 90), BY(H - 32), 180, 34, 16, TR("Back"), C_MAIN));
+    KEEP(h_pvb[PVB_BR_BACK], mk_button(src, R, 1, S_NBTN, C_WHITE, BX(24 + 90), BY(H - 32), 180, 34, 16, cmt_game("TEXTKEY_Shared_Back", "Back"), C_MAIN));
     KEEP(h_pvb[PVB_BR_SEND], mk_button(src, R, 1, S_RECRUIT, C_WHITE, BX(W - 24 - 110), BY(H - 32), 220, 42, 18, TR("Bring"), C_START));
     KEEP(h_pvb[PVB_BR_WIKI], mk_button(src, R, 1, S_NBTN, C_WHITE, 0, BY(H - 32), 220, 34, 15, TR("Paste Wiki Link"), C_MAIN));
     u_active(root, false);
@@ -435,12 +438,14 @@ static void br_build(Obj v) {
 static void br_refresh(void) {
     int share = br_share(), npick = 0; for (int i = 0; i < br_nunits; i++) npick += br_pick[i];
     cmt_set(pvt(h_br_title), TR("Bring Units"));
-    char h[200]; snprintf(h, sizeof h, TR("Pick up to %d units from a save on your computer, or paste a wiki builder team link. Copies only: nothing is changed."), share);
+    char h[600]; snprintf(h, sizeof h, TRN("Pick up to %d unit from a save on your computer, or paste a wiki builder team link. Copies only: nothing is changed.",
+                                         "Pick up to %d units from a save on your computer, or paste a wiki builder team link. Copies only: nothing is changed.", share), share);
     cmt_set(pvt(h_br_hint), h);
     for (int i = 0; i < 8; i++) {
         Obj b = pvb(PVB_BR_SAVE0 + i); u_active(b, i < br_nsaves);
         if (i < br_nsaves) { char st[40]; size_t L = strlen(br_stems[i]);
-                             if (L > 26) snprintf(st, sizeof st, "%.24s\xE2\x80\xA6", br_stems[i]); else snprintf(st, sizeof st, "%s", br_stems[i]);   /* long autosave names: cut */
+                             if (L > 26) { char c24[25]; snprintf(c24, sizeof c24, "%s", br_stems[i]); dsi_utf8_fix_end(c24);   /* long autosave names: cut at a character */
+                                           snprintf(st, sizeof st, "%s\xE2\x80\xA6", c24); } else snprintf(st, sizeof st, "%s", br_stems[i]);
                              cmt_set(btn_label(b, 1), st); txt_color(btn_label(b, 1), i == br_save ? C_GOLD : C_MAIN); }
     }
     for (int i = 0; i < 12; i++) {
@@ -449,13 +454,13 @@ static void br_refresh(void) {
         if (!on) continue;
         char l[80]; snprintf(l, sizeof l, "%s%s", br_pick[i] ? "\xE2\x80\xA2 " : "", br_unit_name[i]);   /* picked: gold with a dot (the font has no tick) */
         cmt_set(btn_label(b, 1), l); txt_color(btn_label(b, 1), br_pick[i] ? C_GOLD : C_MAIN);
-        char lt[40]; snprintf(lt, sizeof lt, TR("Level %d"), br_unit_lvl[i]); cmt_set(lv, lt);
+        char lt[64]; cmt_level(lt, sizeof lt, br_unit_lvl[i]); cmt_set(lv, lt);
         Obj inner = mm_is(u_tr(fr), K_TR) && F(0x510EAE4, int (*)(Obj, void *))(u_tr(fr), NULL) > 0 ? F(0x510FC60, Obj (*)(Obj, int, void *))(u_tr(fr), 0, NULL) : NULL;
         Obj im = inner ? image_of(inner) : NULL, sp = br_unit_port[i][0] ? portrait_sprite(br_unit_port[i]) : NULL;
         if (im) img_set(im, sp, sp ? C_WHITE : C_ROW2);
         u_active(fr, sp != NULL);                                        /* no loaded portrait: no empty frame */
     }
-    char st[220];
+    char st[600];
     if (br_sent[0]) snprintf(st, sizeof st, "%s", br_sent);
     else snprintf(st, sizeof st, TR("%d of %d picked."), npick, share);
     cmt_set(pvt(h_br_status), st);
@@ -477,7 +482,7 @@ static void br_send(void) {
     char names[160] = ""; size_t q = 0; for (int i = 0, k = 0; i < br_nunits; i++) if (br_pick[i]) q += (size_t)snprintf(names + q, sizeof names - q, "%s%s", k++ ? ", " : "", br_unit_name[i]);
     char er[300] = ""; if (!ok && r) jstr(r, "error", er, sizeof er);
     if (ok) snprintf(br_sent, sizeof br_sent, TR("Brought: %s. The host starts the match with them."), names);
-    else if (er[0]) snprintf(br_sent, sizeof br_sent, TR("Could not bring the units: %s"), er);
+    else if (er[0]) { char em[400]; snprintf(br_sent, sizeof br_sent, TR("Could not bring the units: %s"), cmt_msg(er, em, sizeof em)); }
     else snprintf(br_sent, sizeof br_sent, "%s", TR("Could not bring the units. Try again."));
     rig_log("pvp ui: Bring %d unit(s) from %s: %s", n, br_files[br_save], r ? r : "(no answer)");
     free(r);
@@ -492,9 +497,10 @@ static void br_wiki(void) {
     Buf b = { 0 }; bput(&b, "{\"cmd\":\"pvp_units_wiki\",\"max\":%d,\"link\":", br_share()); bstr(&b, clip); bput(&b, "}");
     char *r = pvp_units_exec("pvp_units_wiki", b.p); free(b.p);
     int ok = r && strstr(r, "\"ok\":true");
-    char er[300] = "", nn[16] = ""; if (r) { jstr(r, "error", er, sizeof er); }
-    double n = 0; if (r) jnum(r, "n", &n); snprintf(nn, sizeof nn, "%d", (int)n);
-    if (ok) snprintf(br_sent, sizeof br_sent, TR("Brought %s unit(s) from the wiki link. The host starts the match with them."), nn);
+    char er[300] = ""; if (r) { jstr(r, "error", er, sizeof er); }
+    double n = 0; if (r) jnum(r, "n", &n);
+    if (ok) snprintf(br_sent, sizeof br_sent, TRN("Brought %d unit from the wiki link. The host starts the match with them.",
+                                                  "Brought %d units from the wiki link. The host starts the match with them.", (int)n), (int)n);
     else snprintf(br_sent, sizeof br_sent, TR("Could not use the wiki link: %s"), er[0] ? er : "?");
     for (int i = 0; i < br_nunits; i++) br_pick[i] = 0;
     rig_log("pvp ui: wiki link (%zu chars): %s", strlen(clip), r ? r : "(no answer)");
@@ -585,11 +591,13 @@ static void hud_frame(const pvp_state *s) {
     if (u_go_active_self(cl) != on) u_go_active(cl, on);
     if (!on || frames % 6) return;
     uint32_t pm[3] = { 0, 1000, 1000 }; if (pvp_ui_team_hp) pvp_ui_team_hp(pm);
-    char t[200], clock[32] = "";
-    if (s->placing) snprintf(clock, sizeof clock, s->countdown_at ? "Get ready" : "Places");
+    char t[400], clock[64] = "";
+    if (s->placing) snprintf(clock, sizeof clock, "%s", s->countdown_at ? TR("Get ready") : TR("Places"));
     else if (s->fight_start) { int left = (int)s->rules.round_secs - (int)((s->ticks - (s->fight_start - 1)) / 60); if (left < 0) left = 0; snprintf(clock, sizeof clock, "%d:%02d", left / 60, left % 60); }
     if (s->planning) snprintf(clock, sizeof clock, "%s", TR("Planning"));
-    snprintf(t, sizeof t, TR("<color=#7FA8FF>Blue</color> %d - %d <color=#FF7F7F>Red</color>   Round %d   %s"), s->score[1], s->score[2], s->round, clock);
+    dsi_utf8_fix_end(clock);
+    char rd[64]; snprintf(rd, sizeof rd, TR("Round %d"), s->round);
+    snprintf(t, sizeof t, "<color=#7FA8FF>%s</color> %d - %d <color=#FF7F7F>%s</color>   %s   %s", TR("Blue"), s->score[1], s->score[2], TR("Red"), rd, clock);
     Obj nm = u_gc_get(h_hud_name); if (u_alive(nm)) cmt_set(nm, t);
     for (int k = 0; k < 2; k++) { Obj l = u_gc_get(h_hud_lab[k]); if (u_alive(l)) cmt_set(l, k ? TR("Red") : TR("Blue")); }
     { Obj l = u_gc_get(h_hud_rlab); if (u_alive(l)) cmt_set(l, TR("Ready")); }   /* (DASText re-reads its key on enable) */
@@ -637,15 +645,15 @@ static void pr_frame(const pvp_state *s) {
     if (!u_alive(u_gc_get(h_pr_root)) || u_gc_get(h_pv_view) != v) { pv_build(v); pr_build(v); }
     Obj root = u_gc_get(h_pr_root); if (!u_alive(root)) return;
     pr_shown_match = s->matches;
-    char b[200];
-    snprintf(b, sizeof b, "%s", s->match_winner == PVP_TEAM_BLUE ? "Blue wins the match" : s->match_winner == PVP_TEAM_RED ? "Red wins the match" : "The match is a draw");
+    char b[300];
+    snprintf(b, sizeof b, "%s", s->match_winner == PVP_TEAM_BLUE ? TR("Blue wins the match") : s->match_winner == PVP_TEAM_RED ? TR("Red wins the match") : TR("The match is a draw"));
     cmt_set(u_gc_get(h_pr_title), b);
     snprintf(b, sizeof b, "<color=#7FA8FF>%d</color>  -  <color=#FF7F7F>%d</color>", s->score[1], s->score[2]); cmt_set(u_gc_get(h_pr_score), b);
-    char r[300] = ""; size_t o = 0;
-    o += (size_t)snprintf(r + o, sizeof r - o, "%s: ", s->rules.best_of && pr_nhist ? "Rounds" : "Rounds");
-    for (int i = 0; i < pr_nhist && o < sizeof r - 40; i++) o += (size_t)snprintf(r + o, sizeof r - o, "%s%d %s", i ? ",  " : "", i + 1, pr_hist[i] == 1 ? "Blue" : pr_hist[i] == 2 ? "Red" : "draw");
-    if (s->draws) o += (size_t)snprintf(r + o, sizeof r - o, TR("\nDraws: %d"), s->draws);
-    snprintf(r + o, sizeof r - o, "%s", pvp_v1_world() ? "\nThis PvP world is only for the match: back to the title to play again." : "\nThe world is back as it was before the match.");
+    char r[900] = ""; size_t o = 0;
+    o += (size_t)snprintf(r + o, sizeof r - o, "%s ", TR("Rounds:"));
+    for (int i = 0; i < pr_nhist && o < sizeof r - 80; i++) o += (size_t)snprintf(r + o, sizeof r - o, "%s%d %s", i ? ",  " : "", i + 1, pr_hist[i] == 1 ? TR("Blue") : pr_hist[i] == 2 ? TR("Red") : TR("draw"));
+    if (s->draws && o < sizeof r) { o += (size_t)snprintf(r + o, sizeof r - o, "\n"); if (o < sizeof r) o += (size_t)snprintf(r + o, sizeof r - o, TR("Draws: %d"), s->draws); }
+    if (o < sizeof r) snprintf(r + o, sizeof r - o, "\n%s", pvp_v1_world() ? TR("This PvP world is only for the match: back to the title to play again.") : TR("The world is back as it was before the match."));
     { Obj ok = pvb(PVB_RESULT_OK); if (ok) cmt_set(btn_label(ok, 1), pvp_v1_world() ? TR("Back to the Title") : TR("Back to the World")); }
     cmt_set(u_gc_get(h_pr_rounds), r);
     Obj area = u_gc_get(h_pv_area); if (u_alive(area)) u_active(area, false);
@@ -661,21 +669,21 @@ static void pvp_ui_tips(void) {
         return;
     }
     if (pv_open) {
-        for (int r = 0; r < PVR_N; r++) tip_try(pvt(h_pv_rrow[r]), pv_label[r], pv_tip[r]);
+        for (int r = 0; r < PVR_N; r++) tip_try(pvt(h_pv_rrow[r]), TR(pv_label[r]), TR(pv_tip[r]));
         if (pv_here()) tip_try(pvb(PVB_START), TR("Start Match"), TR("Starts the match here with the teams and rules shown: each team walks to its end of the settlement, then the fight begins."));
         else tip_try(pvb(PVB_START), TR("Start Match"), TR("Sends everyone to the arena floor with the teams and rules shown. The match begins by itself once everyone has arrived."));
-        tip_try(pvb(PVB_CLOSE), TR("Close"), TR("Closes this window. Nothing is sent."));
+        tip_try(pvb(PVB_CLOSE), cmt_game("TEXTKEY_Common_Close", "Close"), TR("Closes this window. Nothing is sent."));
         tip_try(pvb(PVB_BRING), TR("Bring Units"), TR("Fight with units from one of your own saves instead of this world's units. They are copies: your save stays as it is."));
         for (int i = 0; i < 8; i++) tip_try(pvb(PVB_P0 + i), TR("Team"), TR("The host clicks a player to move them to the other team. Each player brings the units they own."));
         tip_try(pvt(h_pv_teamh[1]), TR("Blue Team"), pv_here() ? TR("Starts at one end of the settlement.") : TR("Starts at the arrival point of the arena."));
         tip_try(pvt(h_pv_teamh[2]), TR("Red Team"), pv_here() ? TR("Starts at the other end of the settlement.") : TR("Starts at the far end of the arena, by the exit portal (which does not work in a match)."));
     }
     if (br_open) {
-        for (int i = 0; i < br_nsaves; i++) { char tb[240]; snprintf(tb, sizeof tb, TR("%s\n\nA save on this computer, newest first. Click it to see its units."), br_stems[i]); tip_try(pvb(PVB_BR_SAVE0 + i), TR("Save"), tb); }
+        for (int i = 0; i < br_nsaves; i++) { char tb[600]; snprintf(tb, sizeof tb, TR("%s\n\nA save on this computer, newest first. Click it to see its units."), br_stems[i]); dsi_utf8_fix_end(tb); tip_try(pvb(PVB_BR_SAVE0 + i), TR("Save"), tb); }
         for (int i = 0; i < 12; i++) tip_try(pvb(PVB_BR_UNIT0 + i), TR("Unit"), TR("Click to pick or unpick this unit. The dungeon team is 4 units in total, shared between the players."));
         tip_try(pvb(PVB_BR_SEND), TR("Bring"), TR("Copies the picked units with their gear and sends them to the host. A new Bring replaces your last one."));
         tip_try(pvb(PVB_BR_WIKI), TR("Paste Wiki Link"), TR("Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring."));
-        tip_try(pvb(PVB_BR_BACK), TR("Back"), TR("Back to the PvP window."));
+        tip_try(pvb(PVB_BR_BACK), cmt_game("TEXTKEY_Shared_Back", "Back"), TR("Back to the PvP window."));
     }
     if (pr_open && pvp_v1_world()) tip_try(pvb(PVB_RESULT_OK), TR("Back to the Title"), TR("Ends this PvP game for everyone and goes back to the title screen. Nobody's save changed."));
     else if (pr_open) tip_try(pvb(PVB_RESULT_OK), TR("Back to the World"), TR("Closes the result. The world is the same as before the match."));
@@ -770,15 +778,17 @@ static mu_pick pv_last_picks[8]; static int pv_nlast;
 static void pv_bring_done(const mu_pick *picks, int n, void *ud) {
     (void)ud; if (n < 0) return;
     char err[300] = "";
-    if (pvp_bring_picks(picks, n, err, sizeof err)) { rig_log("pvp ui: Bring Units: %s", err); snprintf(br_sent, sizeof br_sent, TR("Could not bring the units: %s"), err); if (ui_notice) ui_notice(err); return; }
+    if (pvp_bring_picks(picks, n, err, sizeof err)) { rig_log("pvp ui: Bring Units: %s", err); snprintf(br_sent, sizeof br_sent, TR("Could not bring the units: %s"), err); dsi_utf8_fix_end(br_sent); if (ui_notice) ui_notice(err); return; }
     pv_nlast = n < 8 ? n : 8; memcpy(pv_last_picks, picks, sizeof picks[0] * (size_t)pv_nlast);
-    snprintf(br_sent, sizeof br_sent, TR("Brought %d unit(s). The host starts the match with them."), n);
+    snprintf(br_sent, sizeof br_sent, TRN("Brought %d unit. The host starts the match with them.", "Brought %d units. The host starts the match with them.", n), n);
     rig_log("pvp ui: Bring Units: %d unit(s) sent", n);
     if (pv_open) pv_refresh();
 }
 static int pv_bring_open(void) {
-    char sub[160]; snprintf(sub, sizeof sub, TR("Up to %d unit(s) for the match. Copies only: your saves and My Units do not change."), br_share());
-    mu_bring_req r = { .title = "Bring Units", .subtitle = sub, .max_units = br_share(), .sources = MU_SRC_SAVE | MU_SRC_LIBRARY,
+    char sub[400]; snprintf(sub, sizeof sub, TRN("Up to %d unit for the match. Copies only: your saves and My Units do not change.",
+                                                 "Up to %d units for the match. Copies only: your saves and My Units do not change.", br_share()), br_share());
+    dsi_utf8_fix_end(sub);
+    mu_bring_req r = { .title = TR("Bring Units"), .subtitle = sub, .max_units = br_share(), .sources = MU_SRC_SAVE | MU_SRC_LIBRARY,
                        .ticked = pv_last_picks, .nticked = pv_nlast, .done = pv_bring_done };
     return mu_bring_open(&r);
 }
@@ -800,8 +810,11 @@ static int v1_brought(int player) {                                     /* units
 static int v1_lobby_name(int player, const char *name, char *out, size_t cap) {
     if (!pvp_v1_world()) return 0;
     int nb = v1_brought(player);
-    if (nb > 0) snprintf(out, cap, TR("%s  <size=78%%><color=#8FD18F>%d unit%s brought</color></size>"), name, nb, nb == 1 ? "" : "s");
-    else snprintf(out, cap, TR("%s  <size=78%%><color=#A69085>Choosing units...</color></size>"), name);
+    char t[160];
+    if (nb > 0) snprintf(t, sizeof t, TRN("%d unit brought", "%d units brought", nb), nb);
+    else snprintf(t, sizeof t, "%s", TR("Choosing units..."));
+    snprintf(out, cap, nb > 0 ? "%s  <size=78%%><color=#8FD18F>%s</color></size>" : "%s  <size=78%%><color=#A69085>%s</color></size>", name, t);
+    dsi_utf8_fix_end(out);
     return 1;
 }
 /* host, lobby: every player sends its mod list (Vanilla check) when the lobby opens and when someone joins */
@@ -830,7 +843,7 @@ int pvp_v1_lobby_start(char *err, size_t errn) {
     pvp_rules r = { (uint8_t)pv_bo[pv.bo], (uint16_t)pv_secs[pv.secs], (uint8_t)(pv.pause ? PVP_PAUSE_PLANNING : PVP_PAUSE_NONE), 7, 5, (uint8_t)(pv.vanilla != 0) };
     int rc = pvp_ui_start_match ? pvp_ui_start_match(pv.mode, teams, &r, -1, 0, 0) : -9;
     rig_log("pvp v1: lobby Start: teams %d/%d brought units, rc %d", per[1], per[2], rc);
-    if (rc == -4) { snprintf(err, errn, "%s", pvp_mods_last ? pvp_mods_last() : "The Vanilla check refused the start."); return -1; }
+    if (rc == -4) { snprintf(err, errn, "%s", pvp_mods_last ? pvp_mods_last() : TR("The Vanilla check refused the start.")); return -1; }
     if (rc) { snprintf(err, errn, "%s", TR("The match could not start. Try again.")); return -1; }
     return 0;
 }
@@ -839,7 +852,14 @@ int pvp_v1_lobby_start(char *err, size_t errn) {
    Rows = the PvP window's (mode, to win, round time, pause, Vanilla check); the map is fixed: this settlement. The arrows
    are title-view images, so a click is read here (mouse down + rect), like the menu's own list toggle. */
 static const int v1_rows[V1R_N] = { PVR_MODE, PVR_WIN, PVR_TIME, PVR_PAUSE, PVR_VANILLA };
-static uintptr_t h_v1_root, h_v1_parent, h_v1_row[V1R_N], h_v1_val[V1R_N], h_v1_arrow[V1R_N][2], h_v1_note;
+static uintptr_t h_v1_root, h_v1_parent, h_v1_row[V1R_N], h_v1_val[V1R_N], h_v1_arrow[V1R_N][2], h_v1_note, h_v1_title, h_v1_lab[V1R_N];
+static unsigned v1_gen;                                                  /* language of the labels set once */
+static void v1_labels(void) {
+    cmt_set(pvt(h_v1_title), TR("PvP Rules"));
+    for (int i = 0; i < V1R_N; i++) cmt_set(pvt(h_v1_lab[i]), TR(pv_label[v1_rows[i]]));
+    cmt_set(pvt(h_v1_note), TR("Map: the starting settlement. In the lobby each player brings units; Start puts the teams at the two ends of the map."));
+    v1_gen = cmt_gen();
+}
 static void v1_page_build(Obj panel) {
     Obj tv = title_view(); Obj src = tv ? AT(tv, 0x50, Obj) : NULL; if (!u_alive(src)) return;
     if (!scan_done) assets_scan_now();
@@ -851,11 +871,11 @@ static void v1_page_build(Obj panel) {
     Obj root = mk_img(tpl_img, panel, S_BOX, C_WHITE, 0, 0, pw, ph); if (!root) return;
     Obj R = u_tr(root); KEEP(h_v1_root, root); KEEP(h_v1_parent, panel);
     mk_img(tpl_img, R, -1, C_BAND, 0, QY(27), pw - 4, 50); mk_img(tpl_img, R, -1, C_COPPER, 0, QY(52), pw - 4, 1);
-    { Obj t = mk_txt(tpl_txt, R, 1, 24, 514, 0, 0, QY(27), 400, 40, C_MAIN); cmt_set(t, TR("PvP Rules")); }
+    KEEP(h_v1_title, mk_txt(tpl_txt, R, 1, 24, 514, 0, 0, QY(27), 400, 40, C_MAIN));
     for (int i = 0; i < V1R_N; i++) {
         float yc = QY(62 + step * i + rh / 2);
         KEEP(h_v1_row[i], mk_img(tpl_img, R, -1, i % 2 ? C_ROW2 : C_ROW1, QX(18 + 197), yc, 394, rh));
-        { Obj lb = mk_txt(tpl_txt, R, 0, 15, 513, 0, QX(18 + 77), yc, 130, 40, C_SUB); cmt_set(lb, pv_label[v1_rows[i]]); }
+        KEEP(h_v1_lab[i], mk_txt(tpl_txt, R, 0, 15, 513, 0, QX(18 + 77), yc, 130, 40, C_SUB));
         KEEP(h_v1_val[i], mk_txt(tpl_txt, R, 0, 15, 514, 0, QX(18 + 261), yc, 186, 40, C_MAIN));
         for (int a = 0; a < 2; a++) {
             Obj ar = mk_img(tpl_img, R, S_NBTN, C_WHITE, QX(18 + (a ? 368 : 154)), yc, 28, 28);
@@ -864,7 +884,7 @@ static void v1_page_build(Obj panel) {
         }
     }
     KEEP(h_v1_note, mk_txt(tpl_txt, R, 0, 12, 513, 1, 0, QY(62 + step * V1R_N + 28), 394, 44, C_SUB));
-    cmt_set(pvt(h_v1_note), TR("Map: the starting settlement. In the lobby each player brings units; Start puts the teams at the two ends of the map."));
+    v1_labels();
     #undef QX
     #undef QY
     #undef KEEP
@@ -884,13 +904,14 @@ void pvp_v1_page_draw(void *panel) {
     if (!panel) { if (root) u_active(root, false); return; }
     if (!root || u_gc_get(h_v1_parent) != (Obj)panel) { v1_page_build((Obj)panel); root = pvt(h_v1_root); if (!root) return; }
     u_active(root, true);
+    if (v1_gen != cmt_gen()) v1_labels();
     if (pv.vanilla < 0) pv.vanilla = pvp_mods_default_vanilla ? pvp_mods_default_vanilla() : 1;
     if (F(0x51ACDD0, bool (*)(int, void *))(0, NULL)) {                    /* Input.GetMouseButtonDown(0) */
         V3 m = F(0x51AD4DC, V3 (*)(void *))(NULL);
         for (int i = 0; i < V1R_N; i++) for (int a = 0; a < 2; a++) if (v1_pt_in(pvt(h_v1_arrow[i][a]), m)) { v1_step(i, a ? 1 : -1); rig_log("pvp v1: host page %s %s", pv_label[v1_rows[i]], a ? "next" : "previous"); }
     }
     for (int i = 0; i < V1R_N; i++) { char v[64]; pv_value(v1_rows[i], v, sizeof v); cmt_set(pvt(h_v1_val[i]), v); }
-    for (int i = 0; i < V1R_N; i++) if (tip_try(pvt(h_v1_row[i]), pv_label[v1_rows[i]], pv_tip[v1_rows[i]])) break;
+    for (int i = 0; i < V1R_N; i++) if (tip_try(pvt(h_v1_row[i]), TR(pv_label[v1_rows[i]]), TR(pv_tip[v1_rows[i]]))) break;
 }
 static void pvp_frame_all(const mpm_obs *o) { v1_lobby_frame(); pvp_ui_frame(o); }
 

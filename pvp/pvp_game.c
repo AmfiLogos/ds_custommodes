@@ -911,16 +911,14 @@ int pvp_ui_unit_name(int i, char *out, int cap) {        /* the unit's name (DAS
     Guid gg; memcpy(&gg, g.units[i].guid, 16); Obj u = find_unit(cur_map(), gg); if (!u) return -1;
     Obj nm = F(0xFA47A0, Obj (*)(Obj, void *))(u, NULL);      /* UnitEntity.get_Name (list_units) */
     if (!nm) return -1;
-    int n = AT(nm, 0x10, int32_t), k = 0; const uint16_t *w = (const uint16_t *)((char *)nm + 0x14);
-    for (int j = 0; j < n && k < cap - 1; j++) out[k++] = w[j] < 128 ? (char)w[j] : '?';
-    out[k] = 0; return 0;
+    void utf16_to_utf8(Obj s, char *out, size_t cap);                   /* multiplayer (mpmenu_kit.h): whole characters */
+    utf16_to_utf8(nm, out, cap > 0 ? (size_t)cap : 0); return 0;
 }
-static const char *team_name(int t) { return t == PVP_TEAM_BLUE ? "Blue" : t == PVP_TEAM_RED ? "Red" : "Nobody"; }
 static void center(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 static void center(const char *fmt, ...) {
     static void (*cm)(const char *); static int looked;
     if (!looked) { looked = 1; cm = (void (*)(const char *))dlsym(RTLD_DEFAULT, "ui_center_message"); }
-    char b[200]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
+    char b[400]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap); dsi_utf8_fix_end(b);
     if (cm) cm(b); rig_log("pvp: message \"%s\"", b);
 }
 /* local messages from the shared state (every peer shows the same ones at the same step) */
@@ -937,19 +935,21 @@ static void messages_frame(void) {
             seen_fight = g.fight_start;
             if (g.arena) center(g.mode == PVP_MODE_CTF ? TR("Round %d - Capture the flag!") : TR("Round %d - Fight!"), g.round);
         }
-        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center(TR("Planning pause: give your orders, then press Ready")); }
+        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center("%s", TR("Planning pause: give your orders, then press Ready")); }
         if (ctf_seq != seen_ctf) {
-            seen_ctf = ctf_seq; char nm[48]; pvp_ui_unit_name(ctf_last_unit, nm, sizeof nm);
-            const char *fl = team_name(ctf_last_team);
-            if (ctf_last_kind == 0) center(TR("%s took the %s flag"), nm[0] ? nm : "A unit", fl);
-            else if (ctf_last_kind == 1) center(TR("The %s flag was dropped"), fl);
-            else if (ctf_last_kind == 2) center(TR("The %s flag is back home"), fl);
-            else center(TR("%s scores!"), team_name(ctf_last_team == PVP_TEAM_BLUE ? PVP_TEAM_RED : PVP_TEAM_BLUE));
+            seen_ctf = ctf_seq; char nm[96]; pvp_ui_unit_name(ctf_last_unit, nm, sizeof nm);
+            int red = ctf_last_team == PVP_TEAM_RED;                       /* whole sentences per team (word order, gender) */
+            const char *who = nm[0] ? nm : TR("A unit");
+            if (ctf_last_kind == 0) center(red ? TR("%s took the Red flag") : TR("%s took the Blue flag"), who);
+            else if (ctf_last_kind == 1) center("%s", red ? TR("The Red flag was dropped") : TR("The Blue flag was dropped"));
+            else if (ctf_last_kind == 2) center("%s", red ? TR("The Red flag is back home") : TR("The Blue flag is back home"));
+            else center("%s", red ? TR("Blue scores!") : TR("Red scores!"));
         }
         if (g.resetting && g.resetting != seen_reset) {
             seen_reset = g.resetting;
-            if (g.resetting == PVP_RESET_MATCH) center(TR("%s wins the match  %d - %d"), g.match_winner ? team_name(g.match_winner) : "Nobody", g.score[1], g.score[2]);
-            else if (g.last_winner) center(TR("%s wins the round  %d - %d"), team_name(g.last_winner), g.score[1], g.score[2]);
+            if (g.resetting == PVP_RESET_MATCH) center(g.match_winner == PVP_TEAM_BLUE ? TR("Blue wins the match  %d - %d") : g.match_winner == PVP_TEAM_RED ? TR("Red wins the match  %d - %d")
+                                                       : TR("Nobody wins the match  %d - %d"), g.score[1], g.score[2]);
+            else if (g.last_winner) center(g.last_winner == PVP_TEAM_RED ? TR("Red wins the round  %d - %d") : TR("Blue wins the round  %d - %d"), g.score[1], g.score[2]);
             else center(TR("Round drawn  %d - %d"), g.score[1], g.score[2]);
         }
     }

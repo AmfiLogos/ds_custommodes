@@ -176,7 +176,7 @@ static jv *picks_entries(const mu_pick *picks, int n, const char *me, const char
         char e1[300]; jv *save = jload(picks[i].save_file, e1, sizeof e1);
         jv *e = save ? fe_export_entry(save, picks[i].unit_guid, me, e1, sizeof e1) : NULL;
         jfree(save);
-        if (!e) { jfree(entries); snprintf(err, errn, TR("Could not bring %s: %s"), picks[i].name, e1); return NULL; }
+        if (!e) { jfree(entries); char em[300]; snprintf(err, errn, TR("Could not bring %s: %s"), picks[i].name, cmt_msg(e1, em, sizeof em)); dsi_utf8_fix_end(err); return NULL; }
         jpush(entries, e); if (files) files[nf] = picks[i].save_file; nf++;
     }
     if (nl) {
@@ -623,7 +623,7 @@ static const char *game_saves_dir(char *b, size_t n) {
     snprintf(b, n, "%s/Library/Application Support/CanOpener/Dungeon Settlers/Saves", home); return b;
 }
 int fe_list_saves(fe_save_info *out, int max) {
-    char dirs[2][1100]; const char *lab[2] = { "Multiplayer folder", "Game folder" }; int nd = 0, n = 0;
+    char dirs[2][1100]; const char *lab[2] = { TR_NOOP("Multiplayer folder"), TR_NOOP("Game folder") };   /* English kept (TR when shown) */ int nd = 0, n = 0;
     snprintf(dirs[nd++], sizeof dirs[0], "%s/data/Saves", rig_dir);
     if (game_saves_dir(dirs[1], sizeof dirs[1])) nd = 2;
     double mt[64];
@@ -670,7 +670,7 @@ int fe_bring_units(const char *path, const char (*guids)[40], int n, char *err, 
     for (int i = 0; i < n && o < sizeof line - 50; i++) o += (size_t)snprintf(line + o, sizeof line - o, "%s%s", i ? "," : "", guids[i]);
     snprintf(line + o, sizeof line - o, "\"}");
     char *r = cmd_bring(line); int ok = r && strstr(r, "\"ok\":true");
-    if (!ok) snprintf(err, errn, TR("Could not bring these units%s"), r && strstr(r, "error") ? ": the save could not be read." : ".");
+    if (!ok) snprintf(err, errn, "%s", r && strstr(r, "error") ? TR("Could not bring these units: the save could not be read.") : TR("Could not bring these units."));
     free(r); return ok ? 0 : -1;
 }
 
@@ -730,7 +730,7 @@ int fe_result_targets(const char *run, fe_save_info *out, int max) {
         jv *s = read_json(all[i].path); int same = s && jstreq(jpath(s, "CampaignSaveHeader.CampaignGuid"), cg); jfree(s);
         if (same) out[n++] = all[i];
     }
-    if (!n && src[0] && n < max && !read_header(src, &out[n])) { snprintf(out[n].folder, sizeof out[n].folder, "%s", TR("where they came from")); n++; }
+    if (!n && src[0] && n < max && !read_header(src, &out[n])) { snprintf(out[n].folder, sizeof out[n].folder, "%s", TR_NOOP("where they came from")); n++; }
     return n;
 }
 int fe_apply_run(const char *run, const char *target, int choice, char *out_file, size_t on, char *err, size_t errn) {
