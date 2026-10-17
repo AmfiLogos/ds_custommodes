@@ -124,7 +124,7 @@ static int screen_rect(Obj rt, float r[4]) {
     return 0;
 }
 /* the shown card (the pooled Tooltip_Base with our id): no "Pin" / hold line, as the kit does for its own tips */
-static uintptr_t h_card; static int fit_checks; static V2t shown_pos; static float shown_icon_x0;
+static uintptr_t h_card; static int fit_checks, nmoved; static V2t shown_pos; static float shown_icon_x0;
 static void no_hold(void) {
     cm_il_hset(&h_card, NULL);
     if (!m_finds.fn || !m_tid.fn || !k_tb) return;
@@ -177,7 +177,8 @@ static void fit(void) {
     if (c[2] > W - 4) p.x = shown_icon_x0 - 6 - (c[2] - c[0]);
     if (p.x < 4) p.x = 4;
     if (p.x == shown_pos.x && p.y == shown_pos.y) return;
-    fit_checks = 0;
+    fit_checks = 0; nmoved++;
+    { Obj v = view(); Guidt g = TIP_ID; void *a[1] = { &g }; if (v) call(m_hide, v, a, "HideToolTip"); }   /* a show with a live id keeps its place */
     show_at(shown, p);
 }
 static Obj cam_of(Obj rt) {
@@ -226,6 +227,7 @@ DSLObj mu_tip_test_target(int i) { return i >= 0 && i < ntips ? (DSLObj)cm_il_hg
 size_t mu_tip_test_state(char *out, size_t cap) {
     float c[4] = { 0 }; Obj card = shown >= 0 ? cm_il_hget(h_card) : NULL;
     if (cm_alive(card)) screen_rect(cm_tr(card), c);
-    return (size_t)snprintf(out, cap, "\"tip\":{\"on\":%d,\"icons\":%d,\"shown\":\"%s\",\"type\":%d,\"cards\":%d,\"err\":\"%s\",\"card\":[%.0f,%.0f,%.0f,%.0f]}",
-                            state, ntips, shown >= 0 ? tips[shown].key : "", shown >= 0 ? tips[shown].type : 0, ntested, last_err, c[0], c[1], c[2], c[3]);
+    return (size_t)snprintf(out, cap, "\"tip\":{\"on\":%d,\"icons\":%d,\"shown\":\"%s\",\"type\":%d,\"cards\":%d,\"err\":\"%s\",\"card\":[%.0f,%.0f,%.0f,%.0f],\"moved\":%d,\"fit\":%d}",
+                            state, ntips, shown >= 0 ? tips[shown].key : "", shown >= 0 ? tips[shown].type : 0, ntested, last_err, c[0], c[1], c[2], c[3],
+                            nmoved, fit_checks);
 }
