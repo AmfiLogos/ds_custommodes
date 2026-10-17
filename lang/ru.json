@@ -666,5 +666,9 @@
  "unit %d: %s": "юнит %d: %s",
  "where they came from": "откуда пришли",
  "In the squad: %s": "В отряде: %s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "Отметьте юнитов, которые войдут. Отметка команды добавляет или снимает всех её юнитов."
+ "Tick the units to send in. A team's tick adds or removes all its units.": "Отметьте юнитов, которые войдут. Отметка команды добавляет или снимает всех её юнитов.",
+ "Aid Kit": "Аптечка",
+ "Basic Camping Kit": "Базовый походный набор",
+ "Basic Supply Kit": "Базовый набор припасов",
+ "Potion Buff Kit": "Набор зелий усиления"
 }

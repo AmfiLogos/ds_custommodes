@@ -612,5 +612,9 @@
  "unit %d: %s": "单位 %d：%s",
  "where they came from": "它们的来源",
  "In the squad: %s": "小队中：%s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "勾选要入场的单位。勾选队伍会一次加入或移除其全部单位。"
+ "Tick the units to send in. A team's tick adds or removes all its units.": "勾选要入场的单位。勾选队伍会一次加入或移除其全部单位。",
+ "Aid Kit": "急救套装",
+ "Basic Camping Kit": "基础露营套装",
+ "Basic Supply Kit": "基础补给套装",
+ "Potion Buff Kit": "药水增益套装"
 }

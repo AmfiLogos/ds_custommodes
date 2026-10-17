@@ -612,5 +612,9 @@
  "unit %d: %s": "유닛 %d: %s",
  "where they came from": "원래 위치",
  "In the squad: %s": "분대: %s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "들어갈 유닛을 체크하십시오. 팀을 체크하면 그 팀의 유닛을 모두 넣거나 뺍니다."
+ "Tick the units to send in. A team's tick adds or removes all its units.": "들어갈 유닛을 체크하십시오. 팀을 체크하면 그 팀의 유닛을 모두 넣거나 뺍니다.",
+ "Aid Kit": "응급 키트",
+ "Basic Camping Kit": "기본 캠핑 키트",
+ "Basic Supply Kit": "기본 보급 키트",
+ "Potion Buff Kit": "물약 강화 키트"
 }

@@ -612,5 +612,9 @@
  "unit %d: %s": "ユニット %d：%s",
  "where they came from": "元の場所",
  "In the squad: %s": "部隊：%s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れてください。チームのチェックはそのユニットをまとめて追加・解除します。"
+ "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れてください。チームのチェックはそのユニットをまとめて追加・解除します。",
+ "Aid Kit": "救急キット",
+ "Basic Camping Kit": "基本キャンプキット",
+ "Basic Supply Kit": "基本補給キット",
+ "Potion Buff Kit": "ポーション強化キット"
 }

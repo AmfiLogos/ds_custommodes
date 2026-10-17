@@ -612,5 +612,9 @@
  "unit %d: %s": "單位 %d：%s",
  "where they came from": "原來的存檔",
  "In the squad: %s": "小隊中：%s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "勾選要進場的單位。勾選隊伍會一次加入或移除其全部單位。"
+ "Tick the units to send in. A team's tick adds or removes all its units.": "勾選要進場的單位。勾選隊伍會一次加入或移除其全部單位。",
+ "Aid Kit": "急救套組",
+ "Basic Camping Kit": "基礎露營套組",
+ "Basic Supply Kit": "基礎補給套組",
+ "Potion Buff Kit": "藥水增益套組"
 }

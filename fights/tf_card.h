@@ -12,3 +12,4 @@ enum { TFC_HP, TFC_PATK, TFC_MATK, TFC_ASPD, TFC_CRIT, TFC_PRES, TFC_MRES, TFC_M
 extern const char *const tfc_field[TFC_N];               /* UnitTable field names, in card order */
 int tfc_unit_stats(const char *unit_key, float out[TFC_N]);   /* 0 ok */
 Obj tfc_unit_sprite(const char *unit_key);                     /* the Body sprite, or NULL */
+Obj tfc_unit_art(const char *unit_key);                        /* the Body sprite cut to its visible pixels (else as it is), or NULL */

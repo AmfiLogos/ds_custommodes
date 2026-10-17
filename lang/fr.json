@@ -639,5 +639,9 @@
  "unit %d: %s": "unité %d : %s",
  "where they came from": "d'où elles viennent",
  "In the squad: %s": "Dans l'escouade : %s",
- "Tick the units to send in. A team's tick adds or removes all its units.": "Cochez les unités qui entrent. La case d'une équipe ajoute ou retire toutes ses unités."
+ "Tick the units to send in. A team's tick adds or removes all its units.": "Cochez les unités qui entrent. La case d'une équipe ajoute ou retire toutes ses unités.",
+ "Aid Kit": "Kit de soins",
+ "Basic Camping Kit": "Kit de camping de base",
+ "Basic Supply Kit": "Kit de ravitaillement de base",
+ "Potion Buff Kit": "Kit de potions de buff"
 }

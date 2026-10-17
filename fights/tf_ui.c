@@ -168,6 +168,10 @@ static void names_refresh(void) {
     }
 }
 
+/* the wiki's battle kit titles (builder data.js kits[].n, English only): keys of the shared i18n table, shown with TR(n).
+   A title not listed here shows in English. The kit items use the game's own item names (names_refresh). */
+static const char *const kit_titles[] __attribute__((used)) = { TR_NOOP("Aid Kit"), TR_NOOP("Basic Camping Kit"), TR_NOOP("Basic Supply Kit"), TR_NOOP("Potion Buff Kit") };
+
 /* ------------------------------------------------------------------ choices (the wiki panel's `st`) */
 #define MAXMON 16
 static struct {
@@ -596,8 +600,8 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
     cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu);
     cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
     DSLObj box = cmw_flat(U->panel(card, 12, 12, A, A, 0), 0x1E1C21FFu);
-    Obj sp = tfc_unit_sprite(b->key);
-    DSLObj art = sp && box ? U->panel(box, 6, 6, A - 12, A - 12, 0xFFFFFFFFu) : NULL;
+    Obj sp = tfc_unit_art(b->key);                                   /* cut to its visible pixels: it fills the box */
+    DSLObj art = sp && box ? U->panel(box, 4, 4, A - 8, A - 8, 0xFFFFFFFFu) : NULL;
     if (art) { cm_set_sprite(art, sp, 0xFFFFFFFFu); cm_raycast(art, false); }
     float x = 12 + A + 16, cw = w - x - 12;
     DSLObj nmt = U->text(card, x, 10, cw, 30, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
@@ -712,7 +716,7 @@ static void paint_right(void) {
         y += txt(right, NULL, 12, y, w - 12, TR("Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."), 14, SUB) + 4;
         int sl = 0, any = 0; double wt = 0;
         for (int i = 0; i < P.nkits; i++) {
-            char lab[200], nm[40]; snprintf(lab, sizeof lab, TRN("%s  (%d slot, %g weight)", "%s  (%d slots, %g weight)", P.kits[i].slots), P.kits[i].n, P.kits[i].slots, P.kits[i].w);
+            char lab[200], nm[40]; snprintf(lab, sizeof lab, TRN("%s  (%d slot, %g weight)", "%s  (%d slots, %g weight)", P.kits[i].slots), TR(P.kits[i].n), P.kits[i].slots, P.kits[i].w);
             snprintf(nm, sizeof nm, "fights:r.kit%d", i);
             /* owner v0.1.11 #4: the kit's header icons at the start of the row, as the wiki's kit chip (builder.js paintSup:
                the first 4 items' icons), drawn from the game's own item sprites */
@@ -730,7 +734,7 @@ static void paint_right(void) {
                 char tb[900]; size_t k = 0; tb[0] = 0;
                 for (int j = 0; j < P.kits[i].nit && k + 120 < sizeof tb; j++)
                     k += (size_t)snprintf(tb + k, sizeof tb - k, "%s%s x%d", j ? "\n" : "", P.kits[i].itn[j][0] ? P.kits[i].itn[j] : P.kits[i].in_[j], P.kits[i].iq[j]);
-                U->tooltip(kt, P.kits[i].n, tb);
+                U->tooltip(kt, TR(P.kits[i].n), tb);
             }
             y += 40;
             if (st.kit[i]) { sl += P.kits[i].slots; wt += P.kits[i].w; any = 1; }
