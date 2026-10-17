@@ -2,6 +2,7 @@
 #include "tf_worlds.h"
 #include "cm_win.h"
 #include "../fe/fe_json.h"
+#include "cm_il.h"
 #include <ctype.h>
 #include "i18n/ds_i18n.h"
 #include <stdio.h>
@@ -107,13 +108,15 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
     jv *s = jparse(save, n, err, errn); if (!s) return -1;
     jv *h = jget(s, "CampaignSaveHeader");
     char *name = h ? jstrdup_raw(jget(h, "SaveName")) : NULL, *guid = h ? jstrdup_raw(jget(h, "CampaignGuid")) : NULL;
+    char *fixed = NULL; size_t fixed_n = 0;
+    if (tfw_consecration_fix(s)) { fixed = jdump(s, 0, &fixed_n); if (fixed) { save = fixed; n = fixed_n; } }   /* no "Lock Consecration" box */
     jfree(s);
     char g[33]; norm(guid, g); free(guid);
     if (!name || !name[0] || strlen(g) != 32 || strpbrk(name, "/\\:") || strstr(name, "..")) {
-        snprintf(err, errn, "%s", TR("the generated save has no usable name")); free(name); return -1;
+        snprintf(err, errn, "%s", TR("the generated save has no usable name")); free(name); free(fixed); return -1;
     }
     char saves[1100], p[1400], t[1420];
-    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("the game's save folder is not known")); free(name); return -1; }
+    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("the game's save folder is not known")); free(name); free(fixed); return -1; }
     mkdir_(saves);
     /* older test worlds go first (only the newest one is kept) */
     for (int i = 0; i < nw; i++) remove_world_files(saves, W[i]);
@@ -121,14 +124,14 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
     snprintf(W[nw++], 33, "%s", g); reg_save();                        /* listed BEFORE the file exists: never visible */
     snprintf(p, sizeof p, "%s/%s.json", saves, name); snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "wb");
-    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); return -1; }
+    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
     fclose(f);
 #ifdef _WIN32
-    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); return -1; }
+    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
 #else
-    if (rename(t, p)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); return -1; }
+    if (rename(t, p)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
 #endif
-    snprintf(name_out, name_n, "%s", name); free(name);
+    snprintf(name_out, name_n, "%s", name); free(name); free(fixed);
     cmw_log("tf: test world %s written (%zu bytes)", name_out, n);
     return 0;
 }
@@ -157,10 +160,51 @@ static int f_show(void *ud, const char *guid, const char *save_name, int toggle_
     (void)ud; (void)toggle_on;
     return !tfw_is_test(guid, save_name);
 }
+/* ---------------------------------------------------------------- wiki-made saves: no "Lock Consecration" box */
+/* SaveLoadHelper.DeserializeCampaignSaveDataSafely(string json, JsonSerializerSettings, string saveFilePath), static: every
+   campaign load reads the file text and hands it here. A wiki-made save gets the fixed text; anything else goes through. */
+/* it returns Refactor.CampaignSaveData, a STRUCT of 0x3B0 bytes (dump: last field StoragePolicySaveData at 0x3A8, one
+   reference): returned through the caller's result pointer (arm64 x8, x64 hidden first argument), so the hook is typed
+   with the same struct and the size is checked against the runtime before hooking */
+typedef struct { uint8_t b[0x3B0]; } CampaignSaveData;
+typedef CampaignSaveData (*deser_fn)(Obj json, Obj settings, Obj path, const void *mi);
+static deser_fn o_deser;
+static Obj fix_text(Obj json, const char *stem) {
+    int32_t len = json ? CM_AT(json, 0x10, int32_t) : 0;
+    if (len <= 0 || len > 512 * 1024 * 1024 / 3) return NULL;
+    size_t cap = (size_t)len * 3 + 1; char *u = malloc(cap); if (!u) return NULL;
+    cm_il_utf8(json, u, cap);
+    char e[200]; jv *s = jparse(u, strlen(u), e, sizeof e); free(u);
+    if (!s) { cmw_log("tf: wiki save %s: not read (%s), left as it is", stem, e); return NULL; }
+    Obj r = NULL;
+    if (tfw_consecration_fix(s)) {
+        size_t n = 0; char *t = jdump(s, 0, &n);
+        if (t) { r = cm_il_str(t); free(t); }
+        cmw_log("tf: wiki save %s: Lock Consecration set off and acknowledged at load%s", stem, r ? "" : " FAILED (string)");
+    }
+    jfree(s);
+    return r;
+}
+static CampaignSaveData h_deser(Obj json, Obj settings, Obj path, const void *mi) {
+    char p[1100]; cm_il_utf8(path, p, sizeof p);
+    const char *b = p; for (const char *c = p; *c; c++) if (*c == '/' || *c == '\\') b = c + 1;
+    char stem[300]; snprintf(stem, sizeof stem, "%s", b);
+    size_t l = strlen(stem); if (l > 5 && !strcmp(stem + l - 5, ".json")) stem[l - 5] = 0;
+    if (tfw_wiki_made(stem)) { Obj f = fix_text(json, stem); if (f) json = f; }
+    return o_deser(json, settings, path, mi);
+}
+
 int tfw_init(const DSLHost *host, DSLPlugin *self) {
     static const DSLLoadFilter F = { f_show, NULL, NULL, NULL };
     int r = dsl_loadlist_filter(host, self, &F);
     cmw_tick_add(tick, NULL);
     cmw_log("tf: load-list filter for test worlds %s", r ? "NOT registered" : "on");
+    cm_il_init(host, self);
+    uint32_t (*vsize)(void *, uint32_t *) = host->il2cpp_fn ? (uint32_t (*)(void *, uint32_t *))host->il2cpp_fn("il2cpp_class_value_size") : NULL;
+    void *k_csd = cm_il_class("Refactor", "CampaignSaveData");
+    uint32_t sz = vsize && k_csd ? vsize(k_csd, NULL) : 0;
+    if (sz != sizeof(CampaignSaveData)) { cmw_log("tf: CampaignSaveData is %#x bytes, not %#zx: wiki-made save fix off", sz, sizeof(CampaignSaveData)); return r; }
+    int hr = host->hook_method ? host->hook_method(self, "Refactor", "SaveLoadHelper", "DeserializeCampaignSaveDataSafely", 3, (void *)h_deser, (void **)&o_deser) : -1;
+    cmw_log("tf: wiki-made saves load without the Lock Consecration box: %s (%d)", hr ? "hook refused" : "on", hr);
     return r;
 }

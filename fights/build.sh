@@ -6,7 +6,7 @@ set -e
 # R = the ds_multiplayer root (headers src/ sdk/, build output): MP_ROOT, else the parent folder when this repo sits in it as custom/, else ~/ds_multiplayer
 H=${0:A:h}; C=${H:h}; R=${MP_ROOT:-${C:h}}; [[ -n $MP_ROOT || -f $R/src/mp_api.h ]] || R=$HOME/ds_multiplayer; B=$R/build_c4; mkdir -p $B/obj $B/objwin
 # the engine, cache and gallery client only (the game windows need custom/home + custom/units: custom/build_module.sh)
-SRCS=($(cat $C/fights/sources.txt $C/gallery/sources.txt | grep -v -E 'cm_win|cm_work|tf_|gal_ui') fe/fe_json.c units/test/dsi_impl.c)   # dsi_impl: the TR tables (English)
+SRCS=($(cat $C/fights/sources.txt $C/gallery/sources.txt | grep -v -E 'cm_win|cm_work|cm_gtip|cm_prefs|tf_|gal_ui') fe/fe_json.c units/test/dsi_impl.c)   # dsi_impl: the TR tables (English)
 # same as custom/build_module.sh CF (+ -fwrapv, which QuickJS needs)
 CF=(-O2 -Wall -Wno-unused-function -fwrapv -I$R/sdk -I$R/src -I$C -I$C/fe -I$C/pvp -I$C/units)
 obj() { print -r -- ${1//\//_}; }
@@ -33,4 +33,5 @@ nice -n 19 clang $CF -dynamiclib -o $B/fights_solo_check.dylib $OBJS -lm
 clang $CF -o $B/sg_cli $H/test/sg_cli.c $OBJS -lm
 clang $CF -o $B/sg_cache_test $H/test/sg_cache_test.c $OBJS -lm
 clang $CF -o $B/gal_test $C/gallery/test/gal_test.c $OBJS -lm
-echo "built: $B/sg_cli $B/sg_cache_test $B/gal_test $B/fights_solo_check.dylib"
+clang $CF -o $B/wikisave_test $H/test/wikisave_test.c $H/tf_wikisave.c $C/fe/fe_json.c
+echo "built: $B/sg_cli $B/sg_cache_test $B/gal_test $B/wikisave_test $B/fights_solo_check.dylib"

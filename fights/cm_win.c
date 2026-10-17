@@ -3,6 +3,8 @@
 #include "cm_win.h"
 #include "../fe/fe_json.h"
 #include "cm_home.h"
+#include "cm_gtip.h"
+#include "cm_il.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -335,6 +337,18 @@ static void test_exec(const char *buf, size_t n, char *out, size_t on) {
             if (r->kind == CMW_VALUE) { jv *ix = jget(c, "index"); if (ix) U->value_set(w, (int)jnumv(ix)); }
             if (cb) cb(ud, w);
         }
+    } else if (!strcmp(cmd, "scroll")) {                              /* the scroll list holding a control to {pos} (1 top, 0 bottom) */
+        Reg *r = name ? reg_find(name) : NULL; jv *pv = jget(c, "pos");
+        static cm_m setp; static void *k_sr; if (!k_sr) { k_sr = cm_il_class("UnityEngine.UI", "ScrollRect"); setp = cm_il_method("UnityEngine.UI", "ScrollRect", "set_verticalNormalizedPosition", 1, NULL); }
+        Obj sr = NULL;
+        for (Obj t = r ? cm_parent((Obj)r->w) : NULL; t && !sr && k_sr; t = cm_parent(t)) sr = cm_comp(t, k_sr);
+        if (!sr || !setp.fn) snprintf(out, on, "\"ok\":false,\"error\":\"no scroll list for %s\"", name ? name : "");
+        else CM_CALL(setp, void, Obj, float, const void *)(sr, pv ? (float)jnumv(pv) : 0.f, setp.mi);
+    } else if (!strcmp(cmd, "hover")) {                               /* the game hover card of a control (cm_gtip), as if hovered */
+        Reg *r = name ? reg_find(name) : NULL;
+        cm_gtip_test_hover(r ? r->w : NULL);
+        if (name && !r) snprintf(out, on, "\"ok\":false,\"error\":\"no control %s\"", name);
+        else { char k[96]; int s = cm_gtip_shown(k, sizeof k); snprintf(out, on, "\"ok\":true,\"card\":%d,\"key\":\"%s\"", s, k); }
     } else if (!strcmp(cmd, "shot")) {
         char *path = jstr_of(c, "path");
         if (path && m_shot && x_str_new) CALL(m_shot, void, Obj)(x_str_new(path), m_shot);
