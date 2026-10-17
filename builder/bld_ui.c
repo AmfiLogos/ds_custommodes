@@ -14,6 +14,7 @@
 #include "mu_ui.h"
 #include "myunits.h"
 #include "mu_look.h"
+#include "bld_filter.h"
 #include "cm_home.h"
 #include "cm_il.h"
 #include "sg_cache.h"
@@ -328,14 +329,14 @@ static const char *slot_word(const char *slot, const char *wiki) { char tk[80]; 
 /* ------------------------------------------------------------------ filters (owner 2026-10-17: search and filters like the wiki's builder) */
 enum { F_BG_W, F_BG_A, F_BG_B, F_GEAR_TYPE, F_GEAR_RAR, F_SK_TYPE, F_SK_STATE, F_IN_RAR, F_IN_CAT, F_IN_TREE, F_FACE, F_N };
 #define FV 48
-static struct { char sel[F_N][64]; char val[F_N][FV][64]; int n[F_N]; char q[SEC_N][96]; } FL;
+static struct { bld_pick pk[F_N]; char val[F_N][FV][64]; int n[F_N]; char q[SEC_N][96]; } FL;   /* pk: the chosen values (bld_filter.h) */
 static void fl_reset(void) { memset(&FL, 0, sizeof FL); }
 static int fl_add(int f, const char *k) {                  /* a value of filter f (deduplicated); its index */
     for (int i = 0; i < FL.n[f]; i++) if (!strcmp(FL.val[f][i], k)) return i;
     if (FL.n[f] >= FV) return -1;
     snprintf(FL.val[f][FL.n[f]], sizeof FL.val[f][0], "%s", k); return FL.n[f]++;
 }
-static int fl_pass(int f, const char *k) { return !FL.sel[f][0] || (k && !strcmp(FL.sel[f], k)); }
+static int fl_pass(int f, const char *k) { return bld_pick_any(&FL.pk[f], k); }
 static int ci_has(const char *hay, const char *q) {       /* case-insensitive (ASCII) substring */
     if (!q || !*q) return 1;
     if (!hay) return 0;
@@ -439,7 +440,7 @@ static void on_skill(void *ud, DSLObj w) {
     jv *row = rows->v[r]; if (!row || row->t != JN_ARR || (size_t)c >= row->cnt) return;
     char k[200]; sraw(jget(row->v[c], "k"), k, sizeof k); act_k("skill", k);
 }
-static void on_slot(void *ud, DSLObj w) { (void)w; W.open_slot = W.open_slot == IDX(ud) ? -1 : IDX(ud); FL.sel[F_GEAR_TYPE][0] = 0; refresh(); }
+static void on_slot(void *ud, DSLObj w) { (void)w; W.open_slot = W.open_slot == IDX(ud) ? -1 : IDX(ud); FL.pk[F_GEAR_TYPE].n = 0; refresh(); }
 static void on_item(void *ud, DSLObj w) {
     (void)w; int v = IDX(ud), s = v >> 12, i = (v & 0xFFF) - 1;
     const jv *eq = arr("eq"); if (!eq || (size_t)s >= eq->cnt) return;
@@ -488,18 +489,27 @@ static void on_qset(void *ud, DSLObj w) { (void)w; char j[60]; snprintf(j, sizeo
 static void on_chip(void *ud, DSLObj w) {
     (void)w; int f = IDX(ud) >> 8, i = (IDX(ud) & 255) - 1;
     if (f < 0 || f >= F_N) return;
-    if (i < 0 || i >= FL.n[f] || !strcmp(FL.sel[f], FL.val[f][i])) FL.sel[f][0] = 0;
-    else snprintf(FL.sel[f], sizeof FL.sel[f], "%s", FL.val[f][i]);
+    if (i < 0 || i >= FL.n[f]) FL.pk[f].n = 0;                 /* "All" */
+    else bld_pick_toggle(&FL.pk[f], FL.val[f][i]);            /* several values at once */
     W.bar_sec = -1;                                      /* the bar shows the chip states: draw it again */
     refresh();
 }
+
+/* a single-choice value row "Label  < Any >" over filter f's values (the wiki's bonus select: one stat) */
 static void on_vrow(void *ud, DSLObj w) {
     int f = IDX(ud), i = U->value_get(w) - 1;
     if (f < 0 || f >= F_N) return;
-    if (i < 0 || i >= FL.n[f]) FL.sel[f][0] = 0; else snprintf(FL.sel[f], sizeof FL.sel[f], "%s", FL.val[f][i]);
+    FL.pk[f].n = 0;
+    if (i >= 0 && i < FL.n[f]) bld_pick_toggle(&FL.pk[f], FL.val[f][i]);
     refresh();                                           /* the row shows its own value: only the list changes */
 }
-
+static void filter_row(DSLObj p, float x, float y, float w, const char *label, int f, const char *const *shown) {
+    const char *vals[FV + 1]; int cur = 0;
+    vals[0] = TR("Any");
+    for (int i = 0; i < FL.n[f]; i++) { vals[i + 1] = shown && shown[i] ? shown[i] : FL.val[f][i]; if (bld_pick_has(&FL.pk[f], FL.val[f][i])) cur = i + 1; }
+    DSLObj v = U->value_row(p, x, y, w, label, vals, FL.n[f] + 1, cur, on_vrow, UD(f));
+    char rn[40]; snprintf(rn, sizeof rn, "filter:%d", f); regp(rn, v);
+}
 /* chips laid out left to right, a new line when the next one does not fit (each is measured: no box cuts its label) */
 typedef struct { DSLObj p; float x0, x, y, w, h; } Flow;
 static void flow_init(Flow *f, DSLObj p, float x0, float y, float w, float h) { f->p = p; f->x0 = f->x = x0; f->y = y; f->w = w; f->h = h; }
@@ -523,23 +533,15 @@ static float flow_end(const Flow *f) { return f->y + f->h + 6; }
 /* the chips of filter f: "Label: [All] [a] [b] ..." over its values (FL.val) */
 static void chip_group(Flow *fl, const char *label, int f, const char *const *shown) {
     if (label && *label) flow_label(fl, label);
-    DSLObj b = flow_chip(fl, TR("All"), !FL.sel[f][0], on_chip, UD(f << 8));
+    DSLObj b = flow_chip(fl, TR("All"), !FL.pk[f].n, on_chip, UD(f << 8));
     { char rn[60]; snprintf(rn, sizeof rn, "chip:%d:all", f); regp(rn, b); }
     for (int i = 0; i < FL.n[f]; i++) {
-        b = flow_chip(fl, shown && shown[i] ? shown[i] : FL.val[f][i], !strcmp(FL.sel[f], FL.val[f][i]), on_chip, UD((f << 8) | (i + 1)));
+        b = flow_chip(fl, shown && shown[i] ? shown[i] : FL.val[f][i], bld_pick_has(&FL.pk[f], FL.val[f][i]), on_chip, UD((f << 8) | (i + 1)));
         char rn[120]; snprintf(rn, sizeof rn, "chip:%d:%s", f, FL.val[f][i]); regp(rn, b);
     }
 }
 static float chip_row(DSLObj p, float y, float w, const char *label, int f, const char *const *shown) {
     Flow fl; flow_init(&fl, p, 6, y, w - 6, 32); chip_group(&fl, label, f, shown); return flow_end(&fl);
-}
-/* a value row "Label  < Any >" over filter f's values */
-static void filter_row(DSLObj p, float x, float y, float w, const char *label, int f, const char *const *shown) {
-    const char *vals[FV + 1]; int cur = 0;
-    vals[0] = TR("Any");
-    for (int i = 0; i < FL.n[f]; i++) { vals[i + 1] = shown && shown[i] ? shown[i] : FL.val[f][i]; if (!strcmp(FL.sel[f], FL.val[f][i])) cur = i + 1; }
-    DSLObj v = U->value_row(p, x, y, w, label, vals, FL.n[f] + 1, cur, on_vrow, UD(f));
-    char rn[40]; snprintf(rn, sizeof rn, "filter:%d", f); regp(rn, v);
 }
 
 /* ------------------------------------------------------------------ the filter bar (above the list; it stays while
@@ -565,15 +567,23 @@ static float bar_bg(DSLObj p, float y, float w) {
     for (int f = 0; f < 3; f++) for (int i = 0; i < FL.n[F_BG_W + f]; i++) {
         const char *k = FL.val[F_BG_W + f][i];
         if (f < 2) { jv *t = tn ? jget(tn, k) : NULL; sraw(t ? jget(t, "n") : NULL, names[f][i], sizeof names[f][i]); if (!names[f][i][0]) snprintf(names[f][i], sizeof names[f][i], "%s", k); }
-        else snprintf(names[f][i], sizeof names[f][i], "%s", stat_word(k, k));
+        else {                                           /* the game's stat name, its [Shared_...] link marks removed */
+            const char *sw = stat_word(k, k); size_t o = 0;
+            for (const char *c = sw; *c && o + 1 < sizeof names[f][i]; c++) {
+                if (*c == '[') { const char *e = strchr(c, ']'); if (e) { c = e; continue; } }
+                names[f][i][o++] = *c;
+            }
+            while (o && names[f][i][o - 1] == ' ') o--;
+            names[f][i][o] = 0;
+        }
         shown[f][i] = names[f][i];
     }
     y = search_box(p, y, w);
-    float cw = (w - 18) / 2;
-    filter_row(p, 6, y, cw, TR("Weapon tree"), F_BG_W, shown[0]);
-    filter_row(p, 12 + cw, y, cw, TR("Auxiliary tree"), F_BG_A, shown[1]);
-    filter_row(p, 6, y + 44, cw, TR("Bonus"), F_BG_B, shown[2]);
-    return y + 90;
+    /* chips, several at once: a background must grant every chosen tree (the wiki's tree chips); one bonus stat (the wiki's bonus select) */
+    y = chip_row(p, y, w, TR("Weapon trees"), F_BG_W, shown[0]);
+    y = chip_row(p, y, w, TR("Auxiliary trees"), F_BG_A, shown[1]);
+    filter_row(p, 6, y, w * 0.6f, TR("Bonus"), F_BG_B, shown[2]);
+    return y + 46;
 }
 static float bar_gear(DSLObj p, float y, float w) {
     const jv *eq = arr("eq"); if (!eq || W.open_slot < 0 || (size_t)W.open_slot >= eq->cnt) return y;
@@ -698,7 +708,7 @@ static float draw_race(DSLObj p, float y) {
     n++;
     for (size_t i = 0; i < a->cnt; i++) {
         char k[120], g2[16]; sraw(jget(a->v[i], "k"), k, sizeof k); sraw(jget(a->v[i], "g"), g2, sizeof g2);
-        if (FL.sel[F_FACE][0] && strcmp(g2, FL.sel[F_FACE]) && strcmp(g2, "other")) continue;
+        if (!bld_pick_any(&FL.pk[F_FACE], g2) && strcmp(g2, "other")) continue;
         float x = 4 + (n % cols) * (s + 8), yy = y + (n / cols) * (s + 8); n++;
         DSLObj b = mu_button(p, x, yy, s, s, "", on_face, UD(i));
         if (!b) continue;
@@ -709,16 +719,7 @@ static float draw_race(DSLObj p, float y) {
     }
     return y + ((n + cols - 1) / cols) * (s + 8);
 }
-static int bg_pass(const jv *o) {
-    int f[3] = { F_BG_W, F_BG_A, F_BG_B }; const char *lk[3] = { "tw", "ta", "bon" };
-    for (int j = 0; j < 3; j++) {
-        if (!FL.sel[f[j]][0]) continue;
-        const jv *x = arr_in(o, lk[j]); int hit = 0;
-        for (size_t i = 0; x && i < x->cnt && !hit; i++) { char k[64]; sraw(x->v[i], k, sizeof k); hit = !strcmp(k, FL.sel[f[j]]); }
-        if (!hit) return 0;
-    }
-    return 1;
-}
+static int bg_pass(const jv *o) { return bld_bg_pass(o, &FL.pk[F_BG_W], &FL.pk[F_BG_A], &FL.pk[F_BG_B]); }
 static float draw_bg(DSLObj p, float y) {
     y = note(p, y, LW, TR("The background decides the unit's skill trees."), 22);
     Grid g = { "bgs", CM_ICON_AFFECTER, 2, 48, on_bg, "bg", 0, bg_pass, NULL };
@@ -837,9 +838,10 @@ static int sk_pass(const jv *nd) {
     char sn[160], wn[160], d[1200], k[160];
     sraw(jget(nd, "k"), k, sizeof k); sraw(jget(nd, "n"), wn, sizeof wn); sraw(jget(nd, "d"), d, sizeof d); game_name(k, wn, sn, sizeof sn);
     if (!q_match(sn, wn, d)) return 0;
-    if (FL.sel[F_SK_TYPE][0] && (!strcmp(FL.sel[F_SK_TYPE], "passive")) != (truthy(nd, "p") != 0)) return 0;
-    if (!strcmp(FL.sel[F_SK_STATE], "learned") && !truthy(nd, "on")) return 0;
-    if (!strcmp(FL.sel[F_SK_STATE], "can")) { char why[200]; sraw(jget(nd, "why"), why, sizeof why); if (truthy(nd, "on") || why[0]) return 0; }
+    if (!fl_pass(F_SK_TYPE, truthy(nd, "p") ? "passive" : "active")) return 0;
+    char why[200]; sraw(jget(nd, "why"), why, sizeof why);
+    if (FL.pk[F_SK_STATE].n && !(bld_pick_has(&FL.pk[F_SK_STATE], "learned") && truthy(nd, "on"))
+                            && !(bld_pick_has(&FL.pk[F_SK_STATE], "can") && !truthy(nd, "on") && !why[0])) return 0;
     return 1;
 }
 static float draw_skills(DSLObj p, float y) {
@@ -949,7 +951,7 @@ static float draw_gear(DSLObj p, float y) {
     return y;
 }
 static int insc_pass(const jv *o) { char s[64]; sraw(jget(o, "r"), s, sizeof s); if (!fl_pass(F_IN_RAR, s)) return 0; sraw(jget(o, "cat"), s, sizeof s); return fl_pass(F_IN_CAT, s); }
-static int tree_pass(const jv *o) { return !FL.sel[F_IN_TREE][0] || (FL.sel[F_IN_TREE][0] == 'w') == (truthy(o, "w") != 0); }
+static int tree_pass(const jv *o) { return fl_pass(F_IN_TREE, truthy(o, "w") ? "w" : "a"); }
 static float draw_insc(DSLObj p, float y) {
     jv *in = jget(W.st, "insc"); int freen = num(in, "free");
     FL.n[F_IN_TREE] = 0; fl_add(F_IN_TREE, "w"); fl_add(F_IN_TREE, "a");

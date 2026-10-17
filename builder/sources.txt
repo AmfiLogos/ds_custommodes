@@ -4,3 +4,4 @@ builder/bld_work.c
 builder/bld_ui.c
 builder/bld_init.c
 builder/bld_test.c
+builder/bld_filter.c
