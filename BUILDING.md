@@ -67,6 +67,7 @@ They write into that checkout (`build_bld/`, `build_c4/`, `build/units/`).
 
 - PvP core: `make -C pvp/pvp_test test`
 - My Units, links and card: `MP_ROOT=<checkout> make -C units/test test` (`NET=1` adds the live short links on dungeonsettlers.wiki).
+- Unit Builder filters (several choices at once): `cc -I builder -I fe builder/test/filter_test.c builder/bld_filter.c fe/fe_json.c -o /tmp/filter_test && /tmp/filter_test`
 - Unit Builder vs the wiki builder (Node.js): `MP_ROOT=<checkout> zsh builder/build.sh`, then
   `MP_ROOT=<checkout> zsh builder/test/run_eq.sh [count] [seed] <wiki site>/builder`.
 - Test Fights save generator vs the wiki (Node.js): `MP_ROOT=<checkout> zsh fights/build.sh`, then
