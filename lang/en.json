@@ -35,6 +35,7 @@
  "%s's gameplay mods are not the host's.": "%s's gameplay mods are not the host's.",
  "%s's hub": "%s's hub",
  "%s's hub rules:": "%s's hub rules:",
+ "%s/s": "%s/s",
  "%s: %s %.2f is outside %.2f..%.2f": "%s: %s %.2f is outside %.2f..%.2f",
  "%s: +%.0f XP.": "%s: +%.0f XP.",
  "%s: bonus %d is not in its pool": "%s: bonus %d is not in its pool",

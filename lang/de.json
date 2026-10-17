@@ -643,5 +643,6 @@
  "Aid Kit": "Erste-Hilfe-Paket",
  "Basic Camping Kit": "Einfaches Lagerpaket",
  "Basic Supply Kit": "Einfaches Vorratspaket",
- "Potion Buff Kit": "Tränken-Buff-Paket"
+ "Potion Buff Kit": "Tränken-Buff-Paket",
+ "%s/s": "%s/s"
 }

@@ -643,5 +643,6 @@
  "Aid Kit": "Kit de soins",
  "Basic Camping Kit": "Kit de camping de base",
  "Basic Supply Kit": "Kit de ravitaillement de base",
- "Potion Buff Kit": "Kit de potions de buff"
+ "Potion Buff Kit": "Kit de potions de buff",
+ "%s/s": "%s/s"
 }

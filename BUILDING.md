@@ -31,6 +31,7 @@ Never commit these.
 | Input | What it is | Env var |
 |---|---|---|
 | ds_multiplayer clone | https://github.com/AmfiLogos/ds_multiplayer. Gives the headers (`src/`), `sdk/dsl_sdk.h` and the Windows build. `build.sh` clones it into `build/ds_multiplayer` when missing. | `MP_REPO` |
+| DS wiki site source (optional) | The DPS check picture of Test Fights (`assets/img/tour/sg-dps-map.png`, game art: never in git) is copied into the mod as `art/dps_check.png`. Missing = the card shows without it. | `DS_WIKI_SITE` (default `dungeonsettlersdb/site` in your home folder) |
 | Multiplayer pin | The ds_multiplayer commit to build against: first line of `mp_pin.txt`. `build.sh` exports it read only into `build/mp/<sha>/`. | `MP_PIN` |
 | `multiplayer.dylib` (Mac only, required) | The Mac multiplayer module to link `custom-modes-mp.dylib` against. Only its exported names are used. Take `mods/multiplayer/multiplayer.dylib` from a ds_multiplayer release or a mod loader build, or `build/dsrig.dylib` of a ds_multiplayer build. | `MP_DYLIB` |
 | Loader SDK | Folder with `dsl_sdk.h`. Default: `sdk/` of the pinned tree. | `SDK` |

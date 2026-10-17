@@ -86,6 +86,8 @@ static const char *own_dir(char *out, size_t n) {
 }
 #endif
 
+static char mod_dir[1200];
+const char *cm_mod_dir(void) { return mod_dir; }
 void cm_i18n_init(const DSLHost *host, DSLPlugin *self) {
     H = host; ME = self;
 #ifdef _WIN32
@@ -98,6 +100,7 @@ void cm_i18n_init(const DSLHost *host, DSLPlugin *self) {
         snprintf(d, sizeof d, "%s", md);
         size_t L = strlen(d);
         while (L && (d[L - 1] == '/' || d[L - 1] == '\\')) d[--L] = 0;
+        snprintf(mod_dir, sizeof mod_dir, "%s", d);
         snprintf(d + L, sizeof d - L, "/lang");
     }
     dsi_set_dir(d);

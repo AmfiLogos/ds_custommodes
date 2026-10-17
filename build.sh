@@ -41,5 +41,7 @@ if [[ $WHAT == (win|all) ]]; then
     ~/tools/llvm-mingw/bin/llvm-strip --strip-debug $O/$f; done
   cp mod.json $O/mod.json
   if [[ -d lang ]]; then mkdir -p $O/lang; for f in lang/*.json(N); do [[ ${f:t} == en.json ]] || cp $f $O/lang/; done; fi
+  W=${DS_WIKI_SITE:-$HOME/dungeonsettlersdb/site}             # the DPS check picture (game art, never in git): as build_module.sh
+  if [[ -f $W/assets/img/tour/sg-dps-map.png ]]; then mkdir -p $O/art; cp $W/assets/img/tour/sg-dps-map.png $O/art/dps_check.png; fi
 fi
 for f in $H/build/(mac|win)/custom-modes/*.(dylib|dll)(N); do shasum -a 256 $f | sed "s|  $H/| |"; done

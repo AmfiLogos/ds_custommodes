@@ -53,6 +53,7 @@ static struct {
     char dummy_n[96]; double dummy_dur;
     char def_mode[16], def_boss[24], def_combat[24];
     char dummy_k[80], insc_k[80], dummy_tn[96], insc_tn[96], tlabel[8][64];   /* game names (names_refresh) */
+    char regen_k[80], regen_n[96], regen_tn[96]; double regen_ps;            /* the dummy's self repair (wiki dummy.regen) */
     unsigned names_gen;                                                     /* dsi_generation() + 1 they are for */
 } P;
 
@@ -139,7 +140,8 @@ static int panel_parse(const char *json) {
     for (size_t i = 0; a && i < a->cnt && P.nmsat < 12; i++) P.msat_keys[P.nmsat++] = (int)jnumv(a->v[i]);
     P.msat_def = (int)jnumv(jget(ms, "def"));
     jv *d = jget(r, "dummy");
-    if (d && d->t == JN_OBJ) { jtxt(jget(d, "n"), P.dummy_n, sizeof P.dummy_n); jtxt(jget(d, "k"), P.dummy_k, sizeof P.dummy_k); P.dummy_dur = jnumv(jget(d, "dur")); }
+    if (d && d->t == JN_OBJ) { jtxt(jget(d, "n"), P.dummy_n, sizeof P.dummy_n); jtxt(jget(d, "k"), P.dummy_k, sizeof P.dummy_k); P.dummy_dur = jnumv(jget(d, "dur"));
+                                    jv *rg = jget(d, "regen"); jtxt(jget(rg, "k"), P.regen_k, sizeof P.regen_k); jtxt(jget(rg, "n"), P.regen_n, sizeof P.regen_n); P.regen_ps = jnumv(jget(rg, "perSec")); }
     jv *df = jget(r, "defaults");
     jtxt(jget(df, "mode"), P.def_mode, sizeof P.def_mode); jtxt(jget(df, "boss"), P.def_boss, sizeof P.def_boss);
     jtxt(jget(df, "combat"), P.def_combat, sizeof P.def_combat);
@@ -160,6 +162,7 @@ static void names_refresh(void) {
     for (int i = 0; i < P.nbosses; i++) gname(P.bosses[i].key, P.bosses[i].n, P.bosses[i].tn, sizeof P.bosses[i].tn);
     for (int i = 0; i < P.nmons; i++) gname(P.mons[i].k, P.mons[i].n, P.mons[i].tn, sizeof P.mons[i].tn);
     gname(P.dummy_k, P.dummy_n, P.dummy_tn, sizeof P.dummy_tn);
+    gname(P.regen_k, P.regen_n, P.regen_tn, sizeof P.regen_tn);
     gname(P.insc_k, P.insc_n, P.insc_tn, sizeof P.insc_tn);
     for (int i = 0; i < P.nkits; i++) for (int j = 0; j < P.kits[i].nit; j++) gname(P.kits[i].ik[j], P.kits[i].in_[j], P.kits[i].itn[j], sizeof P.kits[i].itn[j]);
     for (int i = 0; i < P.ncombat; i++) {                            /* TEXTKEY_CreateCampaign_<tier>Difficulty (tags removed) */
@@ -593,6 +596,47 @@ static void fmt_stat(int i, float v, char *o, size_t n) {
     else if (i == TFC_CRIT) snprintf(o, n, "%g%%", (double)((long long)(v * 10 + 0.5)) / 10);
     else { fmt_n(v, t, sizeof t); snprintf(o, n, "%s", t); }
 }
+/* the DPS check's card, as the boss card (owner v0.1.12): the wiki's DPS check picture (builder SG_MAPS.dps,
+   assets/img/tour/sg-dps-map.png: the boss room with the scarecrow, game art only), copied into the mod at build time as
+   art/dps_check.png (build_module.sh; never in git, never downloaded), the dummy's game name, its durability and its self repair. */
+static float dps_card(DSLObj parent, float y, float w) {
+    const float H = 156, A = 132;
+    DSLObj card = cmw_flat(U->panel(parent, 0, y, w, H, 0), 0x2D2A31FFu);
+    if (!card) return 0;
+    cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu);
+    cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
+    DSLObj box = cmw_flat(U->panel(card, 12, 12, A, A, 0), 0x1E1C21FFu);
+    char png[1300]; snprintf(png, sizeof png, "%s/art/dps_check.png", cm_mod_dir());
+#ifdef _WIN32
+    int have = cm_mod_dir()[0] != 0;                                    /* a UTF-8 path: the kit opens it, fopen would not */
+#else
+    FILE *f = cm_mod_dir()[0] ? fopen(png, "rb") : NULL; int have = f != NULL;
+    if (f) fclose(f);
+#endif
+    DSLObj art = have && box && U->image_png ? U->image_png(box, 4, 4, A - 8, A - 8, png, 1) : NULL;
+    if (art) { cm_raycast(art, false); cmw_named(art, CMW_TEXT, "fights:r.dpsart", NULL, NULL, "art/dps_check.png"); }
+    else cmw_log("tf: DPS check card: no picture at %s", png);
+    float x = 12 + A + 16, cw = w - x - 12;
+    const char *nm = P.dummy_tn[0] ? P.dummy_tn : P.dummy_n;
+    DSLObj nmt = U->text(card, x, 10, cw, 30, nm, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
+    if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.dpsname", NULL, NULL, nm); }
+    char lab[2][96], val[2][48]; int n = 0;
+    snprintf(lab[n], sizeof lab[n], "%s", cm_gw("TEXTKEY_STATUS_MaxDurability_NAME", "Max Durability")); fmt_n(P.dummy_dur, val[n], sizeof val[n]); n++;
+    if (P.regen_ps > 0) {
+        char ps[40]; fmt_n(P.regen_ps, ps, sizeof ps);
+        snprintf(lab[n], sizeof lab[n], "%s", P.regen_tn[0] ? P.regen_tn : P.regen_n); snprintf(val[n], sizeof val[n], TR("%s/s"), ps); n++;
+    }
+    char stats[400]; size_t k = 0;
+    for (int i = 0; i < n; i++) {                                      /* the boss card's rows: label left, value right */
+        float cy = 46 + (float)i * 24;
+        DSLObj l = U->text(card, x, cy, cw - 130, 22, lab[i], 14, DSL_TXT_LEFT, SUB);
+        if (l) cm_text_ellipsis(l);
+        U->text(card, x + cw - 130, cy, 120, 22, val[i], 15, DSL_TXT_RIGHT, MAIN);
+        k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", lab[i], val[i]);
+    }
+    cmw_named(card, CMW_TEXT, "fights:r.dpscard", NULL, NULL, stats);
+    return H;
+}
 static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
     const float H = 156, A = 132;
     DSLObj card = cmw_flat(U->panel(parent, 0, y, w, H, 0), 0x2D2A31FFu);
@@ -651,6 +695,7 @@ static void paint_right(void) {
     else if (!strcmp(mode_id(), "arena")) snprintf(md, sizeof md, "%s", TR("The same boss room with the boss taken out and the monsters you choose put in instead."));
     else snprintf(md, sizeof md, "%s", TR("A fully built base with all research done. Your squad walks in ready to play."));
     y += txt(right, "fights:r.modedesc", 12, y, w - 12, md, 15, SUB) + 10;
+    if (!strcmp(mode_id(), "dps")) y += dps_card(right, y, w) + 10;
     /* Which fight / Which room */
     if (is_fight() && P.nbosses) {
         y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which fight") : TR("Which room"));

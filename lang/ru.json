@@ -670,5 +670,6 @@
  "Aid Kit": "Аптечка",
  "Basic Camping Kit": "Базовый походный набор",
  "Basic Supply Kit": "Базовый набор припасов",
- "Potion Buff Kit": "Набор зелий усиления"
+ "Potion Buff Kit": "Набор зелий усиления",
+ "%s/s": "%s/с"
 }

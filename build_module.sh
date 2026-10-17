@@ -40,5 +40,11 @@ if [[ ${OUT:t} == custom-modes ]]; then
   cp mod.json $OUT/mod.json
   # the language files (lang/<code>.json, read by home/cm_i18n.c): a subfolder, never in mod.json "files" (not hashed)
   if [[ -d lang ]]; then mkdir -p $OUT/lang; for f in lang/*.json(N); do [[ ${f:t} == en.json ]] || cp $f $OUT/lang/; done; fi
+  # pictures the windows show (art/, read by path): a subfolder too, never in mod.json "files". Game art stays out of
+  # git (.gitignore): it is copied at build time from the wiki site source (DS_WIKI_SITE, default dungeonsettlersdb/site
+  # in the home folder). Missing = the card shows without its picture.
+  W=${DS_WIKI_SITE:-$HOME/dungeonsettlersdb/site}
+  if [[ -f $W/assets/img/tour/sg-dps-map.png ]]; then mkdir -p $OUT/art; cp $W/assets/img/tour/sg-dps-map.png $OUT/art/dps_check.png
+  else echo "custom-modes: no DPS check picture (DS_WIKI_SITE/assets/img/tour/sg-dps-map.png): the card shows without it" >&2; fi
 fi
 echo "built $OUT/custom-modes.dylib (${#SOLO} sources) + custom-modes-mp.dylib (${#MPS} sources; linked to ${MP_DYLIB:t} + custom-modes.dylib)"

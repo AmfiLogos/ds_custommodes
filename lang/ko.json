@@ -616,5 +616,6 @@
  "Aid Kit": "응급 키트",
  "Basic Camping Kit": "기본 캠핑 키트",
  "Basic Supply Kit": "기본 보급 키트",
- "Potion Buff Kit": "물약 강화 키트"
+ "Potion Buff Kit": "물약 강화 키트",
+ "%s/s": "%s/초"
 }

@@ -616,5 +616,6 @@
  "Aid Kit": "救急キット",
  "Basic Camping Kit": "基本キャンプキット",
  "Basic Supply Kit": "基本補給キット",
- "Potion Buff Kit": "ポーション強化キット"
+ "Potion Buff Kit": "ポーション強化キット",
+ "%s/s": "%s/秒"
 }
