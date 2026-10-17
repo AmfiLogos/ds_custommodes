@@ -215,13 +215,15 @@ static void clear_click(void *ud, DSLObj w) {
 }
 
 /* a card's action: fetch the full item (its stored build), then save it or test it */
-typedef struct { cm_job j; char id[32]; int test; gal_item it; char *blob, *builds; char err[400]; int ok; } ItemJob;
+/* the picker door (cm_gallery_pick): the gallery opened for the Unit Builder; NULL = a normal window */
+static void (*pick_cb)(const char *build_json, void *ud); static void *pick_ud;
+typedef struct { cm_job j; char id[32]; int test, unit; gal_item it; char *blob, *builds; char err[400]; int ok; } ItemJob;
 static void title_of(const gal_item *it, char *o, size_t n) { gal_item_title(it, words, o, n); }
 extern sg_engine *tf_engine_for_gallery(char *err, size_t errn);        /* tf_ui.c: the engine, opened on this thread */
 static void item_run(cm_job *j) {
     ItemJob *b = (ItemJob *)j;
     if (gal_fetch_item(b->id, &b->it, &b->blob, b->err, sizeof b->err) || !b->blob) { if (!b->err[0]) snprintf(b->err, sizeof b->err, "%s", TR("Could not load this team. Try again later.")); return; }
-    if (!b->test) { b->ok = 1; return; }
+    if (!b->test) { b->ok = 1; return; }                             /* test: 1 Test Fight, 2 pick (the builder's JSON) */
     sg_engine *e = tf_engine_for_gallery(b->err, sizeof b->err); if (!e) return;
     b->builds = sg_decode_blob(e, b->blob, b->err, sizeof b->err);
     b->ok = b->builds != NULL;
@@ -237,6 +239,20 @@ static void item_done(cm_job *j) {
     ItemJob *b = (ItemJob *)j; char title[200]; title_of(&b->it, title, sizeof title);
     wk_build *bs = calloc(WK_MAX_UNITS, sizeof *bs); int n = 0; char e[300] = "";
     if (!b->ok) { snprintf(status, sizeof status, "%s", b->err); status_warn = 1; }
+    else if (b->test == 2) {                                           /* the picked unit's build, as the wiki builder wrote it */
+        jv *arr = jparse(b->builds, strlen(b->builds), e, sizeof e);
+        const jv *one = arr && arr->t == JN_ARR && b->unit >= 0 && (size_t)b->unit < arr->cnt ? arr->v[b->unit] : NULL;
+        char *js = one ? jdump(one, 0, NULL) : NULL;
+        if (js && pick_cb) {
+            void (*cb)(const char *, void *) = pick_cb; void *ud = pick_ud;
+            pick_cb = NULL; cb(js, ud);                                /* answered: closing the window is not a cancel */
+            cmw_close("gallery");
+        } else { snprintf(status, sizeof status, "%s", e[0] ? e : TR("Could not load this team. Try again later.")); status_warn = 1; }
+        free(js); jfree(arr);
+        free(bs); free(b->blob); free(b->builds); free(b);
+        if (cmw_is_open("gallery")) paint();
+        return;
+    }
     else if (!link_ok(b->blob, bs, &n, e, sizeof e)) { snprintf(status, sizeof status, "%s", e); status_warn = 1; }
     else if (b->test) {
         const char *names[GAL_MAX_UNITS]; char nb[GAL_MAX_UNITS][96]; int nn = 0;
@@ -284,6 +300,16 @@ static void card_action(int i, int test) {
     paint();
 }
 static void save_click(void *ud, DSLObj w) { (void)w; card_action((int)(intptr_t)ud, 0); }
+/* pick mode: "Use this unit" in Details (ud = unit index; the item is the one shown) */
+static void pick_click(void *ud, DSLObj w) {
+    (void)w; if (pv < 0 || pv >= nitems || !pick_cb) return;
+    ItemJob *b = calloc(1, sizeof *b); if (!b) return;
+    b->j.run = item_run; b->j.done = item_done; b->test = 2; b->unit = (int)(intptr_t)ud;
+    snprintf(b->id, sizeof b->id, "%s", items[pv].id);
+    snprintf(status, sizeof status, "%s", TR("Opening the build...")); status_warn = 0;
+    cm_work_post(&b->j);
+    paint_status();
+}
 static void test_click(void *ud, DSLObj w) { (void)w; card_action((int)(intptr_t)ud, 1); }
 
 /* ------------------------------------------------------------------ drawing */
@@ -555,11 +581,12 @@ static float card(DSLObj p, int i, float x, float y) {
         else { unit_list(c, pad, yy, iw, it, u); yy += LU_H + 2; }
     }
     yy += 6;
-    float bw = (iw - 16) / 3;
+    int nb = pick_cb ? 1 : 3;                                          /* picking for the Unit Builder: Details only */
+    float bw = (iw - 8 * (nb - 1)) / nb;
     const char *lb[3] = { TR("Details"), TR("Save to My Units"), TR("Test Fight") };
     dsl_ui_cb cb[3] = { view_open, save_click, card_test_click };
     const char *sfx[3] = { "view", "save", "test" };
-    for (int b = 0; b < 3; b++) {
+    for (int b = 0; b < nb; b++) {
         snprintf(nm, sizeof nm, "gallery:c%d.%s", i, sfx[b]);
         cmw_named(K(mu_button(c, pad + b * (bw + 8), yy, bw, 38, lb[b], cb[b], (void *)(intptr_t)i)), CMW_BUTTON, nm, cb[b], (void *)(intptr_t)i, lb[b]);
     }
@@ -581,7 +608,9 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
     face(c, 14, 14, 92, g);
     float x0 = 222, right = w - 14;
     member_name(it, u, t, sizeof t);
-    txt(c, x0, 10, right - x0, 26, t, 20, DSL_TXT_LEFT, GOLD);
+    txt(c, x0, 10, right - x0 - (pick_cb ? 230 : 0), 26, t, 20, DSL_TXT_LEFT, GOLD);
+    if (pick_cb) { char nm[40]; snprintf(nm, sizeof nm, "gallery:p.pick%d", u);
+                   cmw_named(K(mu_button(c, right - 220, 8, 220, 38, TR("Use this unit"), pick_click, (void *)(intptr_t)u)), CMW_BUTTON, nm, pick_click, (void *)(intptr_t)u, TR("Use this unit")); }
     crumb(g, 1, t, sizeof t);
     size_t k = strlen(t);
     for (int e = 0; e < g->nextra && k < sizeof t; e++) {
@@ -589,7 +618,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
         k += (size_t)snprintf(t + k, sizeof t - k, "  \xC2\xB7  %s %s%s", stat_name(g->extra[e].key), v, g->extra[e].pct ? "%" : "");
     }
     dsi_utf8_fix_end(t);
-    txt(c, x0, 38, right - x0, 20, t, 14, DSL_TXT_LEFT, SUB);
+    txt(c, x0, 38, right - x0 - (pick_cb ? 230 : 0), 20, t, 14, DSL_TXT_LEFT, SUB);   /* clear of "Use this unit" */
     /* the six major stats; a talent colours the value (the game's talent gems) and is named after it */
     k = 0; t[0] = 0;
     for (int m = 0; m < 6 && k < sizeof t; m++) {
@@ -640,8 +669,10 @@ static void preview(DSLObj p, const gal_item *it) {
     char t[600], au[160], by[200];
     K(cmw_named(mu_button(p, 24, 12, 120, 40, TR("Back"), back_click, NULL), CMW_BUTTON, "gallery:p.back", back_click, NULL, TR("Back")));
     float bx = WW - 24 - 180, sx = bx - 8 - 230;
-    K(cmw_named(mu_button(p, bx, 12, 180, 40, TR("Test Fight"), test_click, (void *)(intptr_t)pv), CMW_BUTTON, "gallery:p.test", test_click, (void *)(intptr_t)pv, TR("Test Fight")));
-    K(cmw_named(mu_button(p, sx, 12, 230, 40, TR("Save to My Units"), save_click, (void *)(intptr_t)pv), CMW_BUTTON, "gallery:p.save", save_click, (void *)(intptr_t)pv, TR("Save to My Units")));
+    if (!pick_cb) {
+        K(cmw_named(mu_button(p, bx, 12, 180, 40, TR("Test Fight"), test_click, (void *)(intptr_t)pv), CMW_BUTTON, "gallery:p.test", test_click, (void *)(intptr_t)pv, TR("Test Fight")));
+        K(cmw_named(mu_button(p, sx, 12, 230, 40, TR("Save to My Units"), save_click, (void *)(intptr_t)pv), CMW_BUTTON, "gallery:p.save", save_click, (void *)(intptr_t)pv, TR("Save to My Units")));
+    } else sx = WW - 24;
     title_of(it, t, sizeof t);
     cmw_named(txt(p, 160, 10, sx - 12 - 160, 30, t, 22, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD), CMW_TEXT, "gallery:p.title", NULL, NULL, t);
     gal_author_name(it, words, au, sizeof au); snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
@@ -733,6 +764,7 @@ static void paint(void) {
 }
 static void closed(void *ud) {
     (void)ud; body = grid_holder = w_status = w_prev = w_next = w_page = w_field = w_by = w_search = NULL;
+    if (pick_cb) { void (*cb)(const char *, void *) = pick_cb; pick_cb = NULL; cb(NULL, pick_ud); }   /* closed with no pick */
     ntrk = 0; pv = -1; cmw_forget("gallery:");
 }
 /* the window: as large as the screen allows, up to 1200 x 820 */
@@ -767,8 +799,19 @@ void gal_open(void) {
     w_prev = cmw_named(mu_button(body, WW - 24 - 270, BH - 56, 46, 44, "<", prev_click, NULL), CMW_BUTTON, "gallery:prev", prev_click, NULL, "<");
     w_page = cmw_named(mu_text(body, WW - 24 - 220, BH - 56, 174, 44, "", 15, DSL_TXT_CENTER, SUB), CMW_TEXT, "gallery:page", NULL, NULL, "");
     w_next = cmw_named(mu_button(body, WW - 24 - 46, BH - 56, 46, 44, ">", next_click, NULL), CMW_BUTTON, "gallery:next", next_click, NULL, ">");
+    if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
     fetch(0);
+    if (pick_cb) snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\"."));
     paint();
+}
+/* the picker door for the Unit Builder (lane cmbuilder, weak import): the gallery opens; "Use this unit" in a build's
+   Details hands back that unit's build as the wiki builder writes it (JSON, one character), then the gallery closes.
+   picked(NULL, ud) when the gallery is closed with no pick. Main thread. */
+__attribute__((visibility("default"))) void cm_gallery_pick(void (*picked)(const char *build_json, void *ud), void *ud) {
+    cmw_close("gallery");                                              /* an open gallery (an older pick: cancelled there) */
+    pick_cb = picked; pick_ud = ud;
+    gal_open();
+    if (!cmw_is_open("gallery") && pick_cb) { pick_cb = NULL; if (picked) picked(NULL, ud); }
 }
 
 /* mu_link's worker thread: the builder of a gallery item (a /build/<id> short link), named as the wiki names it. 1 found */
@@ -784,12 +827,22 @@ static int gal_link_author(const char *id, char *out, size_t n) {
     free(blob); free(it);
     return ok;
 }
-static void gal_relang(void) { if (cmw_is_open("gallery")) gal_open(); }   /* the language changed: drawn again */
+static void gal_relang(void) {                                         /* drawn again, a pick in progress kept */
+    if (!cmw_is_open("gallery")) return;
+    void (*cb)(const char *, void *) = pick_cb; pick_cb = NULL;
+    cmw_close("gallery"); pick_cb = cb; gal_open();
+}   /* the language changed: drawn again */
+/* test: the picker door with a recording callback (what the Unit Builder would get) */
+static int t_picks, t_cancels; static char t_pick[160];
+static void test_picked(const char *js, void *ud) { (void)ud; if (js) { t_picks++; snprintf(t_pick, sizeof t_pick, "%.150s", js); } else t_cancels++; }
+static void test_pick_open(void) { cm_gallery_pick(test_picked, NULL); }
 static void test_state(char *out, size_t n) {
     char tip[400]; mu_tip_test_state(tip, sizeof tip);
+    char pj[340], se[700]; size_t q = 0; for (const char *c = t_pick; *c && q + 3 < sizeof pj; c++) { if (*c == '"' || *c == '\\') pj[q++] = '\\'; pj[q++] = *c; } pj[q] = 0;
+    q = 0; for (const char *c = status; *c && q + 3 < sizeof se; c++) { if ((unsigned char)*c < 0x20) continue; if (*c == '"' || *c == '\\') se[q++] = '\\'; se[q++] = *c; } se[q] = 0;
     size_t k = (size_t)snprintf(out, n, "\"gal\":{\"items\":%d,\"loading\":%d,\"more\":%d,\"words\":%d,\"status\":\"%.300s\","
-                                "\"sprites\":%d,\"cut\":%d,\"view\":%d,\"vpage\":%d,\"shown\":%d,\"cards\":%d,\"preview\":%d,\"widgets\":%d,\"win\":[%.0f,%.0f],%s,\"ids\":[",
-                                nitems, loading, more, words != NULL, status, nsprites, texts_cut(), view, vpage, nvis, ncards_drawn, pv, ntrk, WW, WH, tip);
+                                "\"pick\":{\"mode\":%d,\"picks\":%d,\"cancels\":%d,\"json\":\"%s\"},\"sprites\":%d,\"cut\":%d,\"view\":%d,\"vpage\":%d,\"shown\":%d,\"cards\":%d,\"preview\":%d,\"widgets\":%d,\"win\":[%.0f,%.0f],%s,\"ids\":[",
+                                nitems, loading, more, words != NULL, se, pick_cb != NULL, t_picks, t_cancels, pj, nsprites, texts_cut(), view, vpage, nvis, ncards_drawn, pv, ntrk, WW, WH, tip);
     for (int i = 0; i < nitems && i < 24 && k + 40 < n; i++) k += (size_t)snprintf(out + k, n - k, "%s\"%s\"", i ? "," : "", items[i].id);
     snprintf(out + k, n - k, "]}");
 }
@@ -798,6 +851,7 @@ __attribute__((visibility("default"))) void cm_gallery_init(const DSLHost *host,
     if (cmw_init(host, self)) return;
     if (cm_work_start()) { cmw_log("gal: worker thread did not start: Gallery is off"); return; }
     cmw_test_opener("gallery", gal_open);
+    cmw_test_opener("gallery_pick", test_pick_open);
     cmw_test_state(test_state);
     cm_home_add("gallery", TR_NOOP("Wiki Build Gallery"), NULL, 30, gal_open);
     mul_gallery_author = gal_link_author;                        /* My Units' "Add from wiki link": a /build/<id> link's builder */

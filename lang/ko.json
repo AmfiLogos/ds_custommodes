@@ -149,6 +149,7 @@
  "Can learn": "습득 가능",
  "Cancel": "취소",
  "Capture the Flag": "깃발 뺏기",
+ "Choose a build, open its Details, then press \"Use this unit\".": "빌드를 고르고 상세를 연 다음 \"이 유닛 사용\"을 누르세요.",
  "Choose management difficulty separately": "운영 난이도는 따로 선택",
  "Choose the teams and the rules, then press Start Match.": "팀과 규칙을 고른 다음 매치 시작을 누르십시오.",
  "Choosing units...": "유닛을 고르는 중...",
@@ -549,6 +550,7 @@
  "Up to %d unit for the match. Copies only: your saves and My Units do not change.||Up to %d units for the match. Copies only: your saves and My Units do not change.": [
   "매치에 최대 유닛 %d개. 사본만 사용하며 세이브와 내 유닛은 바뀌지 않습니다."
  ],
+ "Use this unit": "이 유닛 사용",
  "Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring.": "Dungeon Settlers 위키 빌더(공유 > 링크 복사)의 팀 링크를 사용합니다. 유닛은 여기서 게임 자체 데이터로 만들어져 호스트에게 보내집니다. 새 링크는 마지막 데려가기를 대체합니다.",
  "Vanilla check": "바닐라 검사",
  "Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.": [
