@@ -977,7 +977,7 @@ static float draw_presets(DSLObj p, float y) {
     y = flow_end(&fw);
     int two = truthy(sets, "twoHanded");
     DSLObj tg = U->toggle(p, 6, y, 320, TR("Add a shield (one-handed weapons)"), truthy(sets, "shield"), on_shield, NULL);
-    if (tg) { U->set_enabled(tg, !two); reg("shield", tg); }
+    if (tg) { U->set_enabled(tg, !two); reg("+shield", tg); }
     y += 44;
     const jv *ls = arr_in(sets, "list");
     float cw = (LW - 8 - 8) / 2;
