@@ -10,6 +10,7 @@
 #include "cm_home.h"
 #include "cm_il.h"
 #include "cm_i18n.h"
+#include "mu_look.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -118,6 +119,23 @@ void cm_home_close(void) {
 }
 static void on_title(void *ud) { (void)ud; cm_home_open(); }
 
+/* the picture at the left of the title button (owner, v0.1.13): a random recruit drawn by the game (units/mu_look.h:
+   a face the recruit pool rolls, a weapon and armour the player can own), a new one each time the title menu shows.
+   The loader keeps the box and the label's place (dsl_sdk.h title_button_icon), so the button never moves. The
+   character, else the portrait (the game could not compose the character), else nothing. */
+#define CM_ICON 40.f                                        /* units (button 52 high): the character about the label's cap height plus a little */
+static void on_icon(void *ud, DSLObj box, int fresh) {
+    (void)ud; static DSLObj pic;                              /* a new box is empty (the old one went with its button) */
+    if (!fresh && pic) U->destroy(pic);
+    pic = NULL;
+    mu_look u; if (mu_look_random(&u)) { H->log(ME, "home: title icon: the game's tables are not there"); return; }
+    const char *how = "character";
+    if (!(pic = mu_look_sprite(box, 0, 0, CM_ICON, CM_ICON, &u))) how = (pic = mu_look_avatar(box, 0, 0, CM_ICON, &u)) ? "portrait" : "nothing";
+    char g[300] = ""; size_t o = 0;
+    for (int i = 0; i < u.ngear; i++) o += (size_t)snprintf(g + o, o < sizeof g ? sizeof g - o : 0, "%s%s", i ? "," : "", u.gear[i]);
+    H->log(ME, "home: title icon (%s): %s %s [%s]", fresh ? "new" : "shown again", how, u.portrait, g);
+}
+
 int cm_home_test_state(char *out, size_t cap) {
     size_t o = 0; if (out && cap) out[0] = 0;
     int shown = page_on && il_ok == 1 && alive(hget(h_page)) && hget(h_view) == title_view();
@@ -182,6 +200,9 @@ int cm_home_init(const DSLHost *host, DSLPlugin *self) {
     if (!U) { host->log(self, "home: no widget kit (loader older than API 3): the Custom Modes button is off"); return 0; }
     int r = dsl_title_add_button(host, self, TR("Units Laboratory"), 110, NULL, on_title, NULL);
     host->log(self, "home: title button \"Custom Modes\" %s", r ? "refused" : "added");
+#ifdef DSL_HAS_TITLE_BUTTON_ICON
+    if (!r) host->log(self, "home: title icon %s", dsl_title_button_icon(host, self, on_title, NULL, CM_ICON, on_icon) ? "refused (older loader)" : "on");
+#endif
     cm_i18n_on_change(lang_changed);
     return 0;
 }

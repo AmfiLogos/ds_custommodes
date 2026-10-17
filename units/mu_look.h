@@ -24,5 +24,9 @@ DSLObj mu_look_avatar(DSLObj parent, float x, float y, float s, const mu_look *u
    game's 64 x 40 canvas). Each look is made once and kept (48 most recent). NULL = the game could not make it (logged
    once per reason). */
 DSLObj mu_look_sprite(DSLObj parent, float x, float y, float w, float h, const mu_look *u);
+/* a random recruit: a face the game's recruit pool rolls (by its weight) and a weapon, armour, often a helmet or hood
+   and sometimes a shield the player can own (the weapon's material when the game has the piece). -1 = the game's
+   tables are not there (u is then empty). */
+int mu_look_random(mu_look *u);
 /* fill from a wiki build JSON (race, portrait, eq, hideHead) */
 void mu_look_from_build(const jv *b, mu_look *u);

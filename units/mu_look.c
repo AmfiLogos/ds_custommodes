@@ -6,6 +6,7 @@
 #include "mu_look.h"
 #include "mu_ui.h"
 #include "cm_il.h"
+#include "pvp_wiki.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -232,6 +233,97 @@ static Obj make_sprite(const mu_look *u) {
     if (!cm_alive(cr)) cr = sp;
     snprintf(C[slot].sig, sizeof C[slot].sig, "%s", sig); C[slot].h_uv = cm_il_hnew(uv); C[slot].h_crop = cm_il_hnew(cr); C[slot].used = ++tick;
     return cr;
+}
+
+/* ------------------------------------------------------------------ a random recruit */
+/* a face the recruit pool rolls (UnitProfileTable row with AppearWeight > 0, by its weight) and a gear set a settler of
+   that kind would wear: one weapon the player can own (the wiki's item list; each kind as likely), body armour and often a helmet or hood of
+   the weapon's material when the game has one, a shield or torch with some one-handed weapons */
+static unsigned rnd_state;
+static unsigned rnd(void) {
+    if (!rnd_state) rnd_state = (unsigned)time(NULL) * 2654435761u ^ (unsigned)clock() ^ 0x9E3779B9u;
+    rnd_state ^= rnd_state << 13; rnd_state ^= rnd_state >> 17; rnd_state ^= rnd_state << 5;
+    return rnd_state;
+}
+static int item_sub(const char *key) {                    /* ItemSubType of an item key, -1 = not in the game's table */
+    static uintptr_t h_tab; Obj tab = cm_il_hget(h_tab);
+    if (!cm_alive(tab)) { tab = first_of(k_itab); if (!tab) return -1; cm_il_hset(&h_tab, tab); }
+    Obj rows = CM_AT(tab, f_itab_rows, Obj); size_t n = list_n(rows);
+    for (size_t i = 0; i < n; i++) { Obj r = list_at(rows, i); if (r && str_is(CM_AT(r, f_irow_key, Obj), key)) return CM_AT(r, f_irow_sub, int32_t); }
+    return -1;
+}
+static int ends(const char *s, const char *t) { size_t a = strlen(s), b = strlen(t); return a >= b && !strcmp(s + a - b, t); }
+/* the weapon's kind: its last word (GreatSword is one; Mace and Club are both blunt) */
+static const char *wkind(const char *key) {
+    if (ends(key, "GreatSword")) return "GreatSword";
+    if (ends(key, "Club")) return "Mace";
+    const char *k = key + strlen(key);
+    while (k > key && !(k[-1] >= 'A' && k[-1] <= 'Z')) k--;
+    return k > key ? k - 1 : key;
+}
+/* the weapon's material: the word right before its kind (ITEM_CopperSword -> Copper, ITEM_FireBoneStaff -> Bone) */
+static void material(const char *key, char *out, size_t n) {
+    const char *k = strncmp(key, "ITEM_", 5) ? key : key + 5; size_t e = strlen(k), b;
+    if (ends(k, "GreatSword")) e -= 10;                       /* the kind word (GreatSword is two) */
+    else { while (e > 0 && !(k[e - 1] >= 'A' && k[e - 1] <= 'Z')) e--; if (e) e--; }
+    b = e; while (b > 0 && !(k[b - 1] >= 'A' && k[b - 1] <= 'Z')) b--;
+    if (b) b--;
+    if (b >= 5 && !strncmp(k + b - 5, "Blood", 5) && !strncmp(k + b, "Wood", 4)) b -= 5;   /* BloodWood */
+    snprintf(out, n, "%.*s", (int)(e - b), k + b);
+}
+int mu_look_random(mu_look *u) {
+    if (!u) return -1;
+    memset(u, 0, sizeof *u);
+    if (init() != 1 || f_prow_weight < 0) return -1;
+    static uintptr_t h_tab; Obj tab = cm_il_hget(h_tab);
+    if (!cm_alive(tab)) { tab = first_of(k_ptab); if (!tab) { logonce("random: no UnitProfileTable"); return -1; } cm_il_hset(&h_tab, tab); }
+    Obj rows = CM_AT(tab, f_ptab_rows, Obj); size_t n = list_n(rows); long long sum = 0;
+    for (size_t i = 0; i < n; i++) { Obj r = list_at(rows, i); int w = r ? CM_AT(r, f_prow_weight, int32_t) : 0; if (w > 0) sum += w; }
+    if (sum <= 0) { logonce("random: no recruit face"); return -1; }
+    long long pick = (long long)(rnd() % (unsigned)sum);
+    for (size_t i = 0; i < n; i++) {
+        Obj r = list_at(rows, i); int w = r ? CM_AT(r, f_prow_weight, int32_t) : 0; if (w <= 0) continue;
+        if (pick < w) { cm_il_utf8(CM_AT(r, f_prow_portrait, Obj), u->portrait, sizeof u->portrait); break; }
+        pick -= w;
+    }
+    /* the player's items by kind (the wiki's list, kinds from the game's ItemTable) */
+    enum { WEAPON, ARMOUR, HEAD, OFF, NK };
+    static char keys[NK][48][48]; static int nk[NK] = { -1 };
+    if (nk[0] < 0) {
+        memset(nk, 0, sizeof nk);
+        for (int i = 0; ; i++) {
+            const char *k = wk_item_key(i); if (!k || !*k) break;
+            int st = item_sub(k), kind = st > 100 && st < 199 && !ends(k, "Arrow") ? WEAPON : st == 303 ? ARMOUR
+                                    : st == 301 || st == 302 ? HEAD : st == 304 || st == 401 ? OFF : -1;
+            if (kind >= 0 && nk[kind] < 48) snprintf(keys[kind][nk[kind]++], sizeof keys[0][0], "%s", k);
+        }
+        mu_log("look: random gear pool: %d weapons, %d armours, %d helmets / hoods, %d shields / torches", nk[WEAPON], nk[ARMOUR], nk[HEAD], nk[OFF]);
+    }
+    if (!nk[WEAPON]) return 0;                                /* the face alone */
+    /* a kind first (sword, mace, spear, bow, greatsword, staff ...: the game has many more staffs), then one of it */
+    const char *kinds[16]; int nkd = 0;
+    for (int i = 0; i < nk[WEAPON]; i++) {
+        const char *w = wkind(keys[WEAPON][i]); int seen = 0;
+        for (int j = 0; j < nkd; j++) seen |= !strcmp(kinds[j], w);
+        if (!seen && nkd < 16) kinds[nkd++] = w;
+    }
+    const char *kd = kinds[rnd() % (unsigned)nkd]; int of[48], no = 0;
+    for (int i = 0; i < nk[WEAPON]; i++) if (!strcmp(wkind(keys[WEAPON][i]), kd)) of[no++] = i;
+    const char *wp = keys[WEAPON][of[rnd() % (unsigned)no]];
+    char mat[32]; material(wp, mat, sizeof mat);
+    snprintf(u->gear[u->ngear++], sizeof u->gear[0], "%s", wp);
+    /* armour, head (2 in 3), off-hand (1 in 2 with a sword, mace, club or spear): the weapon's material when there is one */
+    for (int kind = ARMOUR; kind < NK; kind++) {
+        if (!nk[kind]) continue;
+        if (kind == HEAD && rnd() % 3 == 0) continue;
+        int one_hand = (ends(wp, "Sword") && !ends(wp, "GreatSword")) || ends(wp, "Mace") || ends(wp, "Club") || ends(wp, "Spear");
+        if (kind == OFF && (!one_hand || rnd() % 2)) continue;
+        int same[48], ns = 0;
+        for (int i = 0; i < nk[kind]; i++) { char m[32]; material(keys[kind][i], m, sizeof m); if (mat[0] && !strcmp(m, mat)) same[ns++] = i; }
+        int i = ns ? same[rnd() % (unsigned)ns] : (int)(rnd() % (unsigned)nk[kind]);
+        snprintf(u->gear[u->ngear++], sizeof u->gear[0], "%s", keys[kind][i]);
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------ public */
