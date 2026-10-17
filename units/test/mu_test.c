@@ -72,10 +72,12 @@ static void t_roundtrip(const char *tmpdir, const char *link) {
     CHECK(n >= 1, "link decodes: %s", e);
     char ids[MU_TEAM_MAX][17];
     CHECK(mu_add_team(lib, A, n, NULL, ids, e, sizeof e) == n, "add team: %s", e);
+    CHECK(!mu_team_set_source(lib, 0, "\xC3\x89lodie Mage 52", "abc-1"), "gallery source set");   /* a gallery team's builder */
     CHECK(!mu_save(lib, e, sizeof e), "save: %s", e);
     jfree(lib);
     lib = mu_load(e, sizeof e); CHECK(lib && (int)mu_count(lib) == n && mu_team_count(lib) == 1, "reload: %zu units", lib ? mu_count(lib) : 0);
     if (!lib) return;
+    { char au[128]; CHECK(mu_team_author(lib, 0, au, sizeof au) && !strcmp(au, "\xC3\x89lodie Mage 52"), "gallery builder kept by save + load: '%s'", au); }
     CHECK(jstreq(jget(lib, "format"), "ds-launcher-units") && jnumv(jget(lib, "version")) == 1, "format / version");
     char nm[100], tids[MU_TEAM_MAX][17]; int k = mu_team_at(lib, 0, nm, sizeof nm, tids);
     CHECK(k == n && !strcmp(tids[0], ids[0]), "team ids");

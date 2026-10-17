@@ -24,6 +24,7 @@ extern void cm_builder_open(const char *unit_id_or_null, void (*saved)(const cha
 int mu_builder_present(void);
 
 const DSLUi *mu_kit(void);
+const DSLHost *mu_host(void);
 void mu_ui_init(const DSLHost *host, DSLPlugin *self);    /* cm_units_init */
 void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -39,13 +40,19 @@ DSLObj mu_button(DSLObj parent, float x, float y, float w, float h, const char *
 /* a game icon (cm_il.h CM_ICON_*), square s; tip = hover title (NULL none). dim = drawn faded (not invested).
    No sprite for the key: a small dark square (the slot is kept) */
 DSLObj mu_icon(DSLObj parent, float x, float y, float s, int kind, const char *key, int dim, const char *tip);
+/* mu_tip.c: the game's own hover card (TooltipUI: Tooltip_Item / _Skill / _Affecter) on target for a game key. 1 = done,
+   0 = no card for this kind (CM_ICON_TREE / _PORTRAIT) or the game's tooltip is not there (caller: the kit's name box) */
+int  mu_tip_game(DSLObj target, int kind, const char *key);
+void mu_tip_hide(void);
+DSLObj mu_tip_test_target(int i);
+size_t mu_tip_test_state(char *out, size_t cap);
 /* the game's name of a key (TEXTKEY_<key>_NAME, then the key without its AFFECTER_ / prefix) */
 void mu_name_of(const char *key, char *out, size_t cap);
 
 /* Compact Plus card (owner 2026-10-15) drawn at x, y in parent, width w; returns its root panel, *h the height used.
    name / level: what to show (a save unit's localised name; NULL = the card's own). portrait_key overrides the card's
    avatar (a save's own face). bar: the skill bar to show (NULL = the card's own bar). */
-#define MU_CARD_H 132.f
+#define MU_CARD_H 128.f                        /* 4 cards fit the My Units list at UI scale 1 (owner 2026-10-17) */
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar);
 

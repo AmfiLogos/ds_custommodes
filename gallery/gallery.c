@@ -100,6 +100,16 @@ int gal_list_url(const gal_query *q, char *url, size_t n) {
 }
 
 /* ---- one item */
+static void read_au(const jv *au, gal_item *it) {                    /* item "au" / an author of ?authors= */
+    str_of(jget(au, "n"), it->au_name, sizeof it->au_name);
+    const jv *p = jget(au, "p");
+    if (p && p->t == JN_ARR && p->cnt == 3) {
+        str_of(p->v[0], it->au_race, sizeof it->au_race); str_of(p->v[1], it->au_bg, sizeof it->au_bg); it->au_n = int_of(p->v[2]);
+        it->au_pseudo = 1;
+    }
+    str_of(jget(au, "aid"), it->au_id, sizeof it->au_id);
+    str_of(jget(au, "fl"), it->au_flag, sizeof it->au_flag);
+}
 static void read_item(const jv *o, gal_item *it) {
     memset(it, 0, sizeof *it);
     str_of(jget(o, "id"), it->id, sizeof it->id);
@@ -134,16 +144,24 @@ static void read_item(const jv *o, gal_item *it) {
         const jv *m = jget(x, "m"), *mt = jget(x, "mt");
         for (int j = 0; j < 6; j++) { g->majors[j] = int_of(jget(m, MAJORS[j])); str_of(jget(mt, MAJORS[j]), g->talents[j], sizeof g->talents[j]); }
     }
-    const jv *au = jget(o, "au");
-    str_of(jget(au, "n"), it->au_name, sizeof it->au_name);
-    const jv *p = jget(au, "p");
-    if (p && p->t == JN_ARR && p->cnt == 3) {
-        str_of(p->v[0], it->au_race, sizeof it->au_race); str_of(p->v[1], it->au_bg, sizeof it->au_bg); it->au_n = int_of(p->v[2]);
-        it->au_pseudo = 1;
-    }
-    str_of(jget(au, "aid"), it->au_id, sizeof it->au_id);
-    str_of(jget(au, "fl"), it->au_flag, sizeof it->au_flag);
+    read_au(jget(o, "au"), it);
     it->ntags = arr_strs(jget(o, "tags"), it->tags[0], sizeof it->tags[0], 8);
+}
+
+/* the wiki's author search (the gallery page's Find box, api/gallery.js "authors"): a chosen name or a pseudonym in
+   English words ("Elf Mage"), at least 2 characters, at most 8 authors with a listed build. Only the au_* fields are set. */
+static int fetch_json(const char *url, size_t max, cmh_resp *r, char *err, size_t errn);
+int gal_fetch_authors(const char *text, gal_item *out, int max, char *err, size_t errn) {
+    char url[700]; size_t k = 0; cmh_resp r;
+    int w = snprintf(url, sizeof url, CM_WIKI "/api/gallery?"); if (w < 0) return -1; k = (size_t)w;
+    if (url_add(url, sizeof url, &k, "authors=%s", text)) { snprintf(err, errn, "%s", TR("too many filters")); return -1; }
+    if (fetch_json(url, GAL_LIST_MAX, &r, err, errn)) return -1;
+    jv *o = jparse(r.body, r.n, err, errn); cmh_free(&r);
+    if (!o) return -1;
+    const jv *a = jget(o, "authors"); int n = 0;
+    for (size_t i = 0; a && a->t == JN_ARR && i < a->cnt && n < max; i++) { memset(&out[n], 0, sizeof out[n]); read_au(a->v[i], &out[n]); if (out[n].au_id[0]) n++; }
+    jfree(o);
+    return n;
 }
 
 int gal_parse_page(const char *json, size_t n, gal_page *out, char *err, size_t errn) {

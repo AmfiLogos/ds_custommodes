@@ -21,44 +21,44 @@
   "loader>=2.0.0"
  ],
  "conflicts": [],
- "description": "Adds My Units, Unit Builder, Gallery and Test Fights to the title screen. With Multiplayer on, you can also host Foreign Expedition and PvP.",
+ "description": "Adds My Units, Unit Builder, Wiki Build Gallery and Test Fights to the title screen. With Multiplayer on, you can also host Foreign Expedition and PvP.",
  "scope": "gameplay",
  "i18n": {
   "ko": {
    "name": "커스텀 모드",
-   "description": "타이틀 화면에 내 유닛, 유닛 빌더, 갤러리, 테스트 전투를 추가합니다. 멀티플레이를 켜면 외부 탐사와 PvP도 호스트할 수 있습니다."
+   "description": "타이틀 화면에 내 유닛, 유닛 빌더, 위키 빌드 갤러리, 테스트 전투를 추가합니다. 멀티플레이를 켜면 외부 탐사와 PvP도 호스트할 수 있습니다."
   },
   "fr": {
    "name": "Modes personnalisés",
-   "description": "Ajoute Mes unités, Créateur d'unités, Galerie et Combats d'essai à l'écran titre. Avec Multijoueur, hébergez aussi Expédition étrangère et PvP."
+   "description": "Ajoute Mes unités, Créateur d'unités, Galerie de builds du wiki et Combats d'essai à l'écran titre. Avec Multijoueur, hébergez aussi Expédition étrangère et PvP."
   },
   "de": {
    "name": "Eigene Modi",
-   "description": "Fügt dem Titelbildschirm Meine Einheiten, Einheiten-Builder, Galerie und Testkämpfe hinzu. Mit aktiviertem Mehrspieler kannst du außerdem Fremde Expedition und PvP hosten."
+   "description": "Fügt dem Titelbildschirm Meine Einheiten, Einheiten-Builder, Wiki-Build-Galerie und Testkämpfe hinzu. Mit aktiviertem Mehrspieler kannst du außerdem Fremde Expedition und PvP hosten."
   },
   "ru": {
    "name": "Особые режимы",
-   "description": "Добавляет на титульный экран «Мои юниты», «Конструктор юнитов», «Галерею» и «Тестовые бои». С включённым мультиплеером можно также создавать «Чужую экспедицию» и PvP."
+   "description": "Добавляет на титульный экран «Мои юниты», «Конструктор юнитов», «Галерею сборок вики» и «Тестовые бои». С включённым мультиплеером можно также создавать «Чужую экспедицию» и PvP."
   },
   "zh-Hans": {
    "name": "自定义模式",
-   "description": "在标题画面中新增“我的单位”、“单位构筑器”、“作品库”和“测试战斗”。开启多人游戏后，你还可以创建异地探险和 PvP 对战。"
+   "description": "在标题画面中新增“我的单位”、“单位构筑器”、“维基作品库”和“测试战斗”。开启多人游戏后，你还可以创建异地探险和 PvP 对战。"
   },
   "zh-Hant": {
    "name": "自訂模式",
-   "description": "在標題畫面新增「我的單位」、「單位構築器」、「作品庫」和「測試戰鬥」。開啟多人遊戲後，你也可以建立「異地探險」和 PvP 對戰。"
+   "description": "在標題畫面新增「我的單位」、「單位構築器」、「維基作品庫」和「測試戰鬥」。開啟多人遊戲後，你也可以建立「異地探險」和 PvP 對戰。"
   },
   "ja": {
    "name": "カスタムモード",
-   "description": "タイトル画面に、マイユニット、ユニットビルダー、ギャラリー、テスト戦闘を追加します。マルチプレイがオンなら、外部探索とPvPもホストできます。"
+   "description": "タイトル画面に、マイユニット、ユニットビルダー、Wikiビルドギャラリー、テスト戦闘を追加します。マルチプレイがオンなら、外部探索とPvPもホストできます。"
   },
   "es": {
    "name": "Modos personalizados",
-   "description": "Añade Mis unidades, Creador de unidades, Galería y Combates de prueba a la pantalla de título. Con Multijugador activado, también puedes alojar Expedición foránea y PvP."
+   "description": "Añade Mis unidades, Creador de unidades, Galería de builds de la wiki y Combates de prueba a la pantalla de título. Con Multijugador activado, también puedes alojar Expedición foránea y PvP."
   },
   "pt-BR": {
    "name": "Modos personalizados",
-   "description": "Adiciona Minhas unidades, Criador de unidades, Galeria e Combates de teste à tela inicial. Com Multijogador ativado, você também pode hospedar Expedição estrangeira e PvP."
+   "description": "Adiciona Minhas unidades, Criador de unidades, Galeria de builds da wiki e Combates de teste à tela inicial. Com Multijogador ativado, você também pode hospedar Expedição estrangeira e PvP."
   }
  }
 }

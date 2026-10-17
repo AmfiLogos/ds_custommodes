@@ -38,3 +38,6 @@ int  mul_submit(const char *text);
 int  mul_poll(mul_result *r);
 /* back to IDLE (the UI closed the message); refused (returns MUL_BUSY) while the worker runs */
 int  mul_reset(void);
+/* set by the Wiki Build Gallery part: the builder's name of gallery item id (a /build/<id> short link is a gallery
+   build), as the wiki shows it; runs on the worker thread. 1 = found. NULL = not looked up (the team gets no author). */
+extern int (*mul_gallery_author)(const char *gallery_id, char *out, size_t n);

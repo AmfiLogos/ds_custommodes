@@ -56,6 +56,12 @@ int  mu_delete(jv *lib, const char *id);
 int  mu_team_new(jv *lib, const char *name, char ids[][17], int n, char tid_out[17], char *err, size_t errn);
 int  mu_team_delete(jv *lib, const char *tid);                       /* the units stay. 0 ok, -1 no such team */
 int  mu_team_id_at(const jv *lib, size_t i, char out[17]);           /* 0 ok */
+/* a team from the Wiki Build Gallery: teams[i].author (the builder's name as the wiki shows it) and teams[i].gallery
+   (the gallery item id), optional members. 0 ok, -1 no such team. Does NOT save. */
+int  mu_team_set_source(jv *lib, size_t i, const char *author, const char *gallery_id);
+int  mu_team_author(const jv *lib, size_t i, char *out, size_t n);    /* 1 = the team has an author (out filled), 0 none */
+/* the team's icon: its first unit still in the library (portrait, race). 0 ok, -1 empty team */
+int  mu_team_lead(const jv *lib, size_t i, mu_info *out);
 
 /* a library unit as wk_build (wk_from_json, pvp_wiki.h) */
 int  mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t errn);

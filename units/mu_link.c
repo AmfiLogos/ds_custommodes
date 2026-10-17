@@ -18,7 +18,21 @@ static char text[16384];
 static wk_build units[WK_MAX_UNITS];
 static volatile int w_done, w_n, w_code;   /* worker -> caller, read after the join */
 static char w_err[400];
+static char w_gid[48], w_author[120];   /* a /build/<id> link: the gallery build and its builder (mul_gallery_author) */
 static int w_thread;                    /* a worker thread to join */
+int (*mul_gallery_author)(const char *gallery_id, char *out, size_t n);
+/* the id of a /build/<id> short link in t ("" = none) */
+static void gallery_id_of(const char *t, char *out, size_t n) {
+    const char *p = strstr(t, "/build/"); size_t k = 0;
+    if (n) out[0] = 0;
+    if (!p) return;
+    for (p += 7; *p && k + 1 < n; p++) {
+        char c = *p;
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-')) break;
+        out[k++] = c;
+    }
+    out[k] = 0;
+}
 #ifdef _WIN32
 static HANDLE th;
 static DWORD WINAPI work(LPVOID u) {
@@ -29,6 +43,8 @@ static void *work(void *u) {
     (void)u;
     int code = 0;
     int n = wkl_resolve(text, units, WK_MAX_UNITS, MUL_TIMEOUT_MS, &code, w_err, sizeof w_err);
+    gallery_id_of(text, w_gid, sizeof w_gid);
+    if (n > 0 && w_gid[0] && mul_gallery_author && !mul_gallery_author(w_gid, w_author, sizeof w_author)) w_author[0] = 0;
     w_n = n; w_code = code;
     __atomic_store_n(&w_done, 1, __ATOMIC_RELEASE);
     return 0;
@@ -45,7 +61,7 @@ static int start(const char *t) {
         return state;
     }
     snprintf(text, sizeof text, "%s", t);
-    w_done = 0; w_n = 0; w_code = 0; w_err[0] = 0;
+    w_done = 0; w_n = 0; w_code = 0; w_err[0] = 0; w_gid[0] = w_author[0] = 0;
 #ifdef _WIN32
     th = CreateThread(NULL, 0, work, NULL, 0, NULL);
     int ok = th != NULL;
@@ -81,7 +97,9 @@ int mul_poll(mul_result *r) {
             char e[400];
             jv *lib = mu_load(e, sizeof e);
             if (!lib) { state = MUL_FAILED; snprintf(res.msg, sizeof res.msg, "%s", e); }
-            else if (mu_add_team(lib, units, w_n, NULL, res.ids, e, sizeof e) < 0 || mu_save(lib, e, sizeof e)) {
+            else if (mu_add_team(lib, units, w_n, NULL, res.ids, e, sizeof e) < 0
+                     || (w_author[0] && mu_team_set_source(lib, mu_team_count(lib) - 1, w_author, w_gid), 0)
+                     || mu_save(lib, e, sizeof e)) {
                 state = MUL_FAILED; snprintf(res.msg, sizeof res.msg, TR("Could not add to My Units: %s"), e);
             } else {
                 state = MUL_DONE; res.n = w_n;

@@ -8,6 +8,7 @@ units/mu_link.c
 units/mu_clip.c
 units/mu_save.c
 units/mu_ui.c
+units/mu_tip.c
 units/mu_window.c
 units/mu_bring.c
 units/mu_init.c

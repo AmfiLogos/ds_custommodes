@@ -229,6 +229,28 @@ int mu_team_delete(jv *lib, const char *tid) {
     for (size_t t = 0; teams && t < teams->cnt; t++) if (jstreq(jget(teams->v[t], "id"), tid)) { jarr_del(teams, t); return 0; }
     return -1;
 }
+/* where a team came from (owner 2026-10-17: a gallery team shows its builder's name): teams[i].author = the builder's
+   name as the wiki shows it, teams[i].gallery = the gallery item id. Optional members: other readers ignore them. */
+int mu_team_set_source(jv *lib, size_t i, const char *author, const char *gallery_id) {
+    jv *t = jget(lib, "teams"); if (!t || i >= t->cnt) return -1;
+    if (author && *author) jset(t->v[i], "author", jstr_text(author));
+    if (gallery_id && *gallery_id) jset(t->v[i], "gallery", jstr_text(gallery_id));
+    return 0;
+}
+int mu_team_author(const jv *lib, size_t i, char *out, size_t n) {
+    jv *t = jget(lib, "teams"); if (n) out[0] = 0;
+    if (!t || i >= t->cnt) return 0;
+    raw_cpy(out, n, jget(t->v[i], "author"));
+    for (char *p = out; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';
+    return out[0] != 0;
+}
+int mu_team_lead(const jv *lib, size_t i, mu_info *out) {
+    char nm[8], ids[MU_TEAM_MAX][17];
+    memset(out, 0, sizeof *out);
+    if (mu_team_at(lib, i, nm, sizeof nm, ids) < 1) return -1;
+    for (size_t k = 0, n = mu_count(lib); k < n; k++) if (!mu_info_at(lib, k, out) && !strcmp(out->id, ids[0])) return 0;
+    memset(out, 0, sizeof *out); return -1;
+}
 int mu_team_id_at(const jv *lib, size_t i, char out[17]) {
     jv *t = jget(lib, "teams"); out[0] = 0;
     if (!t || i >= t->cnt) return -1;

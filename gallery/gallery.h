@@ -68,6 +68,10 @@ void gal_page_free(gal_page *p);
 int  gal_fetch_page(const gal_query *q, gal_page *out, char *err, size_t errn);
 int  gal_fetch_item(const char *id, gal_item *out, char **blob, char *err, size_t errn);
 
+/* the wiki's author search (gallery page Find box): up to max authors whose chosen name or pseudonym (English words)
+   contains text (2+ characters). Only the au_* fields of out are set. Returns the count, -1 err. */
+int  gal_fetch_authors(const char *text, gal_item *out, int max, char *err, size_t errn);
+
 gal_words *gal_words_parse(const char *json, size_t n, char *err, size_t errn);
 gal_words *gal_words_fetch(char *err, size_t errn);
 void       gal_words_free(gal_words *w);

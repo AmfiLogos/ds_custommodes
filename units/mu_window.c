@@ -85,7 +85,11 @@ static void close_win(void) {
     if (W.lib) { jfree(W.lib); W.lib = NULL; }
 }
 static void on_close(void *ud, DSLObj w) { (void)ud; (void)w; close_win(); }
-static void show_box(int on) { W.box_on = on; if (W.box) U->set_active(W.box, on); }
+static void show_box(int on) {
+    W.box_on = on; if (!W.box) return;
+    U->set_active(W.box, on);
+    if (on) cm_set_sibling(W.box, cm_child_count(cm_parent(W.box)) - 1);
+}
 static void win_poll(void) {
     if (!W.open) return;
     if (W.win) {
@@ -198,28 +202,45 @@ static void on_page(void *ud, DSLObj w) {
 }
 
 /* ------------------------------------------------------------------ drawing */
+/* the left list: All units, then one row per team headed by its icon (the first unit's portrait) and, for a team from the
+   Wiki Build Gallery, the builder's name under the team name (owner 2026-10-17) */
+#define LEFT_W 250.f
+#define TEAM_H 64.f
 static void draw_left(void) {
     if (W.left) U->destroy(W.left);
-    W.left = U->scroll(W.win, 20, W.ry, 200, W.rh);
+    W.left = U->scroll(W.win, 20, W.ry, LEFT_W, W.rh);
     W.nteam_btn = 0;
     if (!W.left) return;
-    float y = 0; char t[200], all[160];
+    float y = 0, bw = LEFT_W - 8; char t[200], all[160];
     snprintf(all, sizeof all, TR("All units (%zu)"), W.lib ? mu_count(W.lib) : (size_t)0);
     snprintf(t, sizeof t, "%s%s%s", W.sel_team < 0 ? "<color=#D9BE8F>" : "", all, W.sel_team < 0 ? "</color>" : "");
-    W.all_btn = mu_button(W.left, 0, y, 192, 40, t, on_team, (void *)(intptr_t)-1); y += 44;
+    W.all_btn = mu_button(W.left, 0, y, bw, 44, t, on_team, (void *)(intptr_t)-1); y += 48;
     size_t nt = W.lib ? mu_team_count(W.lib) : 0;
     for (size_t i = 0; i < nt && W.nteam_btn < 64; i++) {
-        char nm[200], ids[MU_TEAM_MAX][17]; int n = mu_team_at(W.lib, i, nm, sizeof nm, ids);
-        int sel = W.sel_team == (int)i;
-        snprintf(t, sizeof t, "%s%s (%d)%s", sel ? "<color=#D9BE8F>" : "", nm, n, sel ? "</color>" : "");
-        DSLObj b = mu_button(W.left, 0, y, 192, 40, t, on_team, (void *)(intptr_t)i);
-        W.team_btn[W.nteam_btn++] = b; y += 44;
+        char nm[200], au[128], by[200], ids[MU_TEAM_MAX][17]; int n = mu_team_at(W.lib, i, nm, sizeof nm, ids);
+        int sel = W.sel_team == (int)i, has_au = mu_team_author(W.lib, i, au, sizeof au);
+        DSLObj b = mu_button(W.left, 0, y, bw, TEAM_H, "", on_team, (void *)(intptr_t)i);
+        if (b) {
+            mu_info lead;
+            if (!mu_team_lead(W.lib, i, &lead)) {
+                if (lead.portrait[0] && cm_icon(CM_ICON_PORTRAIT, lead.portrait)) mu_icon(b, 8, 8, TEAM_H - 16, CM_ICON_PORTRAIT, lead.portrait, 0, NULL);
+                else mu_icon(b, 8, 8, TEAM_H - 16, CM_ICON_AFFECTER, lead.race, 0, NULL);
+            }
+            float tx = TEAM_H, tw = bw - TEAM_H - 6;
+            snprintf(t, sizeof t, "%s (%d)", nm, n); dsi_utf8_fix_end(t);
+            /* the name on up to two lines (a gallery name is long: "Shield & Greatsword Fellowship"), the builder under it */
+            mu_text(b, tx, has_au ? 3 : 6, tw, has_au ? 38 : TEAM_H - 12, t, 14, DSL_TXT_LEFT | DSL_TXT_WRAP, sel ? MU_C_GOLD : MU_C_MAIN);
+            if (has_au) { snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by); mu_text(b, tx, 41, tw, 20, by, 12, DSL_TXT_LEFT, MU_C_SUB); }
+        }
+        W.team_btn[W.nteam_btn++] = b; y += TEAM_H + 4;
     }
     U->scroll_height(W.left, y);
 }
 static void draw_cards(void) {
     if (W.right) U->destroy(W.right);
-    W.right = U->panel(W.win, W.rx, W.ry, W.rw, W.rh, MU_C_BAND);
+    /* the game's own panel sprite, a little darker than the window so the cards (the same sprite) and the tick boxes stand
+       out; the old dark tint drew it pure black (owner 2026-10-17) */
+    W.right = U->panel(W.win, W.rx, W.ry, W.rw, W.rh, 0x9A9A9AFFu);
     W.ncard = 0;
     if (!W.right) return;
     cm_raycast(W.right, false);
@@ -238,6 +259,8 @@ static void draw_cards(void) {
         float y = 8 + k * (MU_CARD_H + 8);
         wk_build b; mu_card c; char e[300];
         memcpy(W.card_id[W.ncard], W.ids[i], 17);
+        { DSLObj slot = U->panel(W.right, 4, y + (MU_CARD_H - 44) / 2, 44, 44, 0);   /* a framed slot: the tick box shows on the panel */
+          if (slot) cm_raycast(slot, false); }
         W.tick[W.ncard] = U->toggle(W.right, 8, y + (MU_CARD_H - 36) / 2, 36, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
         if (!mu_build_of(W.lib, W.ids[i], &b, e, sizeof e) && !mu_card_of(&b, &c)) {
             char nm[64]; name_of(W.ids[i], nm, sizeof nm);
@@ -255,6 +278,7 @@ static void refresh(void) {
     list_ids();
     draw_left();
     draw_cards();
+    if (W.box_on && W.box) cm_set_sibling(W.box, cm_child_count(cm_parent(W.box)) - 1);   /* the paste box lies over the list */
     int pages = W.per_page ? (W.nids + W.per_page - 1) / W.per_page : 1; if (pages < 1) pages = 1;
     char t[64]; snprintf(t, sizeof t, TRN("%d selected", "%d selected", W.nticked), W.nticked); U->set_text(W.t_sel, t);
     snprintf(t, sizeof t, "%d / %d", W.page + 1, pages); U->set_text(W.t_page, t);
@@ -281,8 +305,8 @@ static int build_ui(void) {
     if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL); x += 160; }
     W.b_close = mu_button(W.win, w - 130, y, 110, 40, TR("Close"), on_close, NULL);
     W.status = mu_text(W.win, x, y, w - 140 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
-    /* paste box (only when the clipboard holds no link) */
-    W.box = U->panel(W.win, 20, y + 44, w - 40, 52, MU_C_BAND);
+    /* paste box (only when the clipboard holds no link): over the top of the lists, so the lists keep the room */
+    W.box = U->panel(W.win, 20, y + 46, w - 40, 52, MU_C_BAND);
     if (W.box) {
         W.box_field = U->field(W.box, 8, 6, w - 40 - 16 - 250, 40, TR("Paste a wiki builder link"), "", on_box_add, NULL);
         W.box_add = mu_button(W.box, w - 40 - 250, 6, 120, 40, TR("Add"), on_box_add, NULL);
@@ -290,7 +314,7 @@ static int build_ui(void) {
         U->set_active(W.box, 0);
     }
     /* lists */
-    W.ry = y + 104; W.rh = h - W.ry - 64; W.rx = 232; W.rw = w - W.rx - 20;
+    W.ry = y + 48; W.rh = h - W.ry - 64; W.rx = 20 + LEFT_W + 12; W.rw = w - W.rx - 20;
     /* bottom bar */
     float by = h - 54;
     W.bottom = U->panel(W.win, 20, by, w - 40, 44, 0x00000000u);
@@ -355,6 +379,7 @@ DSLObj mu_window_test_find(const char *n) {
         { "status", &W.status }, { "box_add", &W.box_add }, { "box_cancel", &W.box_cancel }, { "win", &W.win }, { "all", &W.all_btn }, { "right", &W.right } };
     for (size_t i = 0; i < sizeof map / sizeof *map; i++) if (!strcmp(n, map[i].n)) return *map[i].o;
     int k;
+    if (sscanf(n, "tip%d", &k) == 1) return mu_tip_test_target(k);       /* the k-th icon with a game hover card */
     if (sscanf(n, "tick%d", &k) == 1 && k >= 0 && k < W.ncard) return W.tick[k];
     if (sscanf(n, "card%d", &k) == 1 && k >= 0 && k < W.ncard) return W.card[k];
     if (sscanf(n, "team%d", &k) == 1 && k >= 0 && k < W.nteam_btn) return W.team_btn[k];
@@ -363,8 +388,9 @@ DSLObj mu_window_test_find(const char *n) {
 static void jesc(char *o, size_t cap, const char *s) { size_t n = 0; for (; *s && n + 3 < cap; s++) { if (*s == '"' || *s == '\\') o[n++] = '\\'; if ((unsigned char)*s < 0x20) continue; o[n++] = *s; } o[n] = 0; }
 size_t mu_window_test_state(char *out, size_t cap) {
     char m[600]; jesc(m, sizeof m, W.msg);
+    char tip[400]; mu_tip_test_state(tip, sizeof tip);
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"units\":%d,\"teams\":%d,\"sel_team\":%d,\"shown\":%d,\"cards\":%d,\"ticked\":%d,"
-                            "\"page\":%d,\"per_page\":%d,\"box\":%d,\"link\":%d,\"msg\":\"%s\",\"builder\":%d,\"w\":%.0f,\"h\":%.0f}",
+                            "\"page\":%d,\"per_page\":%d,\"box\":%d,\"link\":%d,\"msg\":\"%s\",\"builder\":%d,\"w\":%.0f,\"h\":%.0f,%s}",
                             W.open, W.lib ? (int)mu_count(W.lib) : -1, W.lib ? (int)mu_team_count(W.lib) : -1, W.sel_team, W.nids,
-                            W.ncard, W.nticked, W.page, W.per_page, W.box_on, mul_poll(NULL), m, mu_builder_present(), W.w, W.h);
+                            W.ncard, W.nticked, W.page, W.per_page, W.box_on, mul_poll(NULL), m, mu_builder_present(), W.w, W.h, tip);
 }

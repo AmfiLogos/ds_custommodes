@@ -14,6 +14,12 @@
 #include "wk_link.h"
 #include "../fe/fe_json.h"
 #include "cm_i18n.h"
+#include "cm_il.h"
+#include "mu_link.h"
+#include <ctype.h>
+#ifndef _WIN32
+#include <strings.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +35,8 @@
 #define CARD_W 484.0f
 #define CARD_H 196.0f
 #define MAXIT (GAL_PAGE_SIZE * (GAL_MAX_PAGE + 1))
+#define SEARCH_Y 116.0f                                /* the search row, under the filters */
+#define GRID_Y 166.0f
 
 static const DSLUi *U;
 static DSLObj body, grid_holder, w_status, w_more;
@@ -37,15 +45,26 @@ static struct { int chars, recent, race, tree, complete; } q = { 0, 0, 0, 0, 1 }
 static gal_item *items; static int nitems, page, more, loading, gen;   /* gen: a filter change makes older answers stale */
 static char status[600]; static int status_warn;
 static const char *race_keys[16], *tree_keys[40]; static int nrace, ntree;
+/* search (owner 2026-10-17: "add a search bar (search by name, author, and if cheap by class/weapon)"). A race or weapon
+   tree word in the text sets the Races / Weapon trees filter (the server filters); the rest is an author (the wiki's
+   Find box: /api/gallery?authors=) or, when no author has that name, a filter on the loaded builds: name, author,
+   background (class), race and tree words. */
+static DSLObj w_field, w_by;
+static char s_name[128];                       /* the local filter, "" = none */
+static char s_by[20], s_by_name[120];          /* the author filter (aid), "" = none */
+static int s_gen;                              /* a new search makes an older author answer stale */
+#define SEARCH_MIN 6                           /* the local filter loads more pages until this many builds show */
 
 /* ------------------------------------------------------------------ worker jobs */
-typedef struct { cm_job j; int gen, page; gal_query q; char race[64], tree[64]; gal_page pg; gal_words *w; char err[300]; int ok; } PageJob;
+typedef struct { cm_job j; int gen, page; gal_query q; char race[64], tree[64], by[20]; gal_page pg; gal_words *w; char err[300]; int ok; } PageJob;
+static int visible(const gal_item *it);
 static void page_run(cm_job *j) {
     PageJob *b = (PageJob *)j;
     if (!words && !words_tried) b->w = gal_words_fetch(b->err, sizeof b->err);
     const char *r1[1] = { b->race }, *t1[1] = { b->tree };
     if (b->race[0]) { b->q.races[0] = r1[0]; b->q.nraces = 1; }
     if (b->tree[0]) { b->q.trees[0] = t1[0]; b->q.ntrees = 1; }
+    if (b->by[0]) b->q.by = b->by;
     b->ok = gal_fetch_page(&b->q, &b->pg, b->err, sizeof b->err) == 0;
 }
 static void paint(void);
@@ -60,7 +79,14 @@ static void page_done(cm_job *j) {
             for (int i = 0; i < b->pg.n && nitems < MAXIT; i++) items[nitems++] = b->pg.items[i];
             more = b->pg.more && page < GAL_MAX_PAGE; page = b->page;
             status[0] = 0;
+            int shown = 0; for (int i = 0; i < nitems; i++) shown += visible(&items[i]);
+            if (s_name[0] && shown < SEARCH_MIN && more) {                /* a name search: look further down the list */
+                gal_page_free(&b->pg); free(b);
+                void fetch_more_search(void); fetch_more_search();
+                paint(); return;
+            }
             if (!nitems) { snprintf(status, sizeof status, "%s", TR("No public builds match these filters yet.")); status_warn = 0; }
+            else if (!shown) { snprintf(status, sizeof status, "%s", TR("No public builds match this search.")); status_warn = 0; }
         } else { snprintf(status, sizeof status, "%s", TR("Could not load the gallery. Try again later.")); status_warn = 1; cmw_log("gal: %s", b->err); }
     }
     gal_page_free(&b->pg); free(b);
@@ -72,8 +98,105 @@ static void fetch(int pg) {
     b->q.chars = q.chars; b->q.recent = q.recent; b->q.incomplete = !q.complete; b->q.page = pg;
     if (q.race > 0) snprintf(b->race, sizeof b->race, "%s", race_keys[q.race - 1]);
     if (q.tree > 0) snprintf(b->tree, sizeof b->tree, "%s", tree_keys[q.tree - 1]);
+    snprintf(b->by, sizeof b->by, "%s", s_by);
     loading = 1; snprintf(status, sizeof status, "%s", TR("Loading builds...")); status_warn = 0;
     cm_work_post(&b->j);
+}
+void fetch_more_search(void) {
+    if (page + 1 > GAL_MAX_PAGE || nitems + GAL_PAGE_SIZE > MAXIT) { more = 0; loading = 0; status[0] = 0; return; }
+    fetch(page + 1);
+}
+
+/* ------------------------------------------------------------------ search */
+/* case-insensitive (ASCII letters) substring; other bytes as they are (Japanese, Cyrillic names match exactly) */
+static int ci_has(const char *hay, const char *needle) {
+    size_t n = strlen(needle); if (!n) return 1;
+    for (const char *h = hay; *h; h++) {
+        size_t i = 0;
+        while (i < n && h[i] && (h[i] == needle[i] || ((unsigned char)h[i] < 128 && (unsigned char)needle[i] < 128 &&
+               tolower((unsigned char)h[i]) == tolower((unsigned char)needle[i])))) i++;
+        if (i == n) return 1;
+    }
+    return 0;
+}
+static int visible(const gal_item *it) {
+    if (!s_name[0]) return 1;
+    char t[300]; gal_item_title(it, words, t, sizeof t); if (ci_has(t, s_name)) return 1;
+    gal_author_name(it, words, t, sizeof t); if (ci_has(t, s_name)) return 1;
+    for (int u = 0; u < it->nunits; u++) {
+        const gal_unit *g = &it->units[u];
+        if (ci_has(gal_word(words, "bg", g->bg), s_name) || ci_has(gal_word(words, "races", g->race), s_name)) return 1;
+        for (int z = 0; z < g->ntrees; z++) if (ci_has(gal_word(words, "trees", g->trees[z]), s_name)) return 1;
+    }
+    return 0;
+}
+/* a whole word of the text equal to a word of the group (case-insensitive): its index, and the word is cut out of text */
+static int take_word(char *text, const char *const *names, int n) {
+    for (int i = 0; i < n; i++) {
+        size_t L = strlen(names[i]); if (!L) continue;
+        for (char *p = text; *p; p++) {
+            if (p != text && p[-1] != ' ') continue;
+            if (strncasecmp(p, names[i], L) || (p[L] && p[L] != ' ')) continue;
+            memmove(p, p + L, strlen(p + L) + 1);
+            return i;
+        }
+    }
+    return -1;
+}
+static void trim(char *s) {
+    char *a = s; while (*a == ' ') a++;
+    memmove(s, a, strlen(a) + 1);
+    size_t L = strlen(s); while (L && s[L - 1] == ' ') s[--L] = 0;
+    for (char *p = s; *p; p++) while (p[0] == ' ' && p[1] == ' ') memmove(p, p + 1, strlen(p));
+}
+static int is_bg_word(const char *t) {
+    const char *k[64]; int n = gal_word_keys(words, "bg", k, 64);
+    for (int i = 0; i < n; i++) if (!strcasecmp(gal_word(words, "bg", k[i]), t)) return 1;
+    return 0;
+}
+typedef struct { cm_job j; int gen; char text[128]; gal_item au[8]; int n; char err[300]; } FindJob;
+static void find_run(cm_job *j) { FindJob *b = (FindJob *)j; b->n = gal_fetch_authors(b->text, b->au, 8, b->err, sizeof b->err); }
+static void search_label(void) {
+    if (!w_by) return;
+    char t[200] = "";
+    if (s_by[0]) snprintf(t, sizeof t, TR("Builds by %s"), s_by_name);
+    dsi_utf8_fix_end(t); cmw_set_text(w_by, t);
+}
+static void find_done(cm_job *j) {
+    FindJob *b = (FindJob *)j;
+    if (b->gen == s_gen && cmw_is_open("gallery")) {
+        int pick = -1; char nm[120];
+        for (int i = 0; i < b->n && pick < 0; i++) { gal_author_name(&b->au[i], words, nm, sizeof nm); if (!strcasecmp(nm, b->text)) pick = i; }
+        if (pick < 0 && b->n > 0) pick = 0;
+        if (pick >= 0) { snprintf(s_by, sizeof s_by, "%s", b->au[pick].au_id); gal_author_name(&b->au[pick], words, s_by_name, sizeof s_by_name); s_name[0] = 0; }
+        else { s_by[0] = 0; snprintf(s_name, sizeof s_name, "%s", b->text); }   /* no author by that name: names and words */
+        if (b->n < 0) cmw_log("gal: author search: %s", b->err);
+        search_label(); fetch(0); paint();
+    }
+    free(b);
+}
+static void search_go(const char *raw) {
+    char t[128]; snprintf(t, sizeof t, "%s", raw ? raw : ""); trim(t);
+    s_gen++; s_name[0] = s_by[0] = s_by_name[0] = 0;
+    if (t[0] && words) {                                               /* race / weapon tree words: the server's filters */
+        static char nb[40][64]; const char *names[40]; int n;          /* gal_word's buffers rotate: copies */
+        nrace = gal_word_keys(words, "races", race_keys, 16); ntree = gal_word_keys(words, "trees", tree_keys, 40);
+        n = 0; for (int i = 0; i < nrace; i++) { snprintf(nb[n], 64, "%s", gal_word(words, "races", race_keys[i])); names[n] = nb[n]; n++; }
+        int r = take_word(t, names, n); if (r >= 0) q.race = r + 1;
+        n = 0; for (int i = 0; i < ntree; i++) { snprintf(nb[n], 64, "%s", gal_word(words, "trees", tree_keys[i])); names[n] = nb[n]; n++; }
+        int k = take_word(t, names, n); if (k >= 0) q.tree = k + 1;
+        trim(t);
+    }
+    if (!t[0] || is_bg_word(t) || strlen(t) < 2) { snprintf(s_name, sizeof s_name, "%s", t); search_label(); fetch(0); paint(); return; }
+    FindJob *b = calloc(1, sizeof *b); if (!b) return;
+    b->j.run = find_run; b->j.done = find_done; b->gen = s_gen; snprintf(b->text, sizeof b->text, "%s", t);
+    loading = 1; snprintf(status, sizeof status, "%s", TR("Searching...")); status_warn = 0;
+    search_label(); cm_work_post(&b->j); paint();
+}
+static void search_click(void *ud, DSLObj w) { (void)ud; (void)w; char t[256] = ""; if (w_field) U->field_get(w_field, t, sizeof t); search_go(t); }
+static void clear_click(void *ud, DSLObj w) {
+    (void)ud; (void)w; if (w_field) U->field_set(w_field, "");
+    q.race = q.tree = 0; search_go("");
 }
 
 /* a card's action: fetch the full item (its stored build), then save it or test it */
@@ -111,8 +234,11 @@ static void item_done(cm_job *j) {
     } else {
         jv *lib = mu_load(e, sizeof e); int r = -1;
         if (lib) {
-            if (b->it.team) r = mu_add_team(lib, bs, n, title, NULL, e, sizeof e) < 0 ? -1 : 0;
-            else {
+            if (b->it.team) {
+                r = mu_add_team(lib, bs, n, title, NULL, e, sizeof e) < 0 ? -1 : 0;
+                char au[120]; gal_author_name(&b->it, words, au, sizeof au);   /* My Units shows "by <builder>" under the team */
+                if (!r) mu_team_set_source(lib, mu_team_count(lib) - 1, au, b->it.id[0] ? b->it.id : b->id);
+            } else {
                 /* one character: the build JSON as stored ("b:" + base64), checked by mu_add_build (wk_from_json) */
                 char t[8192]; snprintf(t, sizeof t, "%s", b->blob + 2);
                 size_t L = strlen(t); for (size_t i = 0; i < L; i++) { if (t[i] == '-') t[i] = '+'; else if (t[i] == '_') t[i] = '/'; }
@@ -184,6 +310,7 @@ static void paint(void) {
     cmw_forget("gallery:c"); cmw_forget("gallery:f.");
     if (grid_holder) U->destroy(grid_holder);
     grid_holder = cmw_flat(U->panel(body, 0, 0, WIN_W, BODY_H - 70, 0), 0x00000000);
+    cm_raycast(grid_holder, false);                                  /* the search row under it (made once) keeps its clicks */
     /* filters (rebuilt with the grid: the race / tree lists arrive with the words) */
     const char *kinds[2] = { TR("Teams"), TR("Units") }, *sorts[2] = { TR("Most popular"), TR("Newest") };
     for (int s = 0; s < 2; s++) {
@@ -204,28 +331,37 @@ static void paint(void) {
         cmw_named(U->value_row(grid_holder, 24, 64, 488, TR("Races"), rl, nrace + 1, q.race, race_change, NULL), CMW_VALUE, "gallery:f.race", race_change, NULL, rl[q.race]);
         cmw_named(U->value_row(grid_holder, 528, 64, 488, TR("Weapon trees"), tl, ntree + 1, q.tree, tree_change, NULL), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
     }
-    DSLObj sc = U->scroll(grid_holder, 24, 120, WIN_W - 36, BODY_H - 70 - 128);
-    float y = 0;
+    DSLObj sc = U->scroll(grid_holder, 24, GRID_Y, WIN_W - 36, BODY_H - 70 - GRID_Y - 8);
+    float y = 0; int k = 0;
     for (int i = 0; i < nitems; i++) {
-        float x = (i % 2) * (CARD_W + 12);
+        if (!visible(&items[i])) continue;                             /* a name search shows only the builds that match */
+        float x = (k % 2) * (CARD_W + 12);
         card(sc, i, x, y);
-        if (i % 2) y += CARD_H + 12;
+        if (k % 2) y += CARD_H + 12;
+        k++;
     }
-    if (nitems % 2) y += CARD_H + 12;
+    if (k % 2) y += CARD_H + 12;
     U->scroll_height(sc, y);
     if (w_status) U->destroy(w_status);                               /* the kit has no colour setter: a problem shows orange */
     w_status = cmw_named(U->text(body, 24, BODY_H - 58, WIN_W - 300, 52, status, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, status_warn ? WARN : MAIN), CMW_TEXT, "gallery:status", NULL, NULL, status);
     U->set_active(w_more, more);
     U->set_enabled(w_more, more && !loading);
 }
-static void closed(void *ud) { (void)ud; body = grid_holder = w_status = w_more = NULL; cmw_forget("gallery:"); }
+static void closed(void *ud) { (void)ud; body = grid_holder = w_status = w_more = w_field = w_by = NULL; cmw_forget("gallery:"); }
 void gal_open(void) {
     U = cmw_ui(); if (!U) return;
     if (!items) items = calloc(MAXIT, sizeof *items);
     if (!items) return;
-    body = cmw_open("gallery", TR("Gallery"), WIN_W, WIN_H, closed, NULL);
+    body = cmw_open("gallery", TR("Wiki Build Gallery"), WIN_W, WIN_H, closed, NULL);
     if (!body) return;
     grid_holder = NULL;
+    /* the search row (made once per window, so typing is never cut by a page that arrives) */
+    s_gen++; s_name[0] = s_by[0] = s_by_name[0] = 0;
+    w_field = cmw_named(U->field(body, 24, SEARCH_Y, 520, 40, TR("Search: name, author, race, background or weapon"), "", search_click, NULL),
+                        CMW_FIELD, "gallery:s.field", search_click, NULL, "");
+    cmw_named(U->button(body, 552, SEARCH_Y, 150, 40, TR("Search"), search_click, NULL), CMW_BUTTON, "gallery:s.go", search_click, NULL, TR("Search"));
+    cmw_named(U->button(body, 708, SEARCH_Y, 110, 40, TR("Clear"), clear_click, NULL), CMW_BUTTON, "gallery:s.clear", clear_click, NULL, TR("Clear"));
+    w_by = cmw_named(U->text(body, 828, SEARCH_Y, WIN_W - 24 - 828, 40, "", 14, DSL_TXT_LEFT, SUB), CMW_TEXT, "gallery:s.by", NULL, NULL, "");
     cmw_flat(U->panel(body, 24, BODY_H - 66, WIN_W - 48, 1, 0), 0x633D33FF);
     w_status = NULL;
     w_more = cmw_named(U->button(body, WIN_W - 24 - 220, BODY_H - 58, 220, 46, TR("Show more"), more_click, NULL), CMW_BUTTON, "gallery:more", more_click, NULL, TR("Show more"));
@@ -233,6 +369,18 @@ void gal_open(void) {
     paint();
 }
 
+/* mu_link's worker thread: the builder of a gallery item (a /build/<id> short link), named as the wiki names it. 1 found */
+static int gal_link_author(const char *id, char *out, size_t n) {
+    gal_item *it = calloc(1, sizeof *it); char *blob = NULL, e[300]; int ok = 0;
+    if (n) out[0] = 0;
+    if (it && !gal_fetch_item(id, it, &blob, e, sizeof e)) {
+        gal_words *w = it->au_pseudo ? gal_words_fetch(e, sizeof e) : NULL;   /* a pseudonym is made of the wiki's words */
+        gal_author_name(it, w, out, n); gal_words_free(w);
+        ok = out[0] != 0;
+    }
+    free(blob); free(it);
+    return ok;
+}
 static void gal_relang(void) { if (cmw_is_open("gallery")) gal_open(); }   /* the language changed: drawn again */
 static void test_state(char *out, size_t n) {
     size_t k = (size_t)snprintf(out, n, "\"gal\":{\"items\":%d,\"loading\":%d,\"more\":%d,\"words\":%d,\"status\":\"%.300s\",\"ids\":[", nitems, loading, more, words != NULL, status);
@@ -245,6 +393,7 @@ __attribute__((visibility("default"))) void cm_gallery_init(const DSLHost *host,
     if (cm_work_start()) { cmw_log("gal: worker thread did not start: Gallery is off"); return; }
     cmw_test_opener("gallery", gal_open);
     cmw_test_state(test_state);
-    cm_home_add("gallery", TR_NOOP("Gallery"), NULL, 30, gal_open);
+    cm_home_add("gallery", TR_NOOP("Wiki Build Gallery"), NULL, 30, gal_open);
+    mul_gallery_author = gal_link_author;                        /* My Units' "Add from wiki link": a /build/<id> link's builder */
     cm_i18n_on_change(gal_relang);
 }

@@ -8,6 +8,7 @@
 
 static const DSLHost *H; static DSLPlugin *ME; static const DSLUi *U;
 const DSLUi *mu_kit(void) { return U; }
+const DSLHost *mu_host(void) { return H; }
 void mu_log(const char *fmt, ...) {
     if (!H) return;
     char b[1200]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
@@ -55,7 +56,8 @@ DSLObj mu_icon(DSLObj parent, float x, float y, float s, int kind, const char *k
     if (!p) return NULL;
     if (sp) cm_set_sprite(p, sp, dim ? 0xFFFFFF59u : 0xFFFFFFFFu);
     cm_raycast(p, false);                                              /* clicks go to what is under the icon */
-    if (tip && *tip) U->tooltip(p, tip, sp ? " " : key);
+    /* an item / skill / trait / inscription: the game's own hover card (mu_tip.c); else the kit's name box */
+    if (tip && *tip && !(sp && mu_tip_game(p, kind, key))) U->tooltip(p, tip, sp ? " " : key);
     rec(p, 0);
     return p;
 }
@@ -127,7 +129,7 @@ static void icon_row(DSLObj card, float x, float y, float right, float s, const 
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar) {
     if (!U || !c) return NULL;
-    DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, MU_C_ROW);
+    DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, 0);            /* the game's own panel (a dark tint drew it black) */
     if (!card) return NULL;
     cm_raycast(card, false);
     if (ncards < 256) { cards[ncards] = card; in_card = ncards++; }
@@ -159,14 +161,14 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     for (int i = 0; i < c->nactive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->active[i].tree, !c->active[i].invested }; gr[n++] = 0; }
     for (int i = 0; i < c->npassive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->passive[i].tree, !c->passive[i].invested }; gr[n++] = 1; }
     for (int i = 0; i < c->nstacks; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->stacks[i].skill, !c->stacks[i].learned }; gr[n++] = 2; }
-    icon_row(card, x0, 80, w - 8, 24, ic, gr, n);
+    icon_row(card, x0, 78, w - 8, 24, ic, gr, n);
     /* row C: passive skills | inscriptions | soul stones | traits acquired in play */
     n = 0;
     for (int i = 0; i < c->npass && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->pass[i].skill, 0 }; gr[n++] = 0; }
     for (int i = 0; i < c->ninsc && n < MUC_MAX * 2; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->insc[i], 0 }; gr[n++] = 1; }
     for (int i = 0; i < c->nsouls && n < MUC_MAX * 2 + WK_MAX_LIST; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->souls[i], 0 }; gr[n++] = 2; }
     for (int i = 0; i < c->nacq && n < MUC_MAX * 3; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->acq[i], 0 }; gr[n++] = 3; }
-    icon_row(card, x0, 108, w - 8, 20, ic, gr, n);
+    icon_row(card, x0, 104, w - 8, 20, ic, gr, n);
     in_card = -1;
     return card;
 }
