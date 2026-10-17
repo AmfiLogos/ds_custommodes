@@ -152,7 +152,6 @@
 "Could not read My Units: %s"	builder/bld_ui.c:176
 "Could not save My Units: %s"	units/mu_window.c:58 builder/bld_ui.c:191
 "Could not use the wiki link: %s"	pvp/pvp_ui.c:504
-"Custom Modes"	home/cm_home.c:176 home/cm_home.c:183
 "Custom fight"	fights/tf_ui.c:690
 "DPS Check"	fights/tf_ui.c:690
 "Dagger"	units/mu_ui.c:101
@@ -502,6 +501,7 @@
 "Unit Builder - Edit"	builder/bld_ui.c:1151
 "Unit name"	units/mu_window.c:339 builder/bld_ui.c:1160
 "Units"	gallery/gal_ui.c:709 pvp/pvp_ui.c:419
+"Units Laboratory"	home/cm_home.c:176 home/cm_home.c:183
 "Units changed at home since they left. Bring home:"	fe/fe_menu.c:264
 "Units come from this save. It is only read: nothing in it changes until you bring the results home."	fe/fe_menu.c:367
 "Units in %s"	fe/fe_menu.c:162

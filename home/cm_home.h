@@ -1,4 +1,4 @@
-// cm_home.h - the Custom Modes home (PLAN_V13 R4): the title button "Custom Modes" (below "Mods", only while the Custom
+// cm_home.h - the Custom Modes home (PLAN_V13 R4): the title button "Units Laboratory" (below "Mods", only while the Custom
 // Modes mod is on) opens a page in the title column, the same pattern as Multiplayer > Host a game: one button per
 // registered entry (in `order`), then Back. Each entry opens its own game-style window.
 // Fixed interface (PLAN_V13 section 4). Orders: My Units 10, Unit Builder 20, Gallery 30, Test Fights 40.

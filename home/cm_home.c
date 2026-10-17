@@ -1,5 +1,5 @@
 // cm_home.c - the Custom Modes home (PLAN_V13 R4; interface in cm_home.h).
-// Title button "Custom Modes" (loader TITLE API, order 110 = right below the loader's "Mods" at 100; no hover card,
+// Title button "Units Laboratory" (loader TITLE API, order 110 = right below the loader's "Mods" at 100; no hover card,
 // owner v12 1). Its click opens the page the way Multiplayer > Host a game does: the stock title column is hidden and a
 // column of the same kind takes its place, with one button per registered entry (lowest order first) and Back.
 // How: the page column is a copy of the stock column (Object.Instantiate: same RectTransform, same layout group, so the
@@ -173,14 +173,14 @@ static void lang_changed(void) {
         cm_destroy(go_of(hget(h_page))); hset(&h_page, NULL); hset(&h_view, NULL); nbt = 0;
         if (was_on) cm_home_open();
     }
-    if (cm_i18n_loader_relabels()) dsl_title_add_button(H, ME, TR("Custom Modes"), 110, NULL, on_title, NULL);
+    if (cm_i18n_loader_relabels()) dsl_title_add_button(H, ME, TR("Units Laboratory"), 110, NULL, on_title, NULL);
 }
 
 int cm_home_init(const DSLHost *host, DSLPlugin *self) {
     H = host; ME = self; U = dsl_ui(host);
     cm_test_register("home", cm_home_test_button, home_state);
     if (!U) { host->log(self, "home: no widget kit (loader older than API 3): the Custom Modes button is off"); return 0; }
-    int r = dsl_title_add_button(host, self, TR("Custom Modes"), 110, NULL, on_title, NULL);
+    int r = dsl_title_add_button(host, self, TR("Units Laboratory"), 110, NULL, on_title, NULL);
     host->log(self, "home: title button \"Custom Modes\" %s", r ? "refused" : "added");
     cm_i18n_on_change(lang_changed);
     return 0;
