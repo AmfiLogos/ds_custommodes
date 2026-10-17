@@ -34,8 +34,12 @@ var BLD = (function () {
     'firstPortrait', 'defaultBuild', 'raceShort', 'ammoOfPrimary', 'ammoFits', 'sanitizeEq', 'shelfOf', 'treeOfSkillAny',
     'shelfPut', 'shelfDrop', 'tagShelfOf', 'shelfTagsFor', 'unshelfTagsFor', 'setSlotItem', 'normTags', 'jewelStats',
     'jewelRolls', 'jewelPreset', 'jewelRetarget', 'blockReason', 'soloShareBuild', 'soloCompactUrl', 'b64enc',
-    'fmtN', 'isPct', 'dispScale', 'statLabel', 'resistDisp', 'inscByKey', 'fillT'];
-  var VARS = ['JEWEL', 'SOLO_PREFIX', 'DISP_SCALE', 'DISP_UNIT', 'EQ_ORDER', 'SLOT_LABEL'];
+    'fmtN', 'isPct', 'dispScale', 'statLabel', 'resistDisp', 'inscByKey', 'fillT',
+    // level-ups, talents, souls, acquired traits, portraits, gear quick sets (renderLevel / renderTalents / renderSouls /
+    // renderAcqTraits / renderPortrait / renderEquip)
+    'randomTalents', 'acqAvail', 'faceGender', 'setOfWeapon', 'swapWeaponType', 'weaponTypeIs2H', 'currentWeapon2H',
+    'tierShield', 'applyShield', 'baseStat'];
+  var VARS = ['JEWEL', 'SOLO_PREFIX', 'DISP_SCALE', 'DISP_UNIT', 'EQ_ORDER', 'SLOT_LABEL', 'WSUB', 'WSUBLABEL'];
   var W = (function () {
     var src = typeof __BLD_BUILDER_SRC === 'string' ? __BLD_BUILDER_SRC : '';
     var body = 'var S = null, tourHoldBg = false;\n' +
@@ -142,6 +146,62 @@ var BLD = (function () {
       W.setSlotItem(b, slot, k);
       W.jewelRetarget(b, was);
     },
+    // ---- level-ups (renderLevel chips, renderTalents squares and actions, renderElixirs setN)
+    offer: function (a) { if (D().offer && Object.prototype.hasOwnProperty.call(D().offer, a.v)) S().offer = a.v; },
+    gain: function (a) { if (a.v === 'min' || a.v === 'avg' || a.v === 'max') S().roll = a.v; },
+    tal: function (a) { if (MAJ.indexOf(a.m) >= 0 && D().tiers.order.indexOf(a.v) >= 0) S().tal[a.m] = a.v; },
+    talAll: function (a) { if (D().tiers.order.indexOf(a.v) >= 0) MAJ.forEach(function (m) { S().tal[m] = a.v; }); },
+    talRandom: function () { S().tal = W.randomTalents(); },
+    elix: function (a) {
+      if (!elixRow(a.m)) return;
+      var v = Math.max(0, Math.min(D().elixMax || 99, Math.floor(+a.v || 0)));
+      if (!S().elix) S().elix = {};
+      if (v) S().elix[a.m] = v; else delete S().elix[a.m];
+    },
+    // ---- soul stone (renderSouls card: one per character, the same one again removes it), acquired traits
+    soul: function (a) {
+      var b = S(); if (!D().souls || !D().souls[a.k]) return;
+      if (!Array.isArray(b.souls)) b.souls = [];
+      b.souls = (b.souls.indexOf(a.k) >= 0) ? [] : [a.k];
+    },
+    acq: function (a) {
+      var b = S(), x = ACQ[a.k]; if (!x) return;
+      if (!Array.isArray(b.acqInds)) b.acqInds = [];
+      var i = b.acqInds.indexOf(a.k);
+      if (i >= 0) b.acqInds.splice(i, 1);
+      else if (W.acqAvail(W.raceOf(b), x)) b.acqInds.push(a.k);
+    },
+    portrait: function (a) {                                                                               // renderPortrait pick
+      var race = W.raceOf(S()), pool = (race && D().portraits && D().portraits[race.k]) || [];
+      if (a.k == null) S().portrait = null; else if (pool.indexOf(a.k) >= 0) S().portrait = a.k;
+    },
+    // ---- gear quick sets (renderEquip: weapon type row, "Add shield", the set chips)
+    weapon: function (a) {
+      if (W.WSUB.indexOf(a.v) < 0) return;
+      S().setWeapon = a.v;
+      W.swapWeaponType(a.v);
+      W.applyShield();
+    },
+    shield: function (a) { S().addShield = !!a.v; W.applyShield(); },
+    qset: function (a) {
+      var set = (D().equipSets || [])[a.i]; if (!set) return;
+      var b = S(), eq = {};
+      Object.keys(set.eq).forEach(function (s) { eq[s] = set.eq[s]; });
+      delete eq.Secondary;
+      var w = set.weapons ? (set.weapons[b.setWeapon] || set.weapons.Sword || eq.Primary) : eq.Primary;
+      if (w) eq.Primary = w;
+      var was = W.jewelStats(b), chg = {};
+      Object.keys(eq).forEach(function (s) {
+        var had = b.eq[s] || '';
+        W.setSlotItem(b, s, eq[s]);
+        if ((b.eq[s] || '') !== had) chg[s] = 1;
+      });
+      var pr = eq.Primary && D().items[eq.Primary];
+      if (pr && pr.th) W.setSlotItem(b, 'Secondary', null);
+      W.applyShield();
+      Object.keys(chg).forEach(function (s) { W.jewelPreset(b, s); });
+      W.jewelRetarget(b, was);
+    },
     roll: function (a) {                                                                                   // slotBody roll select
       var b = S(), it = b.eq[a.slot] && D().items[b.eq[a.slot]]; if (!it || !it.tags || !(a.r >= 0 && a.r < (it.tn || 0))) return;
       if (!b.tags[a.slot]) b.tags[a.slot] = [];
@@ -174,6 +234,50 @@ var BLD = (function () {
     var maj = MAJ.map(function (m) { return { k: m, n: W.statLabel(m), t: W.fmtN(C.majors[m]) }; });
     return { stats: out, majors: maj };
   }
+  // the Level-ups, Traits (acquired, soul stone), Race (portrait) and Presets (gear quick sets) parts of the window:
+  // what renderLevel, renderTalents, renderElixirs, renderAcqTraits, renderSouls, renderPortrait and renderEquip show
+  function levelState(o, b, C) {
+    var xp = 0, i;
+    for (i = 0; i < b.lvl - 1 && i < D().consts.exp.length; i++) xp += D().consts.exp[i];
+    var fac = (D().offerItem || {})[b.offer]; if (fac == null) fac = 1;
+    var need = {}, order = [], ladder = D().consts.lvlItems || [];
+    for (i = 0; i < b.lvl - 1 && i < ladder.length; i++) {
+      var ent = ladder[i];
+      if (!(ent[1] in need)) { need[ent[1]] = 0; order.push(ent[1]); }
+      need[ent[1]] += Math.ceil(ent[0] * fac);
+    }
+    o.lv = { xp: xp, offer: b.offer, gain: b.roll || 'avg',
+      stones: order.map(function (k) { return { k: k, n: ((D().stoneMeta || {})[k] || {}).n || k, c: need[k] }; }),
+      offers: Object.keys(D().offer || {}).map(function (k) { var f = (D().offerItem || {})[k];
+        return { k: k, n: (D().offerName || {})[k] || k, stats: D().offer[k], stones: f == null ? null : f, on: b.offer === k }; }) };
+    var tsum = 0; MAJ.forEach(function (m) { tsum += D().tiers.save[b.tal[m] || 'Moderate']; });
+    o.tiers = D().tiers.order.map(function (t) { var r = D().tiers.range[t] || [0, 0];
+      return { k: t, n: (D().tiers.labels || {})[t] || t, lo: r[0], hi: r[1], base: D().tiers.save[t] === 0 ? 1 : 0 }; });
+    o.tal = MAJ.map(function (m) { return { m: m, n: W.statLabel(m), t: b.tal[m] || 'Moderate' }; });
+    o.talSum = { v: tsum, lo: D().consts.talentSum[0], hi: D().consts.talentSum[1], bump: C.talBump ? 1 : 0 };
+    o.elix = (D().elix || []).map(function (e) { var n = elixUses(b, e.m);
+      return { m: e.m, k: e.k, n: e.n, sn: W.statLabel(e.m), per: e.per, uses: n, max: D().elixMax || 99, d: e.d || '' }; });
+    var race = W.raceOf(b);
+    o.acq = (D().acq || []).map(function (a) { var on = (b.acqInds || []).indexOf(a.k) >= 0;
+      return { k: a.k, n: a.n, d: a.d || '', from: a.srcN || '', on: on, ok: on || W.acqAvail(race, a) }; });
+    o.souls = Object.keys(D().souls || {}).sort(function (x, y) { return D().souls[x].n < D().souls[y].n ? -1 : 1; })
+      .map(function (k) { var s = D().souls[k]; return { k: k, n: s.n, d: s.d || '', from: s.srcN || '', on: (b.souls || []).indexOf(k) >= 0 }; });
+    var pool = (race && D().portraits && D().portraits[race.k]) || [];
+    o.portraits = pool.map(function (p) { return { k: p, g: W.faceGender(p), on: b.portrait === p }; });
+    o.portrait = b.portrait || null;
+    // quick sets: the weapon families the sets carry (WSUB order), the shield opt-in, each set with what it brings
+    var wseen = {};
+    (D().equipSets || []).forEach(function (set) { if (set.weapons) Object.keys(set.weapons).forEach(function (w) { wseen[w] = 1; }); });
+    var wtypes = W.WSUB.filter(function (w) { return wseen[w]; });
+    var wcur = (b.setWeapon && wtypes.indexOf(b.setWeapon) >= 0) ? b.setWeapon : (wtypes.indexOf('Sword') >= 0 ? 'Sword' : wtypes[0]);
+    o.sets = { weapons: wtypes.map(function (w) { return { k: w, n: W.WSUBLABEL[w] || w, th: W.weaponTypeIs2H(w) ? 1 : 0, on: w === wcur }; }),
+      shield: !!b.addShield, twoHanded: W.currentWeapon2H() ? 1 : 0,
+      list: (D().equipSets || []).map(function (set, si) {
+        var wpick = (set.weapons && (set.weapons[wcur] || set.weapons.Sword)) || set.eq.Primary;
+        var pieces = Object.keys(set.eq).filter(function (s) { return s !== 'Secondary'; }).map(function (s) {
+          var key = (s === 'Primary' && wpick) ? wpick : set.eq[s]; return key; }).filter(function (k) { return D().items[k]; });
+        return { i: si, n: set.n, icon: wpick || '', items: pieces.map(function (k) { return { k: k, n: D().items[k].n }; }) }; }) };
+  }
   function state() {
     var b = S(), C = computeBuild(b), race = W.raceOf(b), sp = spentAndBudget(b, C), bgset = bgTreeSet(b);
     var o = { name: b.name || '', race: b.race, bg: b.bg, lvl: b.lvl, maxLvl: D().consts.maxLevel, portrait: b.portrait || null };
@@ -181,11 +285,17 @@ var BLD = (function () {
       .map(function (r) { return { k: r.k, n: r.n, on: r.k === b.race }; });
     // backgrounds this race can have (bgCandidates, pickable ones; the current one always)
     o.bgs = W.bgCandidates(race).filter(function (k) { return W.bgAvail(race, k) || b.bg === k; })
-      .map(function (k) { var x = D().bg[k]; return { k: k, n: nm(x, k), d: x.d || '', on: b.bg === k,
-        trees: (x.mains || []).concat((x.subs || []).map(function (p) { return p[0]; })).filter(function (t) { return D().trees[t]; })
-          .map(function (t) { return D().trees[t].n; }).join(', ') }; });
+      .map(function (k) { var x = D().bg[k], all = (x.mains || []).concat((x.subs || []).map(function (p) { return p[0]; }))
+          .filter(function (t) { return D().trees[t]; });
+        return { k: k, n: nm(x, k), d: x.d || '', on: b.bg === k,
+        trees: all.map(function (t) { return D().trees[t].n; }).join(', '),
+        // filters (bgTreeSets: split by the tree's own kind; the bonus stats of bgTreeText / BGBONUS)
+        tw: all.filter(function (t) { return treeIsWeapon(t); }), ta: all.filter(function (t) { return !treeIsWeapon(t); }),
+        bon: (x.adj || []).map(function (p) { return W.baseStat(p[0]); }) }; });
+    o.treeNames = {}; Object.keys(D().trees).forEach(function (t) { o.treeNames[t] = { n: D().trees[t].n, w: treeIsWeapon(t) ? 1 : 0 }; });
     o.indCap = indCap();
     o.inds = ((race && race.ind) || []).map(function (p) { return p[0]; })
+      .filter(function (k, i, all) { return all.indexOf(k) === i; })             // the race lists some traits twice
       .filter(function (k) { return D().ind[k] && (W.indAvail(race, k) || b.inds.indexOf(k) >= 0); })
       .map(function (k) { var on = b.inds.indexOf(k) >= 0; return { k: k, n: nm(D().ind[k], k), d: D().ind[k].d || '', on: on,
         ok: on || b.inds.length < indCap() }; });
@@ -206,7 +316,7 @@ var BLD = (function () {
         return kx !== ky ? kx - ky : (D().trees[x].n < D().trees[y].n ? -1 : 1); })
       .map(function (t) { return { k: t, n: D().trees[t].n, w: treeIsWeapon(t) ? 1 : 0, on: (b.insctrees || []).indexOf(t) >= 0 }; });
     o.inscs = D().insc.filter(function (r) { return !inscTree(r.k); })
-      .map(function (r) { return { k: r.k, n: r.n, r: r.r, d: r.d || '', on: b.insc.indexOf(r.k) >= 0 }; });
+      .map(function (r) { return { k: r.k, n: r.n, r: r.r, cat: r.cat || '', d: r.d || '', on: b.insc.indexOf(r.k) >= 0 }; });
     var need = W.ammoOfPrimary(b.eq);
     o.eq = W.EQ_ORDER.map(function (slot) {
       var k = b.eq[slot] || null, it = k && D().items[k];
@@ -229,6 +339,7 @@ var BLD = (function () {
       return e;
     });
     o.sheet = sheet(b, C);
+    levelState(o, b, C);
     return o;
   }
 
