@@ -1,6 +1,7 @@
 // mu_ui.c - shared pieces of the My Units and Bring Units windows (mu_ui.h).
 #include "mu_ui.h"
 #include "cm_il.h"
+#include "i18n/ds_i18n.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -87,6 +88,23 @@ DSLObj mu_window(const char *title, float want_w, float want_h, float *w, float 
     return p;
 }
 
+/* the card's weapon word (mu_card_tables.h MUC_ITEM_WLABEL, the wiki's English label): the game's own text of that item
+   type when the game has one (TEXTKEY), else TR of the label */
+static const char *weapon_word(const char *en) {
+    static const struct { const char *en, *key; } W[] = {
+        { TR_NOOP("Sword"), "TEXTKEY_Equipment_Sword_NAME" }, { TR_NOOP("Greatsword"), "TEXTKEY_Equipment_Greatsword_NAME" },
+        { TR_NOOP("Spear"), "TEXTKEY_Equipment_Spear_NAME" }, { TR_NOOP("Blunt"), "TEXTKEY_Equipment_Blunt_NAME" },
+        { TR_NOOP("Bow"), "TEXTKEY_Equipment_Bow_NAME" }, { TR_NOOP("Shield"), "TEXTKEY_Equipment_Shield_NAME" },
+        { TR_NOOP("Dagger"), "TEXTKEY_Equipment_Dagger_NAME" }, { TR_NOOP("Fire Staff"), "TEXTKEY_Equipment_FireStaff_NAME" },
+        { TR_NOOP("Water Staff"), "TEXTKEY_Equipment_WaterStaff_NAME" }, { TR_NOOP("Nature Staff"), "TEXTKEY_Equipment_NatureStaff_NAME" },
+        { TR_NOOP("Main Accessory"), "TEXTKEY_EquipmentType_Accessory1" }, { TR_NOOP("Sub Accessory"), "TEXTKEY_EquipmentType_Accessory2" },
+        { TR_NOOP("Body Armor"), "TEXTKEY_EquipmentType_Body" }, { TR_NOOP("Torch"), "TEXTKEY_ITEM_Torch_NAME" },
+        { TR_NOOP("Arrow"), "TEXTKEY_Tooltip_RequiredAmmoAmmo_Arrow" },
+        { TR_NOOP("Helmet"), NULL }, { TR_NOOP("Hood"), NULL }, { TR_NOOP("Axe"), NULL } };
+    for (size_t i = 0; i < sizeof W / sizeof *W; i++) if (!strcmp(W[i].en, en)) return cm_gw(W[i].key, W[i].en);
+    return TR(en);
+}
+
 /* ------------------------------------------------------------------ Compact Plus card */
 typedef struct { int kind; const char *key; int dim; } IconRef;
 /* one row of icon groups; groups are separated by a gap; the row ends with "+N" when the rest does not fit */
@@ -118,16 +136,17 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     char rn[96]; mu_name_of(c->race, rn, sizeof rn);
     if (face && cm_icon(CM_ICON_PORTRAIT, face)) mu_icon(card, 8, 8, 72, CM_ICON_PORTRAIT, face, 0, NULL);
     else mu_icon(card, 8, 8, 72, CM_ICON_AFFECTER, c->race, 0, rn);
-    char lv[32]; snprintf(lv, sizeof lv, "Lv %d", level > 0 ? level : c->lvl);
+    char lv[64]; snprintf(lv, sizeof lv, TR("Lv %d"), level > 0 ? level : c->lvl);
     mu_text(card, 4, 82, 80, 24, lv, 14, DSL_TXT_CENTER, MU_C_GOLD);
     /* name, race / background / weapon */
     float x0 = 90, tw = w - x0 - 10;
     char nm[128];
     if (name && *name) snprintf(nm, sizeof nm, "%s", name);
-    else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : "Unit");
+    else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : TR("Unit"));
     mu_text(card, x0, 2, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);
     char line[300], bg[96] = ""; if (c->bg) mu_name_of(c->bg, bg, sizeof bg);
-    snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? c->weapon : "");
+    snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? weapon_word(c->weapon) : "");
+    dsi_utf8_fix_end(line);
     mu_text(card, x0, 28, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
     /* row A: worn items | skill bar */
     IconRef ic[MUC_MAX * 3]; int gr[MUC_MAX * 3], n = 0;

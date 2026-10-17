@@ -3,6 +3,7 @@
 #include "cm_win.h"
 #include "../fe/fe_json.h"
 #include "cm_home.h"
+#include "i18n/ds_i18n.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -248,7 +249,7 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     cmw_named(U->text(v->win, 28, 4, w - 120, CMW_BAND - 4, title, 30, DSL_TXT_LEFT | DSL_TXT_TITLE, 0), CMW_TEXT, nm, NULL, NULL, title);
     snprintf(nm, sizeof nm, "%s:close", id);
     DSLObj x = cmw_named(U->button(v->win, w - 62, 12, 42, 42, "X", x_click, v), CMW_BUTTON, nm, x_click, v, "X");
-    U->tooltip(x, NULL, "Close (Esc)");
+    U->tooltip(x, NULL, TR("Close (Esc)"));
     v->body = cmw_flat(U->panel(v->win, 0, CMW_BAND + 1, w, h - CMW_BAND - 1, 0), 0x00000000);
     v->closed = closed; v->ud = ud;
     return v->body;

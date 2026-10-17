@@ -32,6 +32,7 @@ static pthread_mutex_t lock_ = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK() pthread_mutex_lock(&lock_)
 #define UNLOCK() pthread_mutex_unlock(&lock_)
 #endif
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +53,7 @@ void mu_save_cache_clear(void) { LOCK(); cache_clear_locked(); UNLOCK(); }
    read_json -> fe_json jload: the game writes plain JSON (checked on the saves of 2026-10: no compression, no wrapper). */
 static const jv *save_of(const char *path, char *err, size_t errn) {
     struct stat st;
-    if (!path || !*path || stat(path, &st)) { snprintf(err, errn, "The save file cannot be found."); return NULL; }
+    if (!path || !*path || stat(path, &st)) { snprintf(err, errn, "%s", TR("The save file cannot be found.")); return NULL; }
     long long mt = (long long)MU_MTIME_NS(st);
     for (int i = 0; i < CACHE_N; i++)
         if (cache[i].save && !strcmp(cache[i].path, path) && cache[i].size == (long long)st.st_size && cache[i].mtime == mt) {
@@ -60,9 +61,9 @@ static const jv *save_of(const char *path, char *err, size_t errn) {
         }
     char e[300] = "";
     jv *s = jload(path, e, sizeof e);
-    if (!s) { snprintf(err, errn, "The save could not be read. It may be damaged."); FE_LOG("save %s could not be read: %s", path, e); return NULL; }
+    if (!s) { snprintf(err, errn, "%s", TR("The save could not be read. It may be damaged.")); FE_LOG("save %s could not be read: %s", path, e); return NULL; }
     if (s->t != JN_OBJ || !jget(s, "EntityContainerSaveData") || !jget(s, "EntityComponentSaveData")) {
-        jfree(s); snprintf(err, errn, "This file is not a Dungeon Settlers save."); return NULL;
+        jfree(s); snprintf(err, errn, "%s", TR("This file is not a Dungeon Settlers save.")); return NULL;
     }
     int k = 0;
     for (int i = 0; i < CACHE_N; i++) {
@@ -165,7 +166,7 @@ static const char *portrait_of(int race, const jv *prof) {
 static int unit_build(const jv *s, const jv *gv, wk_build *out, mu_save_extra *x, char *err, size_t errn) {
     char g[64]; snprintf(g, sizeof g, "%.*s", (int)(gv->n < 63 ? gv->n : 63), gv->s);
     const jv *ec = jpath(s, "EntityComponentSaveData.EntityComponents"), *comps = jget(ec, g);
-    if (!comps) { snprintf(err, errn, "This unit is not in the save."); return -1; }
+    if (!comps) { snprintf(err, errn, "%s", TR("This unit is not in the save.")); return -1; }
     const jv *status = fe_comp(comps, 0), *aff = fe_comp(comps, 3), *eqc = fe_comp(comps, 6), *prof = fe_comp(comps, 10);
     const jv *pu = jget(s, "PlayerUnitsSaveData");
     const jv *st = jget(jget(pu, "SkillTrees"), g);
@@ -322,7 +323,7 @@ static int unit_build(const jv *s, const jv *gv, wk_build *out, mu_save_extra *x
     char e[300] = "";
     int r = wk_from_json(b, out, e, sizeof e);
     jfree(b);
-    if (r) { snprintf(err, errn, "This unit could not be read: %s", e); return -1; }
+    if (r) { snprintf(err, errn, TR("This unit could not be read: %s"), e); return -1; }
     /* the skill bar the unit has (wk_build has no place for it) */
     const jv *qs = jpath(jget(jget(pu, "QuickSlots"), g), "QuickSlots");
     for (size_t i = 0; x && qs && qs->t == JN_ARR && i < qs->cnt; i++) {
@@ -357,7 +358,7 @@ int mu_save_units(const char *save_path, mu_save_unit *out, int max, char *err, 
     }
     free(b);
     UNLOCK();
-    if (ng == 0 && err && errn) snprintf(err, errn, "No units of your clan are stored in this save.");
+    if (ng == 0 && err && errn) snprintf(err, errn, "%s", TR("No units of your clan are stored in this save."));
     return n;
 }
 int mu_save_build_ex(const char *save_path, const char *guid, wk_build *out, mu_save_extra *x, char *err, size_t errn) {
@@ -368,7 +369,7 @@ int mu_save_build_ex(const char *save_path, const char *guid, wk_build *out, mu_
     if (s) {
         const jv *gs[512]; int ng = clan_guids(s, gs, 512);
         for (int i = 0; i < ng; i++) if (guid && strlen(guid) == gs[i]->n && !memcmp(guid, gs[i]->s, gs[i]->n)) { r = unit_build(s, gs[i], out, x, err, errn); goto done; }
-        snprintf(err, errn, "This unit is not one of your clan's units in this save.");
+        snprintf(err, errn, "%s", TR("This unit is not one of your clan's units in this save."));
     }
 done:
     UNLOCK();

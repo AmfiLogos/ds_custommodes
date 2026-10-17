@@ -9,7 +9,7 @@ mkdir -p $T $H/old
 mkdir -p $T/run
 nice -n 19 cc -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fsanitize=address,undefined \
   -I $C/units -I $C -I $C/fe -o $T/save_test $H/save_test.c \
-  $C/units/{mu_save.c,pvp_wiki.c,pvp_build.c,mu_card.c} $C/fe/{fe_json.c,fe_save.c} -lz -lm
+  $C/units/{mu_save.c,pvp_wiki.c,pvp_build.c,mu_card.c} $C/fe/{fe_json.c,fe_save.c} $C/units/test/dsi_impl.c -lz -lm
 export ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 B=~/DungeonSettlers_SaveBackups/2026-10-11-1827/Saves
 I=~/ds_multiplayer/instances/A/data/Saves

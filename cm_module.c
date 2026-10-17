@@ -8,6 +8,7 @@
 #include "dsl_sdk.h"
 #include "mp_api.h"
 #include "cm_home.h"
+#include "cm_i18n.h"
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32                                            /* Windows: custom-modes.dll + custom-modes-mp.dll (lane crossmods) */
@@ -78,6 +79,7 @@ DSL_EXPORT int dsl_module_early(const DSLHost *host, DSLPlugin *self) {
 }
 
 DSL_EXPORT int dsl_plugin_init(const DSLHost *host, DSLPlugin *self) {
+    cm_i18n_init(host, self);                            /* the language first: the parts register translated labels */
     cm_home_init(host, self);
     cm_init_fn *parts[] = { cm_units_init, cm_builder_init, cm_gallery_init, cm_fights_init };
     for (size_t i = 0; i < sizeof parts / sizeof *parts; i++) parts[i](host, self);

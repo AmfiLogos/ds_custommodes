@@ -48,5 +48,9 @@ float cm_text_preferred_w(Obj rt);                       /* TMP preferredWidth (
 int  cm_text_truncated(Obj rt);                          /* TMP isTextTruncated (1 = cut with an ellipsis) */
 /* the game's own texts and icons */
 int  cm_gettext(const char *textkey, char *out, size_t cap);   /* TextKeyExtensions.GetText; 0 = found (out != key) */
+/* a game word: the game's text of textkey in the current language (rich tags removed), else TR(en). cm_game_text writes
+   it to out; cm_gw returns one of 16 rotating buffers (use it at once, e.g. as a widget label: the kit copies). */
+void cm_game_text(const char *textkey, const char *en, char *out, size_t cap);
+const char *cm_gw(const char *textkey, const char *en);
 enum { CM_ICON_ITEM = 1, CM_ICON_SKILL, CM_ICON_TREE, CM_ICON_AFFECTER, CM_ICON_PORTRAIT };
 Obj  cm_icon(int kind, const char *key);                 /* Sprite, or NULL (the game's default icon counts as NULL) */

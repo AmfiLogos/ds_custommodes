@@ -1,6 +1,7 @@
 /* myunits - the My Units library file (see myunits.h). Pure C. */
 #include "myunits.h"
 #include "pvp_build.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,9 +72,9 @@ jv *mu_load(char *err, size_t errn) {
     struct stat st;
     if (stat(p, &st) != 0) return empty_lib();
     char e[300]; jv *l = jload(p, e, sizeof e);
-    if (!l) { snprintf(err, errn, "The My Units file is damaged and could not be read: %s", p); FE_LOG("my units: %s: %s", p, e); return NULL; }
-    if (!jstreq(jget(l, "format"), MU_FORMAT)) { snprintf(err, errn, "The My Units file is not in the right format: %s", p); jfree(l); return NULL; }
-    if (jnumv(jget(l, "version")) > MU_VERSION) { snprintf(err, errn, "The My Units file comes from a newer version of this mod. Update the mod."); FE_LOG("my units: file version %d, this mod reads up to %d", (int)jnumv(jget(l, "version")), MU_VERSION); jfree(l); return NULL; }
+    if (!l) { snprintf(err, errn, TR("The My Units file is damaged and could not be read: %s"), p); FE_LOG("my units: %s: %s", p, e); return NULL; }
+    if (!jstreq(jget(l, "format"), MU_FORMAT)) { snprintf(err, errn, TR("The My Units file is not in the right format: %s"), p); jfree(l); return NULL; }
+    if (jnumv(jget(l, "version")) > MU_VERSION) { snprintf(err, errn, "%s", TR("The My Units file comes from a newer version of this mod. Update the mod.")); FE_LOG("my units: file version %d, this mod reads up to %d", (int)jnumv(jget(l, "version")), MU_VERSION); jfree(l); return NULL; }
     if (!jis(jget(l, "units"), JN_ARR)) jset(l, "units", jarr());
     if (!jis(jget(l, "teams"), JN_ARR)) jset(l, "teams", jarr());
     return l;
@@ -84,17 +85,17 @@ int mu_save(const jv *lib, char *err, size_t errn) {
     mkdirs_for(p);
     size_t n; char *s = jdump(lib, 2, &n);
     FILE *f = fopen(tmp, "wb");
-    if (!f) { snprintf(err, errn, "could not write %s: %s", tmp, strerror(errno)); free(s); return -1; }
+    if (!f) { snprintf(err, errn, TR("could not write %s: %s"), tmp, strerror(errno)); free(s); return -1; }
     int bad = fwrite(s, 1, n, f) != n; bad |= fflush(f) != 0; bad |= fclose(f) != 0; free(s);
-    if (bad) { snprintf(err, errn, "could not write %s", tmp); return -1; }
+    if (bad) { snprintf(err, errn, TR("could not write %s"), tmp); return -1; }
     struct stat st;
     if (stat(p, &st) == 0) {                                              /* the previous file stays as .bak */
 #ifdef _WIN32
         remove(bak);
 #endif
-        if (rename(p, bak) != 0) { snprintf(err, errn, "could not keep the backup %s: %s", bak, strerror(errno)); return -1; }
+        if (rename(p, bak) != 0) { snprintf(err, errn, TR("could not keep the backup %s: %s"), bak, strerror(errno)); return -1; }
     }
-    if (rename(tmp, p) != 0) { snprintf(err, errn, "could not write %s: %s", p, strerror(errno)); return -1; }
+    if (rename(tmp, p) != 0) { snprintf(err, errn, TR("could not write %s: %s"), p, strerror(errno)); return -1; }
     return 0;
 }
 
@@ -144,9 +145,9 @@ static jv *jstr_text(const char *t) {
     *q = 0; jv *v = jstrv(o); free(o); return v;
 }
 int mu_add_team(jv *lib, const wk_build *b, int n, const char *team_name, char ids_out[][17], char *err, size_t errn) {
-    if (n < 1 || n > MU_TEAM_MAX) { snprintf(err, errn, "a team holds 1 to %d units", MU_TEAM_MAX); return -1; }
+    if (n < 1 || n > MU_TEAM_MAX) { snprintf(err, errn, TR("a team holds 1 to %d units"), MU_TEAM_MAX); return -1; }
     jv *units = jget(lib, "units"), *teams = jget(lib, "teams");
-    if (!units || !teams) { snprintf(err, errn, "not a My Units library"); return -1; }
+    if (!units || !teams) { snprintf(err, errn, "%s", TR("not a My Units library")); return -1; }
     char *js = wk_json(b, n); char pe[200];
     jv *arr = jparse(js, strlen(js), pe, sizeof pe); free(js);
     if (!arr || arr->t != JN_ARR || (int)arr->cnt != n) { snprintf(err, errn, "internal: unit JSON: %s", pe); jfree(arr); return -1; }
@@ -172,7 +173,7 @@ int mu_add_team(jv *lib, const wk_build *b, int n, const char *team_name, char i
 }
 int mu_add_build(jv *lib, const jv *build, const char *name, char id_out[17], char *err, size_t errn) {
     jv *units = jget(lib, "units");
-    if (!units) { snprintf(err, errn, "not a My Units library"); return -1; }
+    if (!units) { snprintf(err, errn, "%s", TR("not a My Units library")); return -1; }
     wk_build b; char e[300];
     if (wk_from_json(build, &b, e, sizeof e)) { snprintf(err, errn, "%s", e); return -1; }
     char nm[96];
@@ -205,9 +206,9 @@ int mu_delete(jv *lib, const char *id) {
 }
 int mu_team_new(jv *lib, const char *name, char ids[][17], int n, char tid_out[17], char *err, size_t errn) {
     jv *teams = jget(lib, "teams");
-    if (!teams) { snprintf(err, errn, "not a My Units library"); return -1; }
-    if (n < 1 || n > MU_TEAM_MAX) { snprintf(err, errn, "a team holds 1 to %d units", MU_TEAM_MAX); return -1; }
-    for (int i = 0; i < n; i++) if (!mu_find(lib, ids[i])) { snprintf(err, errn, "this unit is not in My Units any more"); FE_LOG("my units: unit %s is not in My Units any more", ids[i]); return -1; }
+    if (!teams) { snprintf(err, errn, "%s", TR("not a My Units library")); return -1; }
+    if (n < 1 || n > MU_TEAM_MAX) { snprintf(err, errn, TR("a team holds 1 to %d units"), MU_TEAM_MAX); return -1; }
+    for (int i = 0; i < n; i++) if (!mu_find(lib, ids[i])) { snprintf(err, errn, "%s", TR("this unit is not in My Units any more")); FE_LOG("my units: unit %s is not in My Units any more", ids[i]); return -1; }
     char tname[200] = "";
     if (name && *name) snprintf(tname, sizeof tname, "%s", name);
     else for (int i = 0; i < n && i < 4; i++) {
@@ -236,7 +237,7 @@ int mu_team_id_at(const jv *lib, size_t i, char out[17]) {
 }
 int mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t errn) {
     const jv *u = mu_find(lib, id);
-    if (!u) { snprintf(err, errn, "this unit is not in My Units any more"); FE_LOG("my units: unit %s is not in My Units any more", id); return -1; }
+    if (!u) { snprintf(err, errn, "%s", TR("this unit is not in My Units any more")); FE_LOG("my units: unit %s is not in My Units any more", id); return -1; }
     char e[300];
     if (wk_from_json(jget(u, "build"), out, e, sizeof e)) { snprintf(err, errn, "%s", e); return -1; }
     /* the library name wins over the build's own name field (the launcher renames the entry, not the build) */
@@ -250,7 +251,7 @@ int mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t 
 }
 jv *mu_entries(const jv *lib, char ids[][17], int n, const char *player_uid, char *notes, size_t notesn, char *err, size_t errn) {
     if (notes && notesn) notes[0] = 0;
-    if (n < 1) { snprintf(err, errn, "no units picked"); return NULL; }
+    if (n < 1) { snprintf(err, errn, "%s", TR("no units picked")); return NULL; }
     jv *entries = jarr();
     for (int i = 0; i < n; i++) {
         wk_build b; char e[400], nt[600] = "";

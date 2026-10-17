@@ -6,6 +6,7 @@
 #include "cm_il.h"
 #include "mu_save.h"
 #include "fe/fe_json.h"
+#include "cm_i18n.h"
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
@@ -18,12 +19,16 @@ DSLObj mu_window_test_find(const char *n);
 size_t mu_window_test_state(char *out, size_t cap);
 DSLObj mu_bring_test_find(const char *n);
 size_t mu_bring_test_state(char *out, size_t cap);
+void mu_window_relang(void);
+void mu_bring_relang(void);
+static void units_relang(void) { mu_window_relang(); mu_bring_relang(); }
 
 void cm_units_init(const DSLHost *host, DSLPlugin *self) {
     mu_ui_init(host, self);
     fe_log_hook = mu_log;                                                /* the detail behind short save / link / My Units messages */
     if (!mu_kit()) { host->log(self, "My Units: no widget kit (loader older than API 3)"); return; }
-    cm_home_add("my-units", "My Units", NULL, 10, mu_window_open);
+    cm_home_add("my-units", TR_NOOP("My Units"), NULL, 10, mu_window_open);
+    cm_i18n_on_change(units_relang);
     cm_test_register("mu", mu_window_test_find, mu_window_test_state);
     cm_test_register("bring", mu_bring_test_find, mu_bring_test_state);
 }
@@ -99,7 +104,7 @@ TEST_API int mu_test_bring_open(const char *s, char *out, size_t cap) {
     int mx = 4, src = MU_SRC_SAVE | MU_SRC_LIBRARY; test_dir[0] = 0;
     if (s && *s) { int k = 0; sscanf(s, "%d,%d%n", &mx, &src, &k); if (k > 0 && s[k] == ',') snprintf(test_dir, sizeof test_dir, "%s", s + k + 1); }
     bring_res[0] = 0;
-    mu_bring_req r = { .title = "Bring Units", .subtitle = "Test: pick your units", .max_units = mx, .sources = src, .done = bring_done,
+    mu_bring_req r = { .title = TR("Bring Units"), .subtitle = "Test: pick your units", .max_units = mx, .sources = src, .done = bring_done,
                        .list_saves = test_dir[0] ? test_list_saves : NULL };
     int rc = mu_bring_open(&r);
     snprintf(out, cap, "%d", rc);

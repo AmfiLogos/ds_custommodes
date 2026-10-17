@@ -16,6 +16,7 @@
 #include "cm_home.h"
 #include "cm_il.h"
 #include "sg_cache.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,8 @@
 
 #define SCRIPTS_MAX_AGE (6 * 3600)          /* same as Test Fights: the wiki's scripts are asked again after 6 h */
 enum { SEC_RACE, SEC_BG, SEC_TRAITS, SEC_SKILLS, SEC_GEAR, SEC_INSC, SEC_N };
-static const char *const SEC_NAME[SEC_N] = { "Race", "Background", "Traits", "Skills", "Gear", "Inscriptions" };
+static const char *const SEC_NAME[SEC_N] = { TR_NOOP("Race"), TR_NOOP("Background"), TR_NOOP("Traits"), TR_NOOP("Skills"), TR_NOOP("Gear"), TR_NOOP("Inscriptions") };   /* English: also the test names */
+static const char *sec_label(int i) { return i == SEC_SKILLS ? cm_gw("TEXTKEY_GAMEGUIDE_SkillsAbility_NAME", SEC_NAME[i]) : TR(SEC_NAME[i]); }
 enum { ENG_NONE, ENG_OPENING, ENG_READY, ENG_FAILED };
 
 static const DSLUi *U;
@@ -44,16 +46,16 @@ static int eng_ensure(Job *b) {
     sgc c; sgc_init(&c, b->root);
     sg_sources src; char e[500] = "", st[200] = "";
     if (sgc_scripts(&c, SCRIPTS_MAX_AGE, &src, st, sizeof st, e, sizeof e)) {
-        snprintf(b->err, sizeof b->err, "The Unit Builder needs the wiki's builder files once (dungeonsettlers.wiki), and they could not be downloaded: %s", e);
+        snprintf(b->err, sizeof b->err, TR("The Unit Builder needs the wiki's builder files once (dungeonsettlers.wiki), and they could not be downloaded: %s"), e);
         return -1;
     }
     E = bld_open(src.data_js, src.data_n, src.builder_js, src.builder_n, NULL, e, sizeof e);
     sgc_sources_free(&src);
-    if (!E) { snprintf(b->err, sizeof b->err, "The wiki's Unit Builder could not start. Try again later."); snprintf(eng_why, sizeof eng_why, "%s", e); return -1; }
+    if (!E) { snprintf(b->err, sizeof b->err, "%s", TR("The wiki's Unit Builder could not start. Try again later.")); snprintf(eng_why, sizeof eng_why, "%s", e); return -1; }
     char *tag = bld_call(E, "tag", NULL, e, sizeof e), t[64] = "";
     if (tag) { sscanf(tag, "\"%63[^\"]", t); free(tag); }
     if (b->game_build[0] && t[0] && strcmp(t, b->game_build)) {
-        snprintf(b->err, sizeof b->err, "The wiki's Unit Builder files are for game build %s, and this game is build %s. The Unit Builder opens again when both match.", t, b->game_build);
+        snprintf(b->err, sizeof b->err, TR("The wiki's Unit Builder files are for game build %s, and this game is build %s. The Unit Builder opens again when both match."), t, b->game_build);
         bld_close(E); E = NULL;
         return -1;
     }
@@ -70,7 +72,7 @@ static void job_run(bld_job *j) {
         b->link = b->build ? bld_call(E, "link", NULL, e, sizeof e) : NULL;
         b->out = b->link ? bld_call(E, "state", NULL, e, sizeof e) : NULL;
     } else return;
-    if (!b->out) snprintf(b->err, sizeof b->err, "%s", e[0] ? e : "no answer");
+    if (!b->out) snprintf(b->err, sizeof b->err, "%s", e[0] ? e : TR("no answer"));
 }
 static void job_done(bld_job *j);
 static void post(int kind, const char *in) {
@@ -169,12 +171,12 @@ static void finish_save(Job *b) {
     char *p = name; while (*p == ' ') p++;
     size_t L = strlen(p); while (L && p[L - 1] == ' ') p[--L] = 0;
     char id[17] = ""; int rc = -1;
-    if (!lib) snprintf(m, sizeof m, "Could not read My Units: %s", e);
-    else if (!bv) { snprintf(m, sizeof m, "This build could not be read."); mu_log("builder: build could not be read: %s", e); }
+    if (!lib) snprintf(m, sizeof m, TR("Could not read My Units: %s"), e);
+    else if (!bv) { snprintf(m, sizeof m, "%s", TR("This build could not be read.")); mu_log("builder: build could not be read: %s", e); }
     else if (W.unit_id[0] && mu_find(lib, W.unit_id)) {
         /* Edit: that unit keeps its id (its teams keep it); its build and name are replaced */
         wk_build wb;
-        if (wk_from_json(bv, &wb, e, sizeof e)) snprintf(m, sizeof m, "This unit cannot be saved: %s", e);
+        if (wk_from_json(bv, &wb, e, sizeof e)) snprintf(m, sizeof m, TR("This unit cannot be saved: %s"), e);
         else {
             jv *u = (jv *)mu_find(lib, W.unit_id);
             jset(u, "build", jcopy(bv));
@@ -182,9 +184,9 @@ static void finish_save(Job *b) {
             jset(u, "updated", jnum_i((long long)time(NULL) * 1000));
             memcpy(id, W.unit_id, 17); rc = 0;
         }
-    } else if (mu_add_build(lib, bv, *p ? p : NULL, id, e, sizeof e)) snprintf(m, sizeof m, "This unit cannot be saved: %s", e);
+    } else if (mu_add_build(lib, bv, *p ? p : NULL, id, e, sizeof e)) snprintf(m, sizeof m, TR("This unit cannot be saved: %s"), e);
     else rc = 0;
-    if (!rc && mu_save(lib, e, sizeof e)) { snprintf(m, sizeof m, "Could not save My Units: %s", e); rc = -1; }
+    if (!rc && mu_save(lib, e, sizeof e)) { snprintf(m, sizeof m, TR("Could not save My Units: %s"), e); rc = -1; }
     if (lib) jfree(lib);
     if (bv) jfree(bv);
     W.saving = 0;
@@ -200,7 +202,7 @@ static void on_save(void *ud, DSLObj w) {
     char name[96] = "", k[200], a[300]; if (W.f_name) U->field_get(W.f_name, name, sizeof name);
     jesc(k, sizeof k, name);
     snprintf(a, sizeof a, "{\"t\":\"name\",\"v\":\"%s\"}", k);
-    W.saving = 1; set_msg("Saving...", MU_C_SUB);
+    W.saving = 1; set_msg(TR("Saving..."), MU_C_SUB);
     post(J_SAVE, name[0] ? a : NULL);
 }
 static void on_name(void *ud, DSLObj w) {        /* Enter in the name field: the build's name follows */
@@ -213,7 +215,7 @@ static void on_name(void *ud, DSLObj w) {        /* Enter in the name field: the
 static void job_done(bld_job *j) {
     Job *b = (Job *)j;
     if (!b->out && !E) {
-        eng = ENG_FAILED; snprintf(eng_msg, sizeof eng_msg, "%s", b->err[0] ? b->err : "The wiki's Unit Builder gave no answer.");
+        eng = ENG_FAILED; snprintf(eng_msg, sizeof eng_msg, "%s", b->err[0] ? b->err : TR("The wiki's Unit Builder gave no answer."));
         mu_log("builder: engine failed: %s%s%s", eng_msg, eng_why[0] ? " | " : "", eng_why); eng_why[0] = 0;
         W.saving = 0;
         if (W.open) refresh();
@@ -314,7 +316,8 @@ static float grid(DSLObj p, float y, const Grid *g, int full) {
         DSLObj b = icon_button(p, x, yy, cw, g->h, g->kind, k, n, NULL, on ? ST_ON : ok ? ST_OFF : ST_LOCKED, g->cb, UD(i));
         if (b) {
             char tr[300] = ""; sraw(jget(o, "trees"), tr, sizeof tr);
-            char body[1600]; snprintf(body, sizeof body, "%s%s%s%s", d, tr[0] && d[0] ? "\n" : "", tr[0] ? "Skill trees: " : "", tr);
+            char trl[400] = ""; if (tr[0]) snprintf(trl, sizeof trl, TR("Skill trees: %s"), tr);
+            char body[1600]; snprintf(body, sizeof body, "%s%s%s", d, trl[0] && d[0] ? "\n" : "", trl);
             if (body[0]) U->tooltip(b, n, body);
             snprintf(rn, sizeof rn, "+%s:%s", g->rprefix, k); reg(rn, b);
         }
@@ -323,36 +326,38 @@ static float grid(DSLObj p, float y, const Grid *g, int full) {
 }
 
 static float draw_race(DSLObj p, float y) {
-    y = heading(p, y, "Race");
+    y = heading(p, y, TR("Race"));
     Grid g = { "races", CM_ICON_AFFECTER, 2, 56, on_race, "race", 0 };
     return grid(p, y, &g, 1);
 }
 static float draw_bg(DSLObj p, float y) {
-    y = heading(p, y, "Background");
-    y = note(p, y, "The background decides the unit's skill trees.", 22);
+    y = heading(p, y, TR("Background"));
+    y = note(p, y, TR("The background decides the unit's skill trees."), 22);
     Grid g = { "bgs", CM_ICON_AFFECTER, 2, 48, on_bg, "bg", 0 };
     return grid(p, y, &g, 1);
 }
 static float draw_traits(DSLObj p, float y) {
     const jv *a = arr("inds"); int on = 0;
     for (size_t i = 0; a && i < a->cnt; i++) on += truthy(a->v[i], "on");
-    char t[120]; snprintf(t, sizeof t, "Traits (%d of %d)", on, num(W.st, "indCap"));
+    char t[160]; snprintf(t, sizeof t, TR("Traits (%d of %d)"), on, num(W.st, "indCap"));
     y = heading(p, y, t);
     Grid g = { "inds", CM_ICON_AFFECTER, 2, 48, on_ind, "ind", 0 };
     return grid(p, y, &g, 1);
 }
 static float draw_skills(DSLObj p, float y) {
-    jv *sp = jget(W.st, "sp"); char t[200];
-    snprintf(t, sizeof t, "Main SP left %d of %d    Sub SP left %d of %d", num(sp, "main"), num(sp, "mainMax"), num(sp, "sub"), num(sp, "subMax"));
-    y = heading(p, y, "Skills");
+    jv *sp = jget(W.st, "sp"); char t[300];
+    snprintf(t, sizeof t, TR("Main SP left %d of %d    Sub SP left %d of %d"), num(sp, "main"), num(sp, "mainMax"), num(sp, "sub"), num(sp, "subMax"));
+    y = heading(p, y, sec_label(SEC_SKILLS));
     y = note(p, y, t, 22);
     const jv *trees = arr("trees");
-    if (!trees || !trees->cnt) return note(p, y, "Pick a background first. It decides which skill trees this unit has.", 24);
+    if (!trees || !trees->cnt) return note(p, y, TR("Pick a background first. It decides which skill trees this unit has."), 24);
     float cw = (W.mw - 24 - 16) / 3, ch = 52;
     for (size_t ti = 0; ti < trees->cnt; ti++) {
         jv *tr = trees->v[ti]; char k[100], n[160], head[300];
         sraw(jget(tr, "k"), k, sizeof k); sraw(jget(tr, "n"), n, sizeof n);
-        snprintf(head, sizeof head, "%s  -  %s%s", n, truthy(tr, "w") ? "weapon tree, Main SP" : "auxiliary tree, Sub SP", truthy(tr, "ins") ? ", from an inscription" : "");
+        int tw = truthy(tr, "w"), ti_ins = truthy(tr, "ins");
+        snprintf(head, sizeof head, tw ? (ti_ins ? TR("%s  -  weapon tree, Main SP, from an inscription") : TR("%s  -  weapon tree, Main SP"))
+                                       : (ti_ins ? TR("%s  -  auxiliary tree, Sub SP, from an inscription") : TR("%s  -  auxiliary tree, Sub SP")), n);
         mu_icon(p, 4, y + 2, 28, CM_ICON_TREE, k, 0, NULL);
         mu_text(p, 38, y, W.mw - 60, 32, head, 15, DSL_TXT_LEFT, MU_C_MAIN);
         y += 36;
@@ -361,15 +366,20 @@ static float draw_skills(DSLObj p, float y) {
             jv *row = rows->v[r];
             for (size_t c = 0; row && row->t == JN_ARR && c < row->cnt && c < 3; c++) {
                 jv *nd = row->v[c]; if (!nd || nd->t != JN_OBJ) continue;
-                char sk[160], sn[160], why[300], d[1200], sub[120], tip[1700];
+                char sk[160], sn[160], why[300], d[1200], sub[300], tip[1700];
                 sraw(jget(nd, "k"), sk, sizeof sk); sraw(jget(nd, "n"), sn, sizeof sn); sraw(jget(nd, "why"), why, sizeof why); sraw(jget(nd, "d"), d, sizeof d);
                 int on = truthy(nd, "on"), lv = num(nd, "lv");
-                char lvs[24] = ""; if (lv > 1) snprintf(lvs, sizeof lvs, "  \xC2\xB7  Lv %d", lv);
-                snprintf(sub, sizeof sub, "%s%d %s SP%s%s", on ? "learned  \xC2\xB7  " : "", num(nd, "cost"), truthy(tr, "w") ? "main" : "sub", lvs, truthy(nd, "p") ? "  \xC2\xB7  passive" : "");
+                char lvs[64] = "", cost[80];
+                if (lv > 1) { snprintf(lvs, sizeof lvs, "  \xC2\xB7  "); snprintf(lvs + 6, sizeof lvs - 6, TR("Lv %d"), lv); }
+                snprintf(cost, sizeof cost, truthy(tr, "w") ? TR("%d main SP") : TR("%d sub SP"), num(nd, "cost"));
+                snprintf(sub, sizeof sub, "%s%s%s%s%s%s", on ? TR("learned") : "", on ? "  \xC2\xB7  " : "", cost, lvs,
+                         truthy(nd, "p") ? "  \xC2\xB7  " : "", truthy(nd, "p") ? TR("passive") : "");
+                dsi_utf8_fix_end(sub);
                 DSLObj b = icon_button(p, 4 + c * (cw + 8), y, cw, ch, CM_ICON_SKILL, sk, sn, sub, on ? ST_ON : why[0] ? ST_LOCKED : ST_OFF,
                                        on_skill, UD(((int)ti << 16) | ((int)r << 4) | (int)c));
                 if (b) {
-                    snprintf(tip, sizeof tip, "%s%s%s%s", why[0] ? "Locked: " : "", why, why[0] && d[0] ? "\n" : "", d);
+                    char lk[400] = ""; if (why[0]) snprintf(lk, sizeof lk, TR("Locked: %s"), why);
+                    snprintf(tip, sizeof tip, "%s%s%s", lk, lk[0] && d[0] ? "\n" : "", d);
                     U->tooltip(b, sn, tip[0] ? tip : " ");
                     char rn[200]; snprintf(rn, sizeof rn, "+skill:%s", sk); reg(rn, b);
                 }
@@ -381,7 +391,7 @@ static float draw_skills(DSLObj p, float y) {
     return y;
 }
 static float draw_gear(DSLObj p, float y) {
-    y = heading(p, y, "Gear");
+    y = heading(p, y, TR("Gear"));
     const jv *eq = arr("eq"); if (!eq) return y;
     for (size_t s = 0; s < eq->cnt; s++) {
         jv *e = eq->v[s]; char slot[40], label[60], k[160], n[160], blocked[300], rn[200];
@@ -389,18 +399,18 @@ static float draw_gear(DSLObj p, float y) {
         sraw(jget(e, "n"), n, sizeof n); sraw(jget(e, "blocked"), blocked, sizeof blocked);
         mu_text(p, 4, y, 110, 48, label, 15, DSL_TXT_LEFT, MU_C_SUB);
         if (blocked[0] && !k[0]) { mu_text(p, 120, y, W.mw - 150, 48, blocked, 13, DSL_TXT_WRAP, MU_C_SUB); y += 54; continue; }
-        DSLObj b = icon_button(p, 120, y, W.mw - 150, 48, k[0] ? CM_ICON_ITEM : 0, k, k[0] ? n : "(empty)",
-                               W.open_slot == (int)s ? "choose below" : "click to change", k[0] ? ST_ON : ST_OFF, on_slot, UD(s));
+        DSLObj b = icon_button(p, 120, y, W.mw - 150, 48, k[0] ? CM_ICON_ITEM : 0, k, k[0] ? n : TR("(empty)"),
+                               W.open_slot == (int)s ? TR("choose below") : TR("click to change"), k[0] ? ST_ON : ST_OFF, on_slot, UD(s));
         snprintf(rn, sizeof rn, "+slot:%s", slot); reg(rn, b);
         y += 54;
         /* the item's random rolls (which stats rolled; the value is the middle of the range, like the wiki's picker) */
         jv *rolls = jget(e, "rolls"), *tags = jget(e, "tags");
         if (rolls && rolls->t == JN_ARR && tags && tags->t == JN_ARR && tags->cnt) {
             const char *vals[64]; char store[64][120]; int nv = 0;
-            vals[nv++] = "(none)";
+            vals[nv++] = TR("(none)");
             for (size_t i = 0; i < tags->cnt && nv < 64; i++) { sraw(tags->v[i], store[nv], sizeof store[nv]); vals[nv] = store[nv]; nv++; }
             for (size_t r = 0; r < rolls->cnt && r < 8; r++) {
-                char lab[40]; snprintf(lab, sizeof lab, "Roll %zu", r + 1);
+                char lab[80]; snprintf(lab, sizeof lab, TR("Roll %zu"), r + 1); dsi_utf8_fix_end(lab);
                 DSLObj v = U->value_row(p, 120, y, W.mw - 150, lab, vals, nv, num(rolls->v[r], "i") + 1, on_roll, UD(((int)s << 4) | (int)r));
                 snprintf(rn, sizeof rn, "+roll:%s:%zu", slot, r); reg(rn, v);
                 y += 46;
@@ -409,13 +419,15 @@ static float draw_gear(DSLObj p, float y) {
         if (W.open_slot == (int)s) {
             jv *items = jget(e, "items");
             float cw = (W.mw - 24 - 8) / 2;
-            DSLObj be = icon_button(p, 4, y, cw, 44, 0, "", "(empty)", NULL, ST_OFF, on_item, UD(((int)s << 12) | 0));
+            DSLObj be = icon_button(p, 4, y, cw, 44, 0, "", TR("(empty)"), NULL, ST_OFF, on_item, UD(((int)s << 12) | 0));
             reg("+item:", be);
             for (size_t i = 0; items && i < items->cnt; i++) {
-                jv *it = items->v[i]; char ik[160], in[160], sub[120];
+                jv *it = items->v[i]; char ik[160], in[160], sub[300];
                 sraw(jget(it, "k"), ik, sizeof ik); sraw(jget(it, "n"), in, sizeof in);
                 char sb[60], rr[40]; sraw(jget(it, "sub"), sb, sizeof sb); sraw(jget(it, "r"), rr, sizeof rr);
-                snprintf(sub, sizeof sub, "%s%s%s%s%s", sb, rr[0] ? "  \xC2\xB7  " : "", rr, truthy(it, "th") ? "  \xC2\xB7  two-handed" : "", truthy(it, "ob") ? "" : "  \xC2\xB7  not obtainable");
+                snprintf(sub, sizeof sub, "%s%s%s%s%s%s%s", sb, rr[0] ? "  \xC2\xB7  " : "", rr, truthy(it, "th") ? "  \xC2\xB7  " : "", truthy(it, "th") ? TR("two-handed") : "",
+                         truthy(it, "ob") ? "" : "  \xC2\xB7  ", truthy(it, "ob") ? "" : TR("not obtainable"));
+                dsi_utf8_fix_end(sub);
                 size_t cell = i + 1;
                 DSLObj ib = icon_button(p, 4 + (cell % 2) * (cw + 8), y + (cell / 2) * 50, cw, 44, CM_ICON_ITEM, ik, in, sub,
                                         !strcmp(ik, k) ? ST_ON : ST_OFF, on_item, UD(((int)s << 12) | (int)(i + 1)));
@@ -428,16 +440,16 @@ static float draw_gear(DSLObj p, float y) {
     return y;
 }
 static float draw_insc(DSLObj p, float y) {
-    jv *in = jget(W.st, "insc"); char t[400];
+    jv *in = jget(W.st, "insc"); char t[600];
     int slots = num(in, "slots"), trees = num(in, "trees"), used = num(in, "used"), freen = num(in, "free");
-    y = heading(p, y, "Inscriptions");
-    snprintf(t, sizeof t, "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.",
+    y = heading(p, y, TR("Inscriptions"));
+    snprintf(t, sizeof t, TR("One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free."),
              slots, num(W.st, "lvl"), trees, used, freen);
     y = note(p, y, t, 40);
-    y = heading(p, y, "Extra skill trees");
+    y = heading(p, y, TR("Extra skill trees"));
     Grid gt = { "treeCands", CM_ICON_TREE, 3, 44, on_tree, "tree", 1 };
     y = grid(p, y, &gt, freen > 0) + 8;
-    y = heading(p, y, "Inscriptions");
+    y = heading(p, y, TR("Inscriptions"));
     Grid gi = { "inscs", CM_ICON_AFFECTER, 2, 48, on_insc, "insc", 1 };
     return grid(p, y, &gi, freen > 0);
 }
@@ -464,11 +476,11 @@ static void draw_sheet(void) {
     }
     jv *sp = jget(W.st, "sp"), *in = jget(W.st, "insc"); char t[80];
     snprintf(t, sizeof t, "%d / %d", num(sp, "main"), num(sp, "mainMax"));
-    mu_text(W.sheet, 14, y, sw - 120, 26, "Main SP left", 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN); y += 27;
+    mu_text(W.sheet, 14, y, sw - 120, 26, TR("Main SP left"), 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN); y += 27;
     snprintf(t, sizeof t, "%d / %d", num(sp, "sub"), num(sp, "subMax"));
-    mu_text(W.sheet, 14, y, sw - 120, 26, "Sub SP left", 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN); y += 27;
+    mu_text(W.sheet, 14, y, sw - 120, 26, TR("Sub SP left"), 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN); y += 27;
     snprintf(t, sizeof t, "%d / %d", num(in, "free"), num(in, "slots"));
-    mu_text(W.sheet, 14, y, sw - 120, 26, "Inscriptions free", 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN);
+    mu_text(W.sheet, 14, y, sw - 120, 26, TR("Inscriptions free"), 15, DSL_TXT_LEFT, MU_C_SUB); mu_text(W.sheet, sw - 110, y, 96, 26, t, 15, DSL_TXT_RIGHT, MU_C_MAIN);
 }
 
 static void draw_mid(void) {
@@ -483,7 +495,7 @@ static void draw_mid(void) {
     cm_raycast(W.mid_holder, false);
     DSLObj p = W.mid_holder; float y = 8;
     if (eng == ENG_FAILED) y = note(p, y, eng_msg, 140);
-    else if (eng != ENG_READY || !W.st) y = note(p, y, "Loading the wiki's Unit Builder...", 30);
+    else if (eng != ENG_READY || !W.st) y = note(p, y, TR("Loading the wiki's Unit Builder..."), 30);
     else switch (W.section) {
         case SEC_RACE: y = draw_race(p, y); break;
         case SEC_BG: y = draw_bg(p, y); break;
@@ -507,7 +519,7 @@ static void refresh(void) {
     if (!W.open || !W.win) return;
     reg_forget_dynamic();
     for (int i = 0; i < SEC_N; i++) if (W.nav[i]) {
-        char t[80]; snprintf(t, sizeof t, "%s%s%s", i == W.section ? "<color=#D9BE8F>" : "", SEC_NAME[i], i == W.section ? "</color>" : "");
+        char t[300]; snprintf(t, sizeof t, "%s%s%s", i == W.section ? "<color=#D9BE8F>" : "", sec_label(i), i == W.section ? "</color>" : "");
         U->set_text(W.nav[i], t);
     }
     int ready = eng == ENG_READY && W.st;
@@ -517,7 +529,7 @@ static void refresh(void) {
             char store[100][8]; const char *vals[100]; int n = mx > 0 && mx <= 100 ? mx : 12;
             for (int i = 0; i < n; i++) { snprintf(store[i], sizeof store[i], "%d", i + 1); vals[i] = store[i]; }
             U->destroy(W.v_lvl);
-            W.v_lvl = U->value_row(W.win, 360, 56, 240, "Level", vals, n, lv - 1, on_lvl, NULL);
+            W.v_lvl = U->value_row(W.win, 360, 56, 240, TR("Level"), vals, n, lv - 1, on_lvl, NULL);
             W.lvl_n = n;
             reg("lvl", W.v_lvl);
         } else U->value_set(W.v_lvl, lv - 1);
@@ -531,22 +543,22 @@ static void refresh(void) {
 
 static int build_ui(void) {
     float w, h;
-    W.win = mu_window(W.unit_id[0] ? "Unit Builder - Edit" : "Unit Builder", 1240, 780, &w, &h);
+    W.win = mu_window(W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 780, &w, &h);
     if (!W.win) { mu_log("builder: kit not ready"); return -1; }
     W.w = w; W.h = h; W.mid = W.mid_holder = W.sheet = NULL; W.nreg = 0; W.lvl_n = 0;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     float y = 56;
-    mu_text(W.win, 20, y, 64, 40, "Name", 15, DSL_TXT_LEFT, MU_C_SUB);
-    W.f_name = U->field(W.win, 84, y, 260, 40, "Unit name", W.lib_name, on_name, NULL);
-    { const char *one[] = { "-" }; W.v_lvl = U->value_row(W.win, 360, y, 240, "Level", one, 1, 0, on_lvl, NULL); }
-    W.b_save = mu_button(W.win, w - 280, y, 125, 40, "Save", on_save, NULL);
-    W.b_cancel = mu_button(W.win, w - 145, y, 125, 40, "Cancel", on_cancel, NULL);
+    mu_text(W.win, 20, y, 64, 40, TR("Name"), 15, DSL_TXT_LEFT, MU_C_SUB);
+    W.f_name = U->field(W.win, 84, y, 260, 40, TR("Unit name"), W.lib_name, on_name, NULL);
+    { const char *one[] = { "-" }; W.v_lvl = U->value_row(W.win, 360, y, 240, TR("Level"), one, 1, 0, on_lvl, NULL); }
+    W.b_save = mu_button(W.win, w - 280, y, 125, 40, TR("Save"), on_save, NULL);
+    W.b_cancel = mu_button(W.win, w - 145, y, 125, 40, TR("Cancel"), on_cancel, NULL);
     W.status = mu_text(W.win, 612, y, w - 280 - 612 - 10, 40, W.msg, 14, DSL_TXT_LEFT, MU_C_SUB);
-    U->tooltip(W.b_save, "Save", "Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights.");
+    U->tooltip(W.b_save, TR("Save"), TR("Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."));
     reg("name", W.f_name); reg("lvl", W.v_lvl); reg("save", W.b_save); reg("cancel", W.b_cancel); reg("status", W.status); reg("win", W.win);
     float ny = 108;
     for (int i = 0; i < SEC_N; i++) {
-        W.nav[i] = mu_button(W.win, 20, ny + i * 48, 180, 42, SEC_NAME[i], on_nav, UD(i));
+        W.nav[i] = mu_button(W.win, 20, ny + i * 48, 180, 42, sec_label(i), on_nav, UD(i));
         char rn[40]; snprintf(rn, sizeof rn, "nav:%s", SEC_NAME[i]); reg(rn, W.nav[i]);
     }
     W.my = 108; W.mh = h - W.my - 20; W.mx = 212;
@@ -555,11 +567,14 @@ static int build_ui(void) {
     return 0;
 }
 
+static int relang;                       /* the language changed: build the window again (bld_relang) */
+void bld_relang(void) { relang = 1; }
 static void win_poll(void) {             /* the kit's screen layer or the UI scale changed: build the window again */
-    if (!W.open || !W.win) return;
+    if (!W.open || !W.win) { relang = 0; return; }
     float lw = 0, lh = 0;
-    if (!cm_rect_size(cm_parent(W.win), &lw, &lh) && lw >= 100 && lh >= 100
-        && (fabsf(lw - W.lw) > 1 || fabsf(lh - W.lh) > 1 || fabsf(mu_ui_scale() - W.scale) > 0.001f)) {
+    if (relang || (!cm_rect_size(cm_parent(W.win), &lw, &lh) && lw >= 100 && lh >= 100
+        && (fabsf(lw - W.lw) > 1 || fabsf(lh - W.lh) > 1 || fabsf(mu_ui_scale() - W.scale) > 0.001f))) {
+        relang = 0;
         char name[96] = ""; if (W.f_name) U->field_get(W.f_name, name, sizeof name);
         mu_log("builder: screen layer %.0fx%.0f -> %.0fx%.0f, window built again", W.lw, W.lh, lw, lh);
         U->destroy(W.win); W.win = NULL;
@@ -587,7 +602,7 @@ void cm_builder_open(const char *unit_id_or_null, void (*saved)(const char *unit
             snprintf(W.unit_id, sizeof W.unit_id, "%s", unit_id_or_null);
             sraw(jget(u, "name"), W.lib_name, sizeof W.lib_name);
             bj = jdump(b, 0, NULL);
-        } else set_msg(lib ? "That unit is not in My Units any more: a new unit starts here." : e, MU_C_BAD);
+        } else set_msg(lib ? TR("That unit is not in My Units any more: a new unit starts here.") : e, MU_C_BAD);
         if (lib) jfree(lib);
     }
     W.saved = saved; W.ud = ud;

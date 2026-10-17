@@ -8,7 +8,7 @@ S="$R/src"; ZL="$R/win/third_party/zlib"; O="$R/build/units/win"
 TC=~/tools/llvm-mingw/bin/x86_64-w64-mingw32-clang
 mkdir -p "$O"
 nice -n 5 $TC -O1 -g -Wall -Wno-unused-function -Wno-format -D__USE_MINGW_ANSI_STDIO=1 -include dswin.h '-Dlocaltime_r(t,m)=(localtime_s((m),(t)) ? NULL : (m))' -I"$S" -I"$U" -I"$C" -I"$C/fe" -I"$ZL" -I"$R/win/port/posix" -I"$R/win/port" -o "$O/win_probe.exe" "$D/win_probe.c" \
-  "$U/mu_card.c" "$U/mu_link.c" "$U/mu_clip.c" "$U/myunits.c" "$U/wk_link.c" "$U/wk_http.c" "$U/pvp_wiki.c" "$U/pvp_build.c" \
+  "$U/mu_card.c" "$U/mu_link.c" "$U/mu_clip.c" "$U/myunits.c" "$U/wk_link.c" "$U/wk_http.c" "$U/pvp_wiki.c" "$U/pvp_build.c" "$U/test/dsi_impl.c" \
   "$C/fe/fe_json.c" "$C/fe/fe_save.c" "$ZL/inflate.c" "$ZL/inffast.c" "$ZL/inftrees.c" "$ZL/adler32.c" "$ZL/crc32.c" "$ZL/zutil.c" \
   -static -lwinhttp -lbcrypt
 echo "built $O/win_probe.exe"

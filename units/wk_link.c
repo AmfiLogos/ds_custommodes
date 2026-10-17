@@ -2,6 +2,7 @@
 #include "wk_link.h"
 #include "fe/fe_json.h"
 #include <ctype.h>
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,18 +128,18 @@ static int decode_long(const char *t, wk_build *out, int max, int *code, char *e
                 acc = acc << 6 | (uint32_t)x; bits += 6; if (bits >= 8) { bits -= 8; js[on++] = (unsigned char)(acc >> bits); }
             }
             char pe[200]; jv *j = on ? jparse((const char *)js, on, pe, sizeof pe) : NULL; free(js);
-            if (!j) snprintf(e, sizeof e, "this one-unit link is damaged or cut short");
+            if (!j) snprintf(e, sizeof e, "%s", TR("this one-unit link is damaged or cut short"));
             else { k = wk_from_json(j, &out[0], e, sizeof e) ? -1 : 1; jfree(j); }
             if (max < 1) k = -1;
         }
     } else if (is_code(t)) k = wk_decode(t, out, max, &fpm, e, sizeof e);
-    else return set_err(code, WKL_NOT_LINK, err, errn, "This is not a wiki builder link. Copy a team or unit link on the wiki builder first.");
+    else return set_err(code, WKL_NOT_LINK, err, errn, TR("This is not a wiki builder link. Copy a team or unit link on the wiki builder first."));
     if (k < 1 && strncmp(buf, "{", 1)) {                               /* an old link: its indices point at other rows */
         int fp = wk_code_fp(buf[0] == '~' ? buf + 1 : buf);
-        if (fp >= 0 && fp != wk_fp()) return set_err(code, WKL_OTHER_DATA, err, errn, "This link was made with other wiki data (another game version): make it again on the wiki.");
+        if (fp >= 0 && fp != wk_fp()) return set_err(code, WKL_OTHER_DATA, err, errn, TR("This link was made with other wiki data (another game version): make it again on the wiki."));
     }
-    if (k < 1) { if (code) *code = WKL_BAD; snprintf(err, errn, "This link is damaged or cut short. Copy it again."); FE_LOG("wiki link: damaged or cut short: %s", e[0] ? e : "?"); return -1; }
-    if (fpm) return set_err(code, WKL_OTHER_DATA, err, errn, "This link was made with other wiki data (another game version): make it again on the wiki.");
+    if (k < 1) { if (code) *code = WKL_BAD; snprintf(err, errn, "%s", TR("This link is damaged or cut short. Copy it again.")); FE_LOG("wiki link: damaged or cut short: %s", e[0] ? e : "?"); return -1; }
+    if (fpm) return set_err(code, WKL_OTHER_DATA, err, errn, TR("This link was made with other wiki data (another game version): make it again on the wiki."));
     if (code) *code = WKL_OK;
     return k;
 }
@@ -146,10 +147,10 @@ static int decode_long(const char *t, wk_build *out, int max, int *code, char *e
 int wkl_decode_offline(const char *text, wk_build *out, int max, int *code, char *err, size_t errn) {
     if (!text) text = "";
     while (isspace((unsigned char)*text)) text++;
-    if (!*text) return set_err(code, WKL_EMPTY, err, errn, "No link. Copy a team or unit link on the wiki builder first.");
+    if (!*text) return set_err(code, WKL_EMPTY, err, errn, TR("No link. Copy a team or unit link on the wiki builder first."));
     char u[300];
     if (!strstr(text, "team=") && !strstr(text, "#b=") && wkl_short_url(text, u, sizeof u))
-        return set_err(code, WKL_OFFLINE, err, errn, "This short link needs the internet. Or open it on the wiki and copy the long link.");
+        return set_err(code, WKL_OFFLINE, err, errn, TR("This short link needs the internet. Or open it on the wiki and copy the long link."));
     return decode_long(text, out, max, code, err, errn);
 }
 
@@ -161,17 +162,17 @@ int wkl_resolve(const char *text, wk_build *out, int max, int timeout_ms, int *c
     body[0] = 0;
     if (wk_http_get(u, timeout_ms, &st, loc, sizeof loc, body, sizeof body, e, sizeof e)) {
         if (code) *code = WKL_OFFLINE;
-        snprintf(err, errn, "This short link needs the internet (%s). Or open it on the wiki and copy the long link.", e[0] ? e : "no answer");
+        snprintf(err, errn, TR("This short link needs the internet (%s). Or open it on the wiki and copy the long link."), e[0] ? e : TR("no answer"));
         return -1;
     }
-    if (st == 404) return set_err(code, WKL_UNKNOWN, err, errn, "This short link does not exist (removed?).");
-    if (st == 410) return set_err(code, WKL_UNKNOWN, err, errn, "This short link was removed on the wiki.");
+    if (st == 404) return set_err(code, WKL_UNKNOWN, err, errn, TR("This short link does not exist (removed?)."));
+    if (st == 410) return set_err(code, WKL_UNKNOWN, err, errn, TR("This short link was removed on the wiki."));
     if (st >= 300 && st < 400 && strstr(loc, "/builds/removed"))          /* a hidden gallery build (api/shorten.js) */
-        return set_err(code, WKL_UNKNOWN, err, errn, "This build was removed on the wiki.");
+        return set_err(code, WKL_UNKNOWN, err, errn, TR("This build was removed on the wiki."));
     char tgt[16384];
     if ((st == 301 || st == 302 || st == 303 || st == 307 || st == 308) ? wkl_target_of(loc, NULL, tgt, sizeof tgt) : st == 200 ? wkl_target_of(NULL, body, tgt, sizeof tgt) : -1) {
         if (code) *code = WKL_SERVER;
-        snprintf(err, errn, "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.", st);
+        snprintf(err, errn, TR("The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki."), st);
         return -1;
     }
     return decode_long(tgt, out, max, code, err, errn);

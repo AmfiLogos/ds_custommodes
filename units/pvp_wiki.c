@@ -1,6 +1,7 @@
 /* pvp_wiki - DS wiki builder team link decoder (see pvp_wiki.h). */
 #include "pvp_wiki.h"
 #include "pvp_wiki_tables.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -274,7 +275,7 @@ static int key_list(errs *E, const jv *a, const char *const *tab, int tn, int *c
     *cnt = 0;
     for (size_t i = 0; a && a->t == JN_ARR && i < a->cnt; i++) {
         int ix = key_ix(tab, tn, a->v[i]);
-        if (ix < 0) { fail(E, "%s %.*s is not in this game version", what, a->v[i]->t == JN_STR ? (int)a->v[i]->n : 1, a->v[i]->t == JN_STR ? a->v[i]->s : "?"); return -1; }
+        if (ix < 0) { fail(E, TR("%s %.*s is not in this game version"), TR(what), a->v[i]->t == JN_STR ? (int)a->v[i]->n : 1, a->v[i]->t == JN_STR ? a->v[i]->s : "?"); return -1; }
         if (*cnt >= WK_MAX_LIST) { fail(E, "%s: more than %d", what, WK_MAX_LIST); return -1; }
         out[(*cnt)++] = ix;
     }
@@ -284,11 +285,11 @@ int wk_from_json(const jv *j, wk_build *b, char *err, size_t errn) {
     errs E = { err, errn, 0 }; if (err && errn) err[0] = 0;
     memset(b, 0, sizeof *b); b->bg = -1; b->portrait = -1;
     for (int s = 0; s < WK_SLOTS; s++) b->eq[s] = -1;
-    if (!j || j->t != JN_OBJ) { fail(&E, "not a unit build"); return -1; }
+    if (!j || j->t != JN_OBJ) { fail(&E, "%s", TR("not a unit build")); return -1; }
     jv *v = jget(j, "race"); b->race = key_ix(WK_RACE, WK_RACE_N, v);
-    if (b->race < 0) { fail(&E, "race %.*s is not in this game version", v && v->t == JN_STR ? (int)v->n : 1, v && v->t == JN_STR ? v->s : "?"); return -1; }
+    if (b->race < 0) { fail(&E, TR("race %.*s is not in this game version"), v && v->t == JN_STR ? (int)v->n : 1, v && v->t == JN_STR ? v->s : "?"); return -1; }
     v = jget(j, "bg");
-    if (v && v->t == JN_STR) { b->bg = key_ix(WK_BG, WK_BG_N, v); if (b->bg < 0) { fail(&E, "background %.*s is not in this game version", (int)v->n, v->s); return -1; } }
+    if (v && v->t == JN_STR) { b->bg = key_ix(WK_BG, WK_BG_N, v); if (b->bg < 0) { fail(&E, TR("background %.*s is not in this game version"), (int)v->n, v->s); return -1; } }
     int ok; double lv = num_of(jget(j, "lvl"), &ok); long L = ok ? (long)lv : 0;          /* b.lvl|0, clamped 1..255 */
     b->lvl = L < 1 ? 1 : L > 255 ? 255 : (int)L;
     jv *tal = jget(j, "tal");
@@ -296,15 +297,15 @@ int wk_from_json(const jv *j, wk_build *b, char *err, size_t errn) {
     v = jget(j, "offer"); b->offer = jstreq(v, "Ordinary") ? 1 : jstreq(v, "Plentiful") ? 2 : 0;
     v = jget(j, "roll"); b->roll = jstreq(v, "min") ? 0 : jstreq(v, "max") ? 2 : 1;
     b->advanced = jtruthy(jget(j, "advanced")); b->add_shield = jtruthy(jget(j, "addShield")); b->hide_head = jtruthy(jget(j, "hideHead"));
-    if (key_list(&E, jget(j, "inds"), WK_IND, WK_IND_N, &b->ninds, b->inds, "trait") ||
-        key_list(&E, jget(j, "insctrees"), WK_TREE, WK_TREE_N, &b->ntrees, b->trees, "skill tree") ||
-        key_list(&E, jget(j, "learned"), WK_SKILL, WK_SKILL_N, &b->nlearned, b->learned, "skill") ||
-        key_list(&E, jget(j, "insc"), WK_INSC, WK_INSC_N, &b->ninsc, b->insc, "inscription")) return -1;
+    if (key_list(&E, jget(j, "inds"), WK_IND, WK_IND_N, &b->ninds, b->inds, TR_NOOP("trait")) ||
+        key_list(&E, jget(j, "insctrees"), WK_TREE, WK_TREE_N, &b->ntrees, b->trees, TR_NOOP("skill tree")) ||
+        key_list(&E, jget(j, "learned"), WK_SKILL, WK_SKILL_N, &b->nlearned, b->learned, TR_NOOP("skill")) ||
+        key_list(&E, jget(j, "insc"), WK_INSC, WK_INSC_N, &b->ninsc, b->insc, TR_NOOP("inscription"))) return -1;
     jv *eq = jget(j, "eq"), *tags = jget(j, "tags");
     for (int s = 0; s < WK_SLOT_N && s < WK_SLOTS; s++) {
         jv *k = jget(eq, WK_SLOT[s]); if (!k || k->t != JN_STR || !k->n) continue;
         int it = key_ix(WK_ITEM, WK_ITEM_N, k);
-        if (it < 0) { fail(&E, "item %.*s is not in this game version", (int)k->n, k->s); return -1; }
+        if (it < 0) { fail(&E, TR("item %.*s is not in this game version"), (int)k->n, k->s); return -1; }
         b->eq[s] = it;
         jv *pk = jget(tags, WK_SLOT[s]);
         for (size_t q = 0; pk && pk->t == JN_ARR && q < pk->cnt && b->ntag[s] < 8; q++) {
@@ -344,10 +345,10 @@ int wk_from_json(const jv *j, wk_build *b, char *err, size_t errn) {
         for (int sk = 0; sk < WK_SKILL_N; sk++) if (strlen(WK_SKILL[sk]) == ps->kn[i] && !memcmp(WK_SKILL[sk], ps->k[i], ps->kn[i])) {
             b->pstk[b->npstk].skill = sk; b->pstk[b->npstk].st = (int)st; b->npstk++; break; }
     }
-    if (key_list(&E, jget(j, "souls"), WK_SOUL, WK_SOUL_N, &b->nsouls, b->souls, "soul stone") ||
+    if (key_list(&E, jget(j, "souls"), WK_SOUL, WK_SOUL_N, &b->nsouls, b->souls, TR_NOOP("soul stone")) ||
         key_list(&E, jget(j, "savedInds"), WK_IND, WK_IND_N, &b->nsaved_inds, b->saved_inds, "trait") ||
         key_list(&E, jget(j, "savedInsc"), WK_INSC, WK_INSC_N, &b->nsaved_insc, b->saved_insc, "inscription") ||
-        key_list(&E, jget(j, "acqInds"), WK_ACQ, WK_ACQ_N, &b->nacq, b->acq, "acquired trait")) return -1;
+        key_list(&E, jget(j, "acqInds"), WK_ACQ, WK_ACQ_N, &b->nacq, b->acq, TR_NOOP("acquired trait"))) return -1;
     b->has_saved_inds = b->nsaved_inds > 0;
     drop_retired(b->inds, &b->ninds); drop_retired(b->saved_inds, &b->nsaved_inds);
     jv *el = jget(j, "elix");
