@@ -20,6 +20,7 @@
 #include "cm_il.h"
 #include "mu_link.h"
 #include "mu_ui.h"
+#include "mu_look.h"
 #include "../fights/cm_prefs.h"
 #include <ctype.h>
 #include <stddef.h>
@@ -437,11 +438,22 @@ static float tags_row(DSLObj p, float x, float y, float right, const gal_item *i
     return 32;
 }
 /* the portrait (else the race's icon) with the level under it */
+/* the unit's two looks (owner 2026-10-17: "each unit shows both its in-game sprite and its avatar"), by the shared
+   mu_look (units/mu_look.h, the game's own compositor): the avatar (else the race's icon), then the whole character
+   with its race body and worn gear. Returns the width used. */
+static int nsprites;                                  /* sprites drawn on the page (test) */
+static float looks(DSLObj p, float x, float y, float s, const gal_unit *g) {
+    mu_look l; memset(&l, 0, sizeof l);
+    snprintf(l.race, sizeof l.race, "%s", g->race); snprintf(l.portrait, sizeof l.portrait, "%s", g->portrait);
+    for (int i = 0; i < g->ngear && l.ngear < MU_LOOK_GEAR; i++) snprintf(l.gear[l.ngear++], sizeof l.gear[0], "%s", g->gear[i]);
+    DSLObj a = K(mu_look_avatar(p, x, y, s, &l));
+    if (!a) { char rn[96]; game_name(g->race, rn, sizeof rn); K(mu_icon(p, x, y, s, CM_ICON_AFFECTER, g->race, 0, rn)); }
+    if (K(mu_look_sprite(p, x + s + 2, y, s, s, &l))) nsprites++;
+    return 2 * s + 2;
+}
 static void face(DSLObj p, float x, float y, float s, const gal_unit *g) {
-    char rn[96]; game_name(g->race, rn, sizeof rn);
-    if (g->portrait[0] && cm_icon(CM_ICON_PORTRAIT, g->portrait)) K(mu_icon(p, x, y, s, CM_ICON_PORTRAIT, g->portrait, 0, NULL));
-    else K(mu_icon(p, x, y, s, CM_ICON_AFFECTER, g->race, 0, rn));
-    if (g->lvl > 0) { char lv[32]; snprintf(lv, sizeof lv, TR("Lv %d"), g->lvl); txt(p, x - 6, y + s + 1, s + 12, 18, lv, 13, DSL_TXT_CENTER, GOLD); }
+    float w = looks(p, x, y, s, g);
+    if (g->lvl > 0) { char lv[32]; snprintf(lv, sizeof lv, TR("Lv %d"), g->lvl); txt(p, x, y + s + 1, w, 18, lv, 13, DSL_TXT_CENTER, GOLD); }
 }
 /* "Race · Background · Health 1967 · Physical Attack Power 163" */
 static void crumb(const gal_unit *g, int stats, char *o, size_t n) {
@@ -485,13 +497,13 @@ static void view_open(void *ud, DSLObj w) {
 /* a card's Test Fight: its Details stay under the Test Fights window (a page of cards is ~500 of the kit's widgets) */
 static void card_test_click(void *ud, DSLObj w) { view_open(ud, w); test_click(ud, w); }
 
-/* Compact Plus unit (the wiki gallery's Compact+ card): portrait + level | name, race / background / stats,
+/* Compact Plus unit (the wiki gallery's Compact+ card): portrait + in-game sprite + level | name, race / background / stats,
    items + trees + inscriptions + soul stones + acquired traits, then the skills (active | passive) */
 #define CPU_H 96.f
 static void unit_cp(DSLObj p, float x, float y, float w, const gal_item *it, int u) {
     const gal_unit *g = &it->units[u]; char t[400];
-    face(p, x, y + 2, 54, g);
-    float x0 = x + 66, right = x + w;
+    face(p, x, y + 2, 50, g);
+    float x0 = x + 110, right = x + w;
     member_name(it, u, t, sizeof t);
     txt(p, x0, y, right - x0, 20, t, 15, DSL_TXT_LEFT, MAIN);
     crumb(g, 1, t, sizeof t);
@@ -504,12 +516,10 @@ static void unit_cp(DSLObj p, float x, float y, float w, const gal_item *it, int
 #define LU_H 34.f
 static void unit_list(DSLObj p, float x, float y, float w, const gal_item *it, int u) {
     const gal_unit *g = &it->units[u]; char t[300], nm[160];
-    char rn[96]; game_name(g->race, rn, sizeof rn);
-    if (g->portrait[0] && cm_icon(CM_ICON_PORTRAIT, g->portrait)) K(mu_icon(p, x, y + 2, 30, CM_ICON_PORTRAIT, g->portrait, 0, NULL));
-    else K(mu_icon(p, x, y + 2, 30, CM_ICON_AFFECTER, g->race, 0, rn));
+    looks(p, x, y + 2, 30, g);
     member_name(it, u, nm, sizeof nm);
     snprintf(t, sizeof t, TR("%s  Lv %d"), nm, g->lvl); dsi_utf8_fix_end(t);
-    float tx = x + 38, treex = x + w - 3 * 26;
+    float tx = x + 70, treex = x + w - 3 * 26;
     txt(p, tx, y, (treex - tx) * 0.5f - 6, LU_H, t, 14, DSL_TXT_LEFT, MAIN);
     crumb(g, 0, t, sizeof t);
     txt(p, tx + (treex - tx) * 0.5f, y + 8, (treex - tx) * 0.5f - 6, 18, t, 12, DSL_TXT_LEFT, SUB);   /* one line: a tall box wraps */
@@ -569,7 +579,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
     if (!c) return 0;
     cm_raycast(c, false);
     face(c, 14, 14, 92, g);
-    float x0 = 126, right = w - 14;
+    float x0 = 222, right = w - 14;
     member_name(it, u, t, sizeof t);
     txt(c, x0, 10, right - x0, 26, t, 20, DSL_TXT_LEFT, GOLD);
     crumb(g, 1, t, sizeof t);
@@ -712,7 +722,7 @@ static void paint_status(void) {
 static void paint(void) {
     if (!cmw_is_open("gallery") || !body) return;
     cmw_forget("gallery:c"); cmw_forget("gallery:f."); cmw_forget("gallery:p.");
-    trk_clear(); ncards_drawn = 0;
+    trk_clear(); ncards_drawn = nsprites = 0;
     grid_holder = K(cmw_flat(U->panel(body, 0, 0, WW, BH - 70, 0), 0x00000000));
     cm_raycast(grid_holder, false);                                  /* the search row under it (made once) keeps its clicks */
     if (pv >= nitems) pv = -1;
@@ -778,8 +788,8 @@ static void gal_relang(void) { if (cmw_is_open("gallery")) gal_open(); }   /* th
 static void test_state(char *out, size_t n) {
     char tip[400]; mu_tip_test_state(tip, sizeof tip);
     size_t k = (size_t)snprintf(out, n, "\"gal\":{\"items\":%d,\"loading\":%d,\"more\":%d,\"words\":%d,\"status\":\"%.300s\","
-                                "\"cut\":%d,\"view\":%d,\"vpage\":%d,\"shown\":%d,\"cards\":%d,\"preview\":%d,\"widgets\":%d,\"win\":[%.0f,%.0f],%s,\"ids\":[",
-                                nitems, loading, more, words != NULL, status, texts_cut(), view, vpage, nvis, ncards_drawn, pv, ntrk, WW, WH, tip);
+                                "\"sprites\":%d,\"cut\":%d,\"view\":%d,\"vpage\":%d,\"shown\":%d,\"cards\":%d,\"preview\":%d,\"widgets\":%d,\"win\":[%.0f,%.0f],%s,\"ids\":[",
+                                nitems, loading, more, words != NULL, status, nsprites, texts_cut(), view, vpage, nvis, ncards_drawn, pv, ntrk, WW, WH, tip);
     for (int i = 0; i < nitems && i < 24 && k + 40 < n; i++) k += (size_t)snprintf(out + k, n - k, "%s\"%s\"", i ? "," : "", items[i].id);
     snprintf(out + k, n - k, "]}");
 }
