@@ -295,6 +295,11 @@ const char *gal_word_at(const gal_words *w, const char *group, const char *key, 
     str_of(v, o, sizeof word_buf[0]);
     return o;
 }
+const char *(*gal_name_hook)(const char *group, const char *key);
+const char *gal_name_word(const gal_words *w, const char *group, const char *key) {
+    const char *h = gal_name_hook && key && *key ? gal_name_hook(group, key) : NULL;
+    return h && *h ? h : gal_word(w, group, key);
+}
 int gal_skill_passive(const gal_words *w, const char *skill) { return !strcmp(gal_word_at(w, "skills", skill, 2), "P"); }
 
 /* the keys of W.<group> in the file's order (filter lists: races, trees). Returns the count; keys point into w. */
@@ -340,7 +345,7 @@ static void tpl_or(const gal_words *w, const char *key, const char *def, char *o
 
 void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n) {
     char rn[128] = "", tpl[128], pair[128], tn[256] = "", noun[128] = "", unit[128];
-    if (it->name_race[0]) snprintf(rn, sizeof rn, "%s", gal_word(w, "races", it->name_race));
+    if (it->name_race[0]) snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", it->name_race));
     if (!it->name_noun[0]) {                                   /* a solo character: its race */
         tpl_or(w, "unit", "", unit, sizeof unit);
         snprintf(out, n, "%s", rn[0] ? rn : unit);
@@ -348,7 +353,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
     }
     char names[4][128]; int nn = 0;
     for (int i = 0; i < it->name_ntrees && i < 4; i++) {
-        const char *t = gal_word(w, "trees", it->name_trees[i]);
+        const char *t = gal_name_word(w, "trees", it->name_trees[i]);
         if (*t) snprintf(names[nn++], sizeof names[0], "%s", t);
     }
     if (nn == 2) {
@@ -366,7 +371,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
 void gal_member_name(const gal_item *it, int index, const gal_words *w, char *out, size_t n) {
     char rn[128] = "", tpl[128], num[16];
     const char *race = index >= 0 && index < it->nunits ? it->units[index].race : "";
-    if (race[0]) snprintf(rn, sizeof rn, "%s", gal_word(w, "races", race));
+    if (race[0]) snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", race));
     if (!rn[0]) tpl_or(w, "unit", "", rn, sizeof rn);
     if (!it->team) { snprintf(out, n, "%s", rn); return; }
     tpl_or(w, "member", "{race} {n}", tpl, sizeof tpl);
@@ -380,8 +385,8 @@ void gal_author_name(const gal_item *it, const gal_words *w, char *out, size_t n
     if (!it->au_pseudo) { if (n) out[0] = 0; return; }
     char tpl[128], rn[128], bg[128], num[16];
     tpl_or(w, "pseudo", "{race} {background} {n}", tpl, sizeof tpl);
-    snprintf(rn, sizeof rn, "%s", gal_word(w, "races", it->au_race));
-    snprintf(bg, sizeof bg, "%s", gal_word(w, "bg", it->au_bg));
+    snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", it->au_race));
+    snprintf(bg, sizeof bg, "%s", gal_name_word(w, "bg", it->au_bg));
     snprintf(num, sizeof num, "%d", it->au_n);
     kv m[3] = { { "race", rn }, { "background", bg }, { "n", num } };
     fill(tpl, m, 3, out, n);

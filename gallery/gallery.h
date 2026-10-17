@@ -83,6 +83,10 @@ gal_words *gal_words_fetch_lang(const char *lang_code, char *err, size_t errn);
 void       gal_words_free(gal_words *w);
 const char *gal_word(const gal_words *w, const char *group, const char *key);   /* W.<group>[key] (first of a pair) */
 const char *gal_word_at(const gal_words *w, const char *group, const char *key, int i);   /* element i of W.<group>[key] */
+/* names shown for races, backgrounds and trees: the game's own translated name when the hook gives one (gal_ui: the game's
+   TEXTKEY), else the wiki's word. Used by the title / member / author names below. NULL hook = the wiki's words only. */
+extern const char *(*gal_name_hook)(const char *group, const char *key);   /* "races" / "bg" / "trees"; NULL = none */
+const char *gal_name_word(const gal_words *w, const char *group, const char *key);
 int  gal_skill_passive(const gal_words *w, const char *skill);   /* W.skills[k][2] == "P" (the gallery's Passive row) */
 int  gal_word_keys(const gal_words *w, const char *group, const char **keys, int max);   /* keys of W.<group>, file order */
 

@@ -139,8 +139,8 @@ static int visible(const gal_item *it) {
     gal_author_name(it, words, t, sizeof t); if (ci_has(t, s_name)) return 1;
     for (int u = 0; u < it->nunits; u++) {
         const gal_unit *g = &it->units[u];
-        if (ci_has(gal_word(words, "bg", g->bg), s_name) || ci_has(gal_word(words, "races", g->race), s_name)) return 1;
-        for (int z = 0; z < g->ntrees; z++) if (ci_has(gal_word(words, "trees", g->trees[z]), s_name)) return 1;
+        if (ci_has(gal_name_word(words, "bg", g->bg), s_name) || ci_has(gal_name_word(words, "races", g->race), s_name)) return 1;
+        for (int z = 0; z < g->ntrees; z++) if (ci_has(gal_name_word(words, "trees", g->trees[z]), s_name)) return 1;
     }
     return 0;
 }
@@ -165,7 +165,7 @@ static void trim(char *s) {
 }
 static int is_bg_word(const char *t) {
     const char *k[64]; int n = gal_word_keys(words, "bg", k, 64);
-    for (int i = 0; i < n; i++) if (!strcasecmp(gal_word(words, "bg", k[i]), t)) return 1;
+    for (int i = 0; i < n; i++) if (!strcasecmp(gal_name_word(words, "bg", k[i]), t)) return 1;
     return 0;
 }
 typedef struct { cm_job j; int gen; char text[128]; gal_item au[8]; int n; char err[300]; } FindJob;
@@ -195,9 +195,9 @@ static void search_go(const char *raw) {
     if (t[0] && words) {                                               /* race / weapon tree words: the server's filters */
         static char nb[40][64]; const char *names[40]; int n;          /* gal_word's buffers rotate: copies */
         nrace = gal_word_keys(words, "races", race_keys, 16); ntree = gal_word_keys(words, "trees", tree_keys, 40);
-        n = 0; for (int i = 0; i < nrace; i++) { snprintf(nb[n], 64, "%s", gal_word(words, "races", race_keys[i])); names[n] = nb[n]; n++; }
+        n = 0; for (int i = 0; i < nrace; i++) { snprintf(nb[n], 64, "%s", gal_name_word(words, "races", race_keys[i])); names[n] = nb[n]; n++; }
         int r = take_word(t, names, n); if (r >= 0) q.race = r + 1;
-        n = 0; for (int i = 0; i < ntree; i++) { snprintf(nb[n], 64, "%s", gal_word(words, "trees", tree_keys[i])); names[n] = nb[n]; n++; }
+        n = 0; for (int i = 0; i < ntree; i++) { snprintf(nb[n], 64, "%s", gal_name_word(words, "trees", tree_keys[i])); names[n] = nb[n]; n++; }
         int k = take_word(t, names, n); if (k >= 0) q.tree = k + 1;
         trim(t);
     }
@@ -313,9 +313,20 @@ static DSLObj flat(DSLObj p, float x, float y, float w, float h, uint32_t c) {
 
 /* names in the game's language (the build's own title stays the wiki's, as on the wiki) */
 static void game_name(const char *key, char *o, size_t n) { mu_name_of(key, o, n); }
+/* gal_name_hook: race and background = the game's AFFECTER name; a weapon tree = the game's weapon type name
+   (TEXTKEY_Equipment_<tree>_NAME: Sword, Bow ...); the other trees (Warrior, Fire Magic ...) have no short game name:
+   the wiki's word in the player's language */
+static _Thread_local int hook_off;                   /* the worker thread (gal_link_author): no game calls there */
+static const char *name_hook(const char *group, const char *key) {
+    if (hook_off) return NULL;
+    static char ring[8][128]; static unsigned slot; char *o = ring[slot++ & 7]; o[0] = 0;
+    if (!strcmp(group, "races") || !strcmp(group, "bg")) { char k[128]; snprintf(k, sizeof k, "TEXTKEY_%s_NAME", key); if (cm_gettext(k, o, 128)) o[0] = 0; }
+    else if (!strcmp(group, "trees")) { char k[128]; snprintf(k, sizeof k, "TEXTKEY_Equipment_%s_NAME", key); if (cm_gettext(k, o, 128)) o[0] = 0; }
+    return o[0] ? o : NULL;
+}
 static const char *tree_name(const char *t) {
     char k[96]; snprintf(k, sizeof k, "TEXTKEY_SKILLTREE_%s_NAME", t);
-    const char *w = gal_word(words, "trees", t);
+    const char *w = gal_name_word(words, "trees", t);
     return cm_gw(k, *w ? w : t);
 }
 static const char *stat_name(const char *key) {
@@ -642,8 +653,8 @@ static void filters(DSLObj p) {
         nrace = gal_word_keys(words, "races", race_keys, 16); ntree = gal_word_keys(words, "trees", tree_keys, 40);
         const char *rl[17] = { TR("Any") }, *tl[41] = { TR("Any") };
         static char rn[16][96], tn[40][96];
-        for (int i = 0; i < nrace; i++) { char g[96]; game_name(race_keys[i], g, sizeof g); snprintf(rn[i], 96, "%s", g[0] ? g : gal_word(words, "races", race_keys[i])); rl[i + 1] = rn[i]; }
-        for (int i = 0; i < ntree; i++) { snprintf(tn[i], 96, "%s", gal_word(words, "trees", tree_keys[i])); tl[i + 1] = tn[i]; }
+        for (int i = 0; i < nrace; i++) { char g[96]; game_name(race_keys[i], g, sizeof g); snprintf(rn[i], 96, "%s", g[0] ? g : gal_name_word(words, "races", race_keys[i])); rl[i + 1] = rn[i]; }
+        for (int i = 0; i < ntree; i++) { snprintf(tn[i], 96, "%s", gal_name_word(words, "trees", tree_keys[i])); tl[i + 1] = tn[i]; }
         cmw_named(K(U->value_row(p, 24, 62, rw, TR("Races"), rl, nrace + 1, q.race, race_change, NULL)), CMW_VALUE, "gallery:f.race", race_change, NULL, rl[q.race]);
         cmw_named(K(U->value_row(p, 24 + rw + 12, 62, rw, TR("Weapon trees"), tl, ntree + 1, q.tree, tree_change, NULL)), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
     }
@@ -700,6 +711,7 @@ static void win_size(void) {
 }
 void gal_open(void) {
     U = cmw_ui(); if (!U || !mu_kit()) return;
+    gal_name_hook = name_hook;
     if (!items) items = calloc(MAXIT, sizeof *items);
     if (!items) return;
     { char v[32]; if (!cm_pref_get("gallery.view", v, sizeof v)) view = !strcmp(v, "list"); }
@@ -728,6 +740,7 @@ void gal_open(void) {
 /* mu_link's worker thread: the builder of a gallery item (a /build/<id> short link), named as the wiki names it. 1 found */
 static int gal_link_author(const char *id, char *out, size_t n) {
     gal_item *it = calloc(1, sizeof *it); char *blob = NULL, e[300]; int ok = 0;
+    hook_off = 1;
     if (n) out[0] = 0;
     if (it && !gal_fetch_item(id, it, &blob, e, sizeof e)) {
         gal_words *w = it->au_pseudo ? gal_words_fetch(e, sizeof e) : NULL;   /* a pseudonym is made of the wiki's words */
