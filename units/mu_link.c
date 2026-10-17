@@ -2,6 +2,7 @@
 #include "mu_link.h"
 #include "myunits.h"
 #include "wk_link.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,8 +40,8 @@ static int start(const char *t) {
     while (*t == ' ' || *t == '\t' || *t == '\r' || *t == '\n') t++;
     if (!*t || !wkl_looks_like_link(t)) {
         state = MUL_NEED_BOX; res.state = state;
-        snprintf(res.msg, sizeof res.msg, "%s", *t ? "That is not a wiki builder link. Copy a team or unit link on the wiki builder, or paste it here."
-                                                   : "Copy a team or unit link on the wiki builder, or paste it here.");
+        snprintf(res.msg, sizeof res.msg, "%s", *t ? TR("That is not a wiki builder link. Copy a team or unit link on the wiki builder, or paste it here.")
+                                                   : TR("Copy a team or unit link on the wiki builder, or paste it here."));
         return state;
     }
     snprintf(text, sizeof text, "%s", t);
@@ -81,13 +82,13 @@ int mul_poll(mul_result *r) {
             jv *lib = mu_load(e, sizeof e);
             if (!lib) { state = MUL_FAILED; snprintf(res.msg, sizeof res.msg, "%s", e); }
             else if (mu_add_team(lib, units, w_n, NULL, res.ids, e, sizeof e) < 0 || mu_save(lib, e, sizeof e)) {
-                state = MUL_FAILED; snprintf(res.msg, sizeof res.msg, "Could not add to My Units: %s", e);
+                state = MUL_FAILED; snprintf(res.msg, sizeof res.msg, TR("Could not add to My Units: %s"), e);
             } else {
                 state = MUL_DONE; res.n = w_n;
                 size_t nt = mu_team_count(lib); char nm[200] = "", ids[MU_TEAM_MAX][17];
                 if (nt) { mu_team_id_at(lib, nt - 1, res.team_id); mu_team_at(lib, nt - 1, nm, sizeof nm, ids); }
-                if (w_n == 1) snprintf(res.msg, sizeof res.msg, "Added 1 unit to My Units: %s", nm);
-                else snprintf(res.msg, sizeof res.msg, "Added %d units to My Units as the team %s", w_n, nm);
+                if (w_n == 1) snprintf(res.msg, sizeof res.msg, TR("Added 1 unit to My Units: %s"), nm);
+                else snprintf(res.msg, sizeof res.msg, TRN("Added %d unit to My Units as the team %s", "Added %d units to My Units as the team %s", w_n), w_n, nm);
             }
             jfree(lib);
         }

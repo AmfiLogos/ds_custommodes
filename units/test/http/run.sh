@@ -17,7 +17,7 @@ PL
 echo "entitlements: the game's three (game not installed)"; fi
 nice -n 5 cc -O1 -Wall -o "$O/http_host" "$D/http_host.c" -framework CoreFoundation -framework CFNetwork -framework AppKit
 codesign -f -s - --options runtime --entitlements "$O/game.entitlements" "$O/http_host" 2>/dev/null
-nice -n 5 cc -O1 -Wall -dynamiclib -I"$U" -I"$C" -I"$C/fe" -o "$O/probe.dylib" "$D/probe_dylib.c" "$U/wk_link.c" "$U/wk_http.c" "$U/pvp_wiki.c" "$C/fe/fe_json.c" \
+nice -n 5 cc -O1 -Wall -dynamiclib -I"$U" -I"$C" -I"$C/fe" -o "$O/probe.dylib" "$D/probe_dylib.c" "$U/wk_link.c" "$U/wk_http.c" "$U/pvp_wiki.c" "$U/test/dsi_impl.c" "$C/fe/fe_json.c" \
   -framework CoreFoundation -framework CFNetwork -lz -lm
 codesign -f -s - "$O/probe.dylib" 2>/dev/null
 codesign -dv "$O/http_host" 2>&1 | grep -o "flags=[^ ]*" | sed 's/^/host signed: /'

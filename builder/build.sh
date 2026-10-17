@@ -9,7 +9,7 @@ CF=(-arch arm64 -mmacosx-version-min=12.0 -D_DARWIN_C_SOURCE -O2 -Wall -Wno-unus
     -I$C -I$C/fe -I$C/fights -I$C/units -I$C/builder)
 SRCS=(fights/qjs_quickjs.c fights/qjs_cutils.c fights/qjs_dtoa.c fights/qjs_regexp.c fights/qjs_unicode.c fights/tinf/tinflate.c
       fights/sg_embed.c builder/bld_js.c builder/bld_embed.c
-      fe/fe_json.c fe/fe_save.c units/pvp_wiki.c units/pvp_build.c units/myunits.c units/wk_link.c units/wk_http.c)
+      fe/fe_json.c fe/fe_save.c units/pvp_wiki.c units/pvp_build.c units/myunits.c units/wk_link.c units/wk_http.c units/test/dsi_impl.c)
 OBJS=()
 for s in $SRCS; do
   o=$B/obj/${${s:r}//\//_}.o; OBJS+=($o)

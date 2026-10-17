@@ -1,6 +1,8 @@
 // cm_il.c - il2cpp by name for Custom Modes (interface in cm_il.h). Names checked in the 25846389 dump.
 #include "cm_il.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const DSLHost *H; static DSLPlugin *ME;
@@ -45,7 +47,15 @@ cm_m cm_il_method(const char *ns, const char *cls, const char *name, int argc, c
     return r;
 }
 Obj cm_il_type_obj(void *k) { return k ? I.type_get_object(I.class_get_type(k)) : NULL; }
-Obj cm_il_str(const char *s) { return ok == 1 && s ? I.string_new(s) : NULL; }
+Obj cm_il_str(const char *s) {                                         /* a cut UTF-8 end would make the whole string empty */
+    if (ok != 1 || !s) return NULL;
+    size_t n = strlen(s); char b[1024], *c = n < sizeof b ? b : malloc(n + 1); Obj r;
+    if (!c) return I.string_new(s);
+    memcpy(c, s, n + 1); dsi_utf8_fix_end(c);
+    r = I.string_new(c);
+    if (c != b) free(c);
+    return r;
+}
 void cm_il_utf8(Obj s, char *out, size_t cap) {                        /* System.String: length +0x10, UTF-16 +0x14 */
     if (!cap) return; out[0] = 0; if (!s) return;
     int32_t len = CM_AT(s, 0x10, int32_t); const uint16_t *c = (const uint16_t *)((char *)s + 0x14); size_t o = 0;
@@ -197,8 +207,29 @@ int cm_gettext(const char *key, char *out, size_t cap) {
     if (!key || !*key || !m_gettext.fn) return -1;
     Obj s = CM_CALL(m_gettext, Obj, Obj, const void *)(cm_il_str(key), m_gettext.mi);
     cm_il_utf8(s, out, cap);
-    if (!out[0] || !strcmp(out, key)) { snprintf(out, cap, "%s", key); return -1; }
+    if (!out[0] || !strcmp(out, key) || !strncmp(out, "TextKey not found", 17)) { snprintf(out, cap, "%s", key); return -1; }
     return 0;
+}
+void cm_game_text(const char *key, const char *en, char *out, size_t cap) {
+    if (!cap) return;
+    char t[512];
+    if (key && !cm_gettext(key, t, sizeof t)) {
+        size_t o = 0;
+        for (const char *p = t; *p && o + 1 < cap; p++) {                   /* "<color=#f16071>Hard</color>" -> "Hard" */
+            if (*p == '<') { const char *e = strchr(p, '>'); if (e && e - p < 64) { p = e; continue; } }
+            out[o++] = *p;
+        }
+        out[o] = 0;
+        dsi_utf8_fix_end(out);
+        if (out[0]) return;
+    }
+    snprintf(out, cap, "%s", en ? TR(en) : "");
+}
+const char *cm_gw(const char *key, const char *en) {
+    static char ring[16][256]; static unsigned slot;
+    char *o = ring[slot++ & 15];
+    cm_game_text(key, en, o, sizeof ring[0]);
+    return o;
 }
 #define ICACHE 512
 static struct { int kind; char key[96]; uintptr_t h; } ic[ICACHE]; static int nic;

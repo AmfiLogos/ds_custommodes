@@ -22,6 +22,7 @@
 #include "fe/fe_save.h"
 #include <math.h>
 #include <stdarg.h>
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,20 +195,20 @@ static void empty_slot(sb *o) { sp(o, "{\"Guid\":\"%s\",\"Key\":\"\",\"Amount\":
 
 jv *pb_entry(const wk_build *b, const char *player_uid, char *notes, size_t notesn, char *err, size_t errn) {
     if (notes && notesn) notes[0] = 0;
-    if (b->race < 0 || b->race >= WK_RACE_N || WU_PROF_N[b->race] <= 0) { snprintf(err, errn, "race %s has no look (portraits) in this game build", wk_race_key(b->race)); return NULL; }
-    if (b->lvl < 1 || b->lvl > WU_MAX_LEVEL) { snprintf(err, errn, "level %d is outside 1..%d", b->lvl, (int)WU_MAX_LEVEL); return NULL; }
-    for (int m = 0; m < 6; m++) if (b->tal[m] < 0 || b->tal[m] > 4) { snprintf(err, errn, "talent tier out of range"); return NULL; }
+    if (b->race < 0 || b->race >= WK_RACE_N || WU_PROF_N[b->race] <= 0) { snprintf(err, errn, TR("race %s has no look (portraits) in this game build"), wk_race_key(b->race)); return NULL; }
+    if (b->lvl < 1 || b->lvl > WU_MAX_LEVEL) { snprintf(err, errn, TR("level %d is outside 1..%d"), b->lvl, (int)WU_MAX_LEVEL); return NULL; }
+    for (int m = 0; m < 6; m++) if (b->tal[m] < 0 || b->tal[m] > 4) { snprintf(err, errn, "%s", TR("talent tier out of range")); return NULL; }
     keys K = { 0 }; stats S, PG; majors M;
     unit_affecters(b, &K); unit_stats(b, &K, &S); passive_grants(b, &PG); add_grants(&S, &PG); calc_majors(b, &K, &S, &M);
     int tr[72], nt = unit_trees(b, tr);
     /* gear: each item in its own slot */
     for (int s = 0; s < WK_SLOT_N && s < WK_SLOTS; s++) {
         int it = b->eq[s]; if (it < 0) continue;
-        if (it >= WK_ITEM_N || WU_ITEM[it].slot != s) { snprintf(err, errn, "%s cannot go in the %s slot", wk_item_key(it), wk_slot_name(s)); return NULL; }
+        if (it >= WK_ITEM_N || WU_ITEM[it].slot != s) { snprintf(err, errn, TR("%s cannot go in the %s slot"), wk_item_key(it), wk_slot_name(s)); return NULL; }
         for (int k = 0; k < b->ntag[s]; k++) {
-            int ix = b->tag[s][k].idx; if (ix >= WU_ITEM[it].ntag) { snprintf(err, errn, "%s: bonus %d is not in its pool", WK_ITEM[it], ix); return NULL; }
+            int ix = b->tag[s][k].idx; if (ix >= WU_ITEM[it].ntag) { snprintf(err, errn, TR("%s: bonus %d is not in its pool"), WK_ITEM[it], ix); return NULL; }
             const float *lh = WU_TAG_LOHI[WU_ITEM[it].tag_at + ix];
-            if (b->tag[s][k].v < lh[0] - 1e-3 || b->tag[s][k].v > lh[1] + 1e-3) { snprintf(err, errn, "%s: %s %.2f is outside %.2f..%.2f", WK_ITEM[it], WU_TAG_STAT[WU_ITEM[it].tag_at + ix], b->tag[s][k].v, lh[0], lh[1]); return NULL; }
+            if (b->tag[s][k].v < lh[0] - 1e-3 || b->tag[s][k].v > lh[1] + 1e-3) { snprintf(err, errn, TR("%s: %s %.2f is outside %.2f..%.2f"), WK_ITEM[it], WU_TAG_STAT[WU_ITEM[it].tag_at + ix], b->tag[s][k].v, lh[0], lh[1]); return NULL; }
         }
         if (b->ntag[s] > WU_ITEM[it].tagamount) note(notes, notesn, "%s carries %d bonus(es); the game rolls %d", WK_ITEM[it], b->ntag[s], WU_ITEM[it].tagamount);
     }
@@ -215,14 +216,14 @@ jv *pb_entry(const wk_build *b, const char *player_uid, char *notes, size_t note
     double used[2] = { 0, 0 };
     for (int i = 0; i < b->nlearned; i++) {
         int sk = b->learned[i], t = WU_SKILL[sk].tree;
-        if (t < 0 || !has_tree(b, tr, nt, t)) { snprintf(err, errn, "%s is not in one of this unit's skill trees", WK_SKILL[sk]); return NULL; }
-        int kind = WU_TREE_KIND[t]; if (kind < 0) { snprintf(err, errn, "tree %s has no pool", WK_TREE[t]); return NULL; }
+        if (t < 0 || !has_tree(b, tr, nt, t)) { snprintf(err, errn, TR("%s is not in one of this unit's skill trees"), WK_SKILL[sk]); return NULL; }
+        int kind = WU_TREE_KIND[t]; if (kind < 0) { snprintf(err, errn, TR("tree %s has no pool"), WK_TREE[t]); return NULL; }
         double apt = WU_TREE_APT[t] ? rhe(sflat(&S, WU_TREE_APT[t])) : 0;
         used[kind] += kind == 0 ? WU_SKILL[sk].sp - apt : WU_SKILL[sk].sp;
     }
     double budget[2] = { WU_SP[0] + WU_SP[2] * (b->lvl - 1), WU_SP[1] + WU_SP[3] * (b->lvl - 1) };
     for (int i = 0; i < b->ntrees; i++) if (WU_TREE_INSC[b->trees[i]]) budget[WU_TREE_KIND[b->trees[i]] == 0 ? 0 : 1] += 5;
-    for (int k = 0; k < 2; k++) if (used[k] > budget[k] + 1e-6) { snprintf(err, errn, "%s skills cost %.0f points, the unit has %.0f", k ? "sub" : "main", used[k], budget[k]); return NULL; }
+    for (int k = 0; k < 2; k++) if (used[k] > budget[k] + 1e-6) { snprintf(err, errn, TR("%s skills cost %.0f points, the unit has %.0f"), k ? "sub" : "main", used[k], budget[k]); return NULL; }
     for (int i = 0; i < b->nman; i++) {
         int major = 0; for (int m = 0; m < 6; m++) if (!strcmp(WK_STAT[b->man[i].stat], WK_MAJ[m])) major = 1;
         if (!major) note(notes, notesn, "typed %s %.2f: a save stores no such number (the game computes it)", WK_STAT[b->man[i].stat], b->man[i].v);

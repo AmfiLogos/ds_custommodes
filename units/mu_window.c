@@ -9,6 +9,7 @@
 #include "myunits.h"
 #include "cm_home.h"
 #include "cm_il.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +55,7 @@ static void load_lib(void) {
 }
 static int save_lib(void) {
     char e[400];
-    if (!W.lib || mu_save(W.lib, e, sizeof e)) { char m[500]; snprintf(m, sizeof m, "Could not save My Units: %s", W.lib ? e : W.err); set_msg(m, MU_C_BAD); return -1; }
+    if (!W.lib || mu_save(W.lib, e, sizeof e)) { char m[500]; snprintf(m, sizeof m, TR("Could not save My Units: %s"), W.lib ? e : W.err); set_msg(m, MU_C_BAD); return -1; }
     return 0;
 }
 static void name_of(const char *id, char *out, size_t cap) {
@@ -107,9 +108,9 @@ static void win_poll(void) {
     }
 }
 static void after_click(int st) {
-    if (st == MUL_BUSY) { set_msg("Reading the link...", MU_C_SUB); show_box(0); }
+    if (st == MUL_BUSY) { set_msg(TR("Reading the link..."), MU_C_SUB); show_box(0); }
     else if (st == MUL_NEED_BOX) {
-        set_msg("No wiki link on the clipboard. Paste one below.", MU_C_SUB);
+        set_msg(TR("No wiki link on the clipboard. Paste one below."), MU_C_SUB);
         show_box(1); if (W.box_field) U->field_set(W.box_field, "");
     }
 }
@@ -117,7 +118,7 @@ static void on_add(void *ud, DSLObj w) { (void)ud; (void)w; after_click(mul_clic
 static void on_box_add(void *ud, DSLObj w) {
     (void)ud; (void)w; char t[4096] = ""; U->field_get(W.box_field, t, sizeof t);
     int st = mul_submit(t);
-    if (st == MUL_NEED_BOX) set_msg("That is not a wiki builder link. Copy the link from the wiki's Unit Builder.", MU_C_BAD);
+    if (st == MUL_NEED_BOX) set_msg(TR("That is not a wiki builder link. Copy the link from the wiki's Unit Builder."), MU_C_BAD);
     else after_click(st);
 }
 static void on_box_cancel(void *ud, DSLObj w) { (void)ud; (void)w; show_box(0); set_msg("", MU_C_SUB); }
@@ -125,7 +126,7 @@ static void builder_saved(const char *unit_id, void *ud) {
     (void)ud; if (!W.open) return;
     load_lib();
     if (unit_id && *unit_id && W.lib && mu_find(W.lib, unit_id) && !is_ticked(unit_id) && W.nticked < NMAX) memcpy(W.ticked[W.nticked++], unit_id, 17);
-    set_msg("Saved to My Units.", MU_C_GOLD);
+    set_msg(TR("Saved to My Units."), MU_C_GOLD);
     refresh();
 }
 static void on_new(void *ud, DSLObj w) { (void)ud; (void)w; if (cm_builder_open) cm_builder_open(NULL, builder_saved, NULL); }
@@ -140,12 +141,12 @@ static void on_tick(void *ud, DSLObj w) {
 }
 static void on_save_team(void *ud, DSLObj w) {
     (void)ud; (void)w; if (!W.lib || W.nticked < 1) return;
-    if (W.nticked > MU_TEAM_MAX) { char m[120]; snprintf(m, sizeof m, "A team holds %d units at most.", MU_TEAM_MAX); set_msg(m, MU_C_BAD); return; }
+    if (W.nticked > MU_TEAM_MAX) { char m[120]; snprintf(m, sizeof m, TRN("A team holds %d unit at most.", "A team holds %d units at most.", MU_TEAM_MAX), MU_TEAM_MAX); set_msg(m, MU_C_BAD); return; }
     char tid[17], e[300], nm[64];
-    snprintf(nm, sizeof nm, "Team %zu", mu_team_count(W.lib) + 1);
+    snprintf(nm, sizeof nm, TR("Team %zu"), mu_team_count(W.lib) + 1); dsi_utf8_fix_end(nm);
     if (mu_team_new(W.lib, nm, W.ticked, W.nticked, tid, e, sizeof e)) { set_msg(e, MU_C_BAD); return; }
     if (save_lib()) return;
-    char m[200]; snprintf(m, sizeof m, "Saved %d units as %s.", W.nticked, nm); set_msg(m, MU_C_GOLD);
+    char m[200]; snprintf(m, sizeof m, TRN("Saved %d unit as %s.", "Saved %d units as %s.", W.nticked), W.nticked, nm); set_msg(m, MU_C_GOLD);
     W.sel_team = (int)mu_team_count(W.lib) - 1; W.page = 0; W.nticked = 0;
     refresh();
 }
@@ -163,8 +164,8 @@ static void on_rename_ok(void *ud, DSLObj w) {
     (void)ud; (void)w; char t[64] = ""; U->field_get(W.rename_field, t, sizeof t);
     char *s = t; while (*s == ' ') s++;
     size_t L = strlen(s); while (L && s[L - 1] == ' ') s[--L] = 0;
-    if (!*s) { set_msg("Type a name first.", MU_C_BAD); return; }
-    if (W.lib && W.nticked == 1 && !mu_rename(W.lib, W.ticked[0], s) && !save_lib()) set_msg("Renamed.", MU_C_GOLD);
+    if (!*s) { set_msg(TR("Type a name first."), MU_C_BAD); return; }
+    if (W.lib && W.nticked == 1 && !mu_rename(W.lib, W.ticked[0], s) && !save_lib()) set_msg(TR("Renamed."), MU_C_GOLD);
     rename_show(0); refresh();
 }
 static void on_rename_cancel(void *ud, DSLObj w) { (void)ud; (void)w; rename_show(0); }
@@ -172,22 +173,23 @@ static void del_ok(void *ud, DSLObj w) {
     (void)ud; (void)w; if (!W.open || !W.lib) return;
     int n = 0;
     for (int i = 0; i < W.nticked; i++) if (!mu_delete(W.lib, W.ticked[i])) n++;
-    if (!save_lib()) { char m[120]; snprintf(m, sizeof m, "Deleted %d unit%s.", n, n == 1 ? "" : "s"); set_msg(m, MU_C_GOLD); }
+    if (!save_lib()) { char m[120]; snprintf(m, sizeof m, TRN("Deleted %d unit.", "Deleted %d units.", n), n); set_msg(m, MU_C_GOLD); }
     W.nticked = 0; load_lib(); refresh();
 }
 static void on_delete(void *ud, DSLObj w) {
     (void)ud; (void)w; if (W.nticked < 1) return;
-    char m[300]; snprintf(m, sizeof m, "Delete %d unit%s from My Units?\nThey also leave their teams. Your saves are not changed.", W.nticked, W.nticked == 1 ? "" : "s");
-    U->notice(m, "Delete", "Cancel", del_ok, NULL, NULL);
+    char m[300]; snprintf(m, sizeof m, TRN("Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.",
+                              "Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.", W.nticked), W.nticked);
+    U->notice(m, TR("Delete"), TR("Cancel"), del_ok, NULL, NULL);
 }
 static void delteam_ok(void *ud, DSLObj w) {
     (void)ud; (void)w; if (!W.open || !W.lib || W.sel_team < 0) return;
-    char tid[17]; if (!mu_team_id_at(W.lib, (size_t)W.sel_team, tid) && !mu_team_delete(W.lib, tid) && !save_lib()) set_msg("Team deleted. Its units stay in My Units.", MU_C_GOLD);
+    char tid[17]; if (!mu_team_id_at(W.lib, (size_t)W.sel_team, tid) && !mu_team_delete(W.lib, tid) && !save_lib()) set_msg(TR("Team deleted. Its units stay in My Units."), MU_C_GOLD);
     W.sel_team = -1; W.page = 0; refresh();
 }
 static void on_delteam(void *ud, DSLObj w) {
     (void)ud; (void)w; if (W.sel_team < 0) return;
-    U->notice("Delete this team?\nIts units stay in My Units.", "Delete team", "Cancel", delteam_ok, NULL, NULL);
+    U->notice(TR("Delete this team?\nIts units stay in My Units."), TR("Delete team"), TR("Cancel"), delteam_ok, NULL, NULL);
 }
 static void on_page(void *ud, DSLObj w) {
     (void)w; int d = (int)(intptr_t)ud, pages = W.per_page ? (W.nids + W.per_page - 1) / W.per_page : 1;
@@ -201,8 +203,9 @@ static void draw_left(void) {
     W.left = U->scroll(W.win, 20, W.ry, 200, W.rh);
     W.nteam_btn = 0;
     if (!W.left) return;
-    float y = 0; char t[200];
-    snprintf(t, sizeof t, "%sAll units (%zu)%s", W.sel_team < 0 ? "<color=#D9BE8F>" : "", W.lib ? mu_count(W.lib) : (size_t)0, W.sel_team < 0 ? "</color>" : "");
+    float y = 0; char t[200], all[160];
+    snprintf(all, sizeof all, TR("All units (%zu)"), W.lib ? mu_count(W.lib) : (size_t)0);
+    snprintf(t, sizeof t, "%s%s%s", W.sel_team < 0 ? "<color=#D9BE8F>" : "", all, W.sel_team < 0 ? "</color>" : "");
     W.all_btn = mu_button(W.left, 0, y, 192, 40, t, on_team, (void *)(intptr_t)-1); y += 44;
     size_t nt = W.lib ? mu_team_count(W.lib) : 0;
     for (size_t i = 0; i < nt && W.nteam_btn < 64; i++) {
@@ -224,8 +227,8 @@ static void draw_cards(void) {
     if (!W.lib) { mu_text(W.right, 16, 16, W.rw - 32, 60, W.err, 15, DSL_TXT_WRAP, MU_C_BAD); return; }
     if (!W.nids) {
         mu_text(W.right, 16, 16, W.rw - 32, 90, W.sel_team < 0
-            ? "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\"."
-            : "This team has no units.", 16, DSL_TXT_WRAP, MU_C_SUB);
+            ? TR("No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".")
+            : TR("This team has no units."), 16, DSL_TXT_WRAP, MU_C_SUB);
         return;
     }
     W.per_page = (int)((W.rh - 8) / (MU_CARD_H + 8)); if (W.per_page < 1) W.per_page = 1; if (W.per_page > 16) W.per_page = 16;
@@ -253,7 +256,7 @@ static void refresh(void) {
     draw_left();
     draw_cards();
     int pages = W.per_page ? (W.nids + W.per_page - 1) / W.per_page : 1; if (pages < 1) pages = 1;
-    char t[64]; snprintf(t, sizeof t, "%d selected", W.nticked); U->set_text(W.t_sel, t);
+    char t[64]; snprintf(t, sizeof t, TRN("%d selected", "%d selected", W.nticked), W.nticked); U->set_text(W.t_sel, t);
     snprintf(t, sizeof t, "%d / %d", W.page + 1, pages); U->set_text(W.t_page, t);
     U->set_enabled(W.b_prev, W.page > 0); U->set_enabled(W.b_next, W.page + 1 < pages);
     U->set_enabled(W.b_team, W.nticked >= 1); U->set_enabled(W.b_rename, W.nticked == 1);
@@ -266,24 +269,24 @@ static void refresh(void) {
    the layer is laid out one frame later, and the game window or the UI scale can change while it is open */
 static int build_ui(void) {
     float w, h;
-    W.win = mu_window("My Units", 1100, 720, &w, &h);
+    W.win = mu_window(TR("My Units"), 1100, 720, &w, &h);
     if (!W.win) { mu_log("my units: kit not ready"); return -1; }
     W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = 0;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* top bar */
     float x = 20, y = 56;
-    W.b_add = mu_button(W.win, x, y, 220, 40, "Add from wiki link", on_add, NULL); x += 230;
-    U->tooltip(W.b_add, "Add from wiki link", "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.");
+    W.b_add = mu_button(W.win, x, y, 220, 40, TR("Add from wiki link"), on_add, NULL); x += 230;
+    U->tooltip(W.b_add, TR("Add from wiki link"), TR("Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."));
     W.b_new = NULL;
-    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, "New unit", on_new, NULL); x += 160; }
-    W.b_close = mu_button(W.win, w - 130, y, 110, 40, "Close", on_close, NULL);
+    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL); x += 160; }
+    W.b_close = mu_button(W.win, w - 130, y, 110, 40, TR("Close"), on_close, NULL);
     W.status = mu_text(W.win, x, y, w - 140 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
     /* paste box (only when the clipboard holds no link) */
     W.box = U->panel(W.win, 20, y + 44, w - 40, 52, MU_C_BAND);
     if (W.box) {
-        W.box_field = U->field(W.box, 8, 6, w - 40 - 16 - 250, 40, "Paste a wiki builder link", "", on_box_add, NULL);
-        W.box_add = mu_button(W.box, w - 40 - 250, 6, 120, 40, "Add", on_box_add, NULL);
-        W.box_cancel = mu_button(W.box, w - 40 - 125, 6, 117, 40, "Cancel", on_box_cancel, NULL);
+        W.box_field = U->field(W.box, 8, 6, w - 40 - 16 - 250, 40, TR("Paste a wiki builder link"), "", on_box_add, NULL);
+        W.box_add = mu_button(W.box, w - 40 - 250, 6, 120, 40, TR("Add"), on_box_add, NULL);
+        W.box_cancel = mu_button(W.box, w - 40 - 125, 6, 117, 40, TR("Cancel"), on_box_cancel, NULL);
         U->set_active(W.box, 0);
     }
     /* lists */
@@ -296,22 +299,22 @@ static int build_ui(void) {
         int nb = mu_builder_present() ? 5 : 4;                      /* Edit only with the Unit Builder */
         float bx = 8, bw = (w - 40 - 200 - 140 - 8) / nb;
         W.t_sel = mu_text(W.bottom, bx, 0, 128, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;
-        W.b_team = mu_button(W.bottom, bx, 2, bw - 6, 40, "Save as team", on_save_team, NULL); bx += bw;
-        W.b_rename = mu_button(W.bottom, bx, 2, bw - 6, 40, "Rename", on_rename, NULL); bx += bw;
+        W.b_team = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Save as team"), on_save_team, NULL); bx += bw;
+        W.b_rename = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Rename"), on_rename, NULL); bx += bw;
         W.b_edit = NULL;
-        if (nb == 5) { W.b_edit = mu_button(W.bottom, bx, 2, bw - 6, 40, "Edit", on_edit, NULL); bx += bw; }
-        W.b_delete = mu_button(W.bottom, bx, 2, bw - 6, 40, "Delete", on_delete, NULL); bx += bw;
-        W.b_delteam = mu_button(W.bottom, bx, 2, bw - 6, 40, "Delete team", on_delteam, NULL); bx += bw;
+        if (nb == 5) { W.b_edit = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Edit"), on_edit, NULL); bx += bw; }
+        W.b_delete = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Delete"), on_delete, NULL); bx += bw;
+        W.b_delteam = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Delete team"), on_delteam, NULL); bx += bw;
         W.b_prev = mu_button(W.bottom, w - 40 - 200, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
         W.t_page = mu_text(W.bottom, w - 40 - 152, 0, 104, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         W.b_next = mu_button(W.bottom, w - 40 - 44, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
     }
     W.rename_row = U->panel(W.win, 20, by, w - 40, 44, MU_C_BAND);
     if (W.rename_row) {
-        mu_text(W.rename_row, 8, 0, 70, 44, "Name", 14, DSL_TXT_LEFT, MU_C_SUB);
-        W.rename_field = U->field(W.rename_row, 80, 2, w - 40 - 80 - 260, 40, "Unit name", "", on_rename_ok, NULL);
-        W.b_rename_ok = mu_button(W.rename_row, w - 40 - 250, 2, 120, 40, "Save", on_rename_ok, NULL);
-        mu_button(W.rename_row, w - 40 - 125, 2, 120, 40, "Cancel", on_rename_cancel, NULL);
+        mu_text(W.rename_row, 8, 0, 70, 44, TR("Name"), 14, DSL_TXT_LEFT, MU_C_SUB);
+        W.rename_field = U->field(W.rename_row, 80, 2, w - 40 - 80 - 260, 40, TR("Unit name"), "", on_rename_ok, NULL);
+        W.b_rename_ok = mu_button(W.rename_row, w - 40 - 250, 2, 120, 40, TR("Save"), on_rename_ok, NULL);
+        mu_button(W.rename_row, w - 40 - 125, 2, 120, 40, TR("Cancel"), on_rename_cancel, NULL);
         U->set_active(W.rename_row, 0);
     }
     show_box(W.box_on);
@@ -333,6 +336,13 @@ void mu_window_open(void) {
     mu_log("my units: window open (%d units, %zu teams)", W.lib ? (int)mu_count(W.lib) : -1, W.lib ? mu_team_count(W.lib) : (size_t)0);
 }
 int mu_window_is_open(void) { return W.open; }
+/* the language changed: the open window is built again (same state), as after a screen layer change */
+void mu_window_relang(void) {
+    if (!W.open || !W.win) return;
+    U->destroy(W.win); W.win = NULL; mu_drawn_reset();
+    if (build_ui()) { close_win(); return; }
+    refresh();
+}
 void mu_window_close(void) { close_win(); }
 
 /* ------------------------------------------------------------------ tests (ext/units13/driver "mu:<name>") */

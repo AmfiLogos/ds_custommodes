@@ -36,5 +36,9 @@ codesign -f -s - $OUT/custom-modes.dylib.tmp 2>/dev/null; mv -f $OUT/custom-mode
 nice -n 19 clang $CF -dynamiclib -install_name @rpath/custom-modes-mp.dylib -Wl,-rpath,@loader_path -o $OUT/custom-modes-mp.dylib.tmp \
   cm_mp.c $MPS $MP_DYLIB $OUT/custom-modes.dylib -lz
 codesign -f -s - $OUT/custom-modes-mp.dylib.tmp 2>/dev/null; mv -f $OUT/custom-modes-mp.dylib.tmp $OUT/custom-modes-mp.dylib
-[[ ${OUT:t} == custom-modes ]] && cp mod.json $OUT/mod.json
+if [[ ${OUT:t} == custom-modes ]]; then
+  cp mod.json $OUT/mod.json
+  # the language files (lang/<code>.json, read by home/cm_i18n.c): a subfolder, never in mod.json "files" (not hashed)
+  if [[ -d lang ]]; then mkdir -p $OUT/lang; for f in lang/*.json(N); do [[ ${f:t} == en.json ]] || cp $f $OUT/lang/; done; fi
+fi
 echo "built $OUT/custom-modes.dylib (${#SOLO} sources) + custom-modes-mp.dylib (${#MPS} sources; linked to ${MP_DYLIB:t} + custom-modes.dylib)"
