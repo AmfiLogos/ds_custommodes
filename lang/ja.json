@@ -307,7 +307,7 @@
  "Pick one of your saves, then the units to bring. Copies travel: your units stay at home and keep working.": "自分のセーブを1つ選び、連れていくユニットを選んでください。コピーが移動し、ユニット本体は拠点に残って働き続けます。",
  "Pick this team: its units are ticked.": "このチームを選ぶ：ユニットにチェックが入ります。",
  "Pick up to %d unit from a save on your computer, or paste a wiki builder team link. Copies only: nothing is changed.||Pick up to %d units from a save on your computer, or paste a wiki builder team link. Copies only: nothing is changed.": [
-  "このコンピュータのセーブから最大%d体を選ぶか、Wikiビルダーのチームリンクを貼り付けてください。コピーのみで何も変わりません。"
+  "このコンピュータのセーブから最大%d体のユニットを選ぶか、Wikiビルダーのチームリンクを貼り付けてください。コピーのみで何も変わりません。"
  ],
  "Picked %d / %d": "選択 %d / %d",
  "Places": "配置",

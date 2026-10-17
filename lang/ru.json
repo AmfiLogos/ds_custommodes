@@ -10,7 +10,7 @@
   "%d предмета подземелья: сначала хранилище, затем рюкзаки.",
   "%d предметов подземелья: сначала хранилище, затем рюкзаки."
  ],
- "%d main SP": "%d осн. SP",
+ "%d main SP": "основные SP: %d",
  "%d of %d picked.": "Выбрано: %d из %d.",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "Найдена %d проблема — тестовый мир НЕ создан.",
@@ -27,7 +27,7 @@
   "%d слота и %g веса на персонажа.",
   "%d слотов и %g веса на персонажа."
  ],
- "%d sub SP": "%d вспом. SP",
+ "%d sub SP": "вспомогательные SP: %d",
  "%d unit brought||%d units brought": [
   "Взят %d юнит",
   "Взяты %d юнита",
@@ -175,7 +175,7 @@
  "Combat": "Бой",
  "Complete only": "Только завершённые",
  "Copies the picked units with their gear and sends them to the host. A new Bring replaces your last one.": "Копирует выбранных юнитов с снаряжением и отправляет их хосту. Новое «Взять» заменяет предыдущее.",
- "Copy a team link on the wiki builder first (Share), then press Paste Wiki Link.": "Сначала скопируйте ссылку на команду на вики («Поделиться»), затем нажмите «Вставить ссылку с вики».",
+ "Copy a team link on the wiki builder first (Share), then press Paste Wiki Link.": "Сначала скопируйте ссылку на команду в конструкторе вики («Поделиться»), затем нажмите «Вставить ссылку с вики».",
  "Copy a team or unit link on the wiki builder, or paste it here.": "Скопируйте ссылку на команду или юнита в конструкторе вики или вставьте её здесь.",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "Скопируйте ссылку на юнита или команду в Конструкторе юнитов вики, затем нажмите здесь: ссылка будет прочитана из буфера обмена.",
  "Could not add to My Units: %s": "Не удалось добавить в «Мои юниты»: %s",
@@ -277,7 +277,7 @@
  "Made with %s; the expedition ran on %s.": "Создано в %s; экспедиция шла на %s.",
  "Magic Saturation": "Магическое насыщение",
  "Main Accessory": "Основной аксессуар",
- "Main SP left": "Осталось осн. SP",
+ "Main SP left": "Осталось основных SP",
  "Main SP left %d of %d    Sub SP left %d of %d": "Основных SP осталось: %d из %d    Вспомогательных SP: %d из %d",
  "Make a unit in the Unit Builder. When you save it, it goes to My Units and is ticked here.": "Создайте юнит в Конструкторе юнитов. Когда вы его сохраните, он попадёт в «Мои юниты» и будет отмечен здесь.",
  "Management": "Управление",
@@ -417,7 +417,7 @@
  "Starts the match here with the teams and rules shown: each team walks to its end of the settlement, then the fight begins.": "Запускает матч здесь с показанными командами и правилами: каждая команда идёт к своему концу поселения, затем начинается бой.",
  "Status": "Статус",
  "Sub Accessory": "Дополнительный аксессуар",
- "Sub SP left": "Осталось вспом. SP",
+ "Sub SP left": "Осталось вспомогательных SP",
  "Sword": "Меч",
  "Team": "Команда",
  "Team %zu": "Команда %zu",
