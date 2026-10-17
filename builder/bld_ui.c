@@ -104,7 +104,7 @@ static struct {
     int lvl_n;                             /* values in v_lvl */
     jv *st;                                /* the model's last state */
     char msg[800]; uint32_t msg_col;
-    int saving;
+    int saving, take_name;                 /* take_name: the next load names the unit (a gallery build) */
     struct { char name[120]; DSLObj o; } reg[REGMAX]; int nreg;
 } W = { .open_slot = -1 };
 
@@ -229,7 +229,7 @@ static void job_done(bld_job *j) {
             if (s) { if (W.st) jfree(W.st); W.st = s; }
             if (b->kind == J_SAVE) finish_save(b);
             else if (!bld_work_busy()) {                 /* more clicks queued: draw the last answer only */
-                if (b->kind == J_LOAD && W.f_name) { char nm[96]; sraw(jget(W.st, "name"), nm, sizeof nm); if (!W.lib_name[0]) U->field_set(W.f_name, nm); }
+                if (b->kind == J_LOAD && W.f_name) { char nm[96]; sraw(jget(W.st, "name"), nm, sizeof nm); if (!W.lib_name[0] || W.take_name) U->field_set(W.f_name, nm); W.take_name = 0; }
                 refresh();
             }
         }
@@ -481,6 +481,16 @@ static void on_elix(void *ud, DSLObj w) {
     char m[40], j[120]; sraw(jget(e->v[i], "m"), m, sizeof m);
     snprintf(j, sizeof j, "{\"t\":\"elix\",\"m\":\"%s\",\"v\":%d}", m, num(e->v[i], "uses") + (up ? 1 : -1)); act(j);
 }
+/* presets: a whole unit from the Wiki Build Gallery (its picker hands back one unit's wiki build; lane cmgallery) */
+extern void cm_gallery_pick(void (*picked)(const char *build_json, void *ud), void *ud) MU_WEAK_IMPORT;
+static void gal_picked(const char *build_json, void *ud) {
+    (void)ud;
+    if (!W.open || !build_json || !*build_json) return;
+    W.take_name = 1; W.open_slot = -1;
+    set_msg(TR("Loaded from the Wiki Build Gallery. Change anything, then Save."), MU_C_SUB);
+    post(J_LOAD, build_json);
+}
+static void on_gal(void *ud, DSLObj w) { (void)ud; (void)w; if (cm_gallery_pick && W.open && eng == ENG_READY) cm_gallery_pick(gal_picked, NULL); }
 /* presets: gear quick sets */
 static void on_weapon(void *ud, DSLObj w) { (void)w; const jv *a = arr_in(jget(W.st, "sets"), "weapons"); int i = IDX(ud); if (!a || (size_t)i >= a->cnt) return; char k[60], j[120]; sraw(jget(a->v[i], "k"), k, sizeof k); snprintf(j, sizeof j, "{\"t\":\"weapon\",\"v\":\"%s\"}", k); act(j); }
 static void on_shield(void *ud, DSLObj w) { (void)ud; char j[60]; snprintf(j, sizeof j, "{\"t\":\"shield\",\"v\":%d}", U->toggle_get(w) ? 1 : 0); act(j); }
@@ -998,7 +1008,10 @@ static float draw_presets(DSLObj p, float y) {
     }
     y += ((ls ? ls->cnt : 0) + 1) / 2 * 56 + 10;
     y = heading(p, y, LW, TR("Whole units"));
-    return note(p, y, LW, TR("Ready-made whole units are in the Wiki Build Gallery (title > Custom Modes). Save one to My Units, then press Edit there to change it here."), 40);
+    DSLObj gb = chip(p, 6, y, 0, 40, TR("Start from a gallery build"), 0, on_gal, NULL, NULL);
+    if (gb) { reg("+gallery", gb); if (!cm_gallery_pick) U->set_enabled(gb, 0);
+              U->tooltip(gb, TR("Start from a gallery build"), TR("Opens the Wiki Build Gallery. The unit you choose there fills this window.")); }
+    return note(p, y + 48, LW, TR("Or save a gallery build to My Units, then press Edit there."), 24);
 }
 
 /* ------------------------------------------------------------------ the sheet (the character sheet's look) */
