@@ -12,3 +12,7 @@ fights/cm_win.c
 fights/cm_work.c
 fights/tf_worlds.c
 fights/tf_ui.c
+fights/cm_prefs.c
+fights/cm_gtip.c
+fights/tf_card.c
+fights/tf_wikisave.c

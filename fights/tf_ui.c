@@ -12,6 +12,9 @@
 #include "../fe/fe_json.h"
 #include "cm_il.h"
 #include "cm_i18n.h"
+#include "cm_prefs.h"
+#include "cm_gtip.h"
+#include "tf_card.h"
 #include <stdint.h>
 #include "i18n/ds_i18n.h"
 #include <stdio.h>
@@ -35,7 +38,8 @@
 /* ------------------------------------------------------------------ the panel (sg_panel JSON) */
 #define MAXL 128
 typedef struct { char id[24], n[96], key[80], tn[96]; int abyss; } Boss;      /* tn: the name shown (game text of key) */
-typedef struct { char id[24], n[96]; int slots; double w; int on; } Kit;
+#define KIT_IT 10
+typedef struct { char id[24], n[96]; int slots; double w; int on; int nit; char ik[KIT_IT][80], in_[KIT_IT][96], itn[KIT_IT][96]; int iq[KIT_IT]; } Kit;   /* items: key, wiki name, game name, count */
 typedef struct { char k[80], n[96], tn[96]; } Mon;
 static struct {
     int ok; char tag[32], site[32];
@@ -113,6 +117,12 @@ static int panel_parse(const char *json) {
         jtxt(jget(a->v[i], "id"), k->id, sizeof k->id); jtxt(jget(a->v[i], "n"), k->n, sizeof k->n);
         k->slots = (int)jnumv(jget(a->v[i], "slots")); k->w = jnumv(jget(a->v[i], "w"));
         k->on = jtruthy(jget(dk, k->id));
+        jv *it = jget(a->v[i], "items");                              /* the wiki shows the first 4 item icons before the name */
+        for (size_t j = 0; it && j < it->cnt && k->nit < KIT_IT; j++) {
+            jtxt(jget(it->v[j], "k"), k->ik[k->nit], sizeof k->ik[0]); jtxt(jget(it->v[j], "n"), k->in_[k->nit], sizeof k->in_[0]);
+            k->iq[k->nit] = (int)jnumv(jget(it->v[j], "qty"));
+            if (k->ik[k->nit][0]) k->nit++;
+        }
     }
     jtxt(jget(jget(r, "kitInsc"), "n"), P.insc_n, sizeof P.insc_n); jtxt(jget(jget(r, "kitInsc"), "k"), P.insc_k, sizeof P.insc_k);
     a = jget(r, "kitMiss");
@@ -151,6 +161,7 @@ static void names_refresh(void) {
     for (int i = 0; i < P.nmons; i++) gname(P.mons[i].k, P.mons[i].n, P.mons[i].tn, sizeof P.mons[i].tn);
     gname(P.dummy_k, P.dummy_n, P.dummy_tn, sizeof P.dummy_tn);
     gname(P.insc_k, P.insc_n, P.insc_tn, sizeof P.insc_tn);
+    for (int i = 0; i < P.nkits; i++) for (int j = 0; j < P.kits[i].nit; j++) gname(P.kits[i].ik[j], P.kits[i].in_[j], P.kits[i].itn[j], sizeof P.kits[i].itn[j]);
     for (int i = 0; i < P.ncombat; i++) {                            /* TEXTKEY_CreateCampaign_<tier>Difficulty (tags removed) */
         char k[96]; snprintf(k, sizeof k, "TEXTKEY_CreateCampaign_%sDifficulty", P.combat[i]);
         cm_game_text(k, P.label[i], P.tlabel[i], sizeof P.tlabel[i]);
@@ -164,6 +175,7 @@ static struct {
     struct { char k[80]; int n; } mon[MAXMON]; int nmon; char monq[80]; int mon_count;
     int src;                                    /* 0 My Units, 1 Gallery */
     char ids[8][17]; int nids; char team[96];   /* My Units picks; team = the picked team's name ("" = single units) */
+    int team_i;                                 /* the picked team's place in My Units, -1 = single units */
     char *gal_builds; char gal_title[160]; char gal_names[8][96]; int gal_n;
     int seeded;
 } st;
@@ -177,7 +189,19 @@ static void seed_choices(void) {
     st.mgmt_own = 0;
     st.msat = 0; for (int i = 0; i < P.nmsat; i++) if (P.msat_keys[i] == P.msat_def) st.msat = i;
     for (int i = 0; i < P.nkits; i++) st.kit[i] = P.kits[i].on;
-    st.kit_insc = 1; st.mon_count = 3;
+    st.kit_insc = 1; st.mon_count = 3; st.team_i = -1;
+    /* the difficulty chosen last time (owner v0.1.11 #3: "choosing Hard stays Hard"), by tier id: a tier this game data
+       no longer has falls back to the wiki's default */
+    char v[96];
+    if (!cm_pref_get("fights.combat", v, sizeof v)) for (int i = 0; i < P.ncombat; i++) if (!strcmp(P.combat[i], v)) st.combat = i;
+    if (!cm_pref_get("fights.mgmt_own", v, sizeof v)) st.mgmt_own = !strcmp(v, "1");
+    if (!cm_pref_get("fights.mgmt", v, sizeof v)) for (int i = 0; i < P.nmgmt; i++) if (!strcmp(P.mgmt[i], v)) st.mgmt = i;
+    if (st.mgmt_own && st.mgmt >= P.nmgmt) st.mgmt_own = 0;
+}
+static void diff_save(void) {
+    if (st.combat < P.ncombat) cm_pref_set("fights.combat", P.combat[st.combat]);
+    cm_pref_set("fights.mgmt_own", st.mgmt_own ? "1" : "0");
+    if (st.mgmt_own && st.mgmt < P.nmgmt) cm_pref_set("fights.mgmt", P.mgmt[st.mgmt]);
 }
 static int mgmt_index(void) {
     if (st.mgmt_own) return st.mgmt;
@@ -283,7 +307,7 @@ static void job_gen_done(cm_job *j) {
 static jv *lib;                                                      /* My Units library (mu_load) while the window is open */
 static char *builds_json(char *err, size_t errn) {
     if (st.src == 1) {
-        if (!st.gal_builds) { snprintf(err, errn, "%s", TR("Pick a build in the Gallery first.")); return NULL; }
+        if (!st.gal_builds) { snprintf(err, errn, "%s", TR("Pick a build in the Wiki Build Gallery first.")); return NULL; }
         return strdup(st.gal_builds);
     }
     if (!st.nids) { snprintf(err, errn, "%s", TR("Pick at least one unit.")); return NULL; }
@@ -333,9 +357,22 @@ static float lines_h(const char *s, float w, float size) {           /* height o
     for (const unsigned char *p = (const unsigned char *)s; *p; p++) { if ((*p & 0xC0) == 0x80) continue; if (*p == '\n' || ++c > per) { n++; c = 0; } }
     return n * size * 1.3f + 4;
 }
+/* the text's real height at width w (TMP GetPreferredValues: CJK lines and long words wrap as the game draws them), so
+   the box grows to its text and nothing below is drawn over it; 0 = not known */
+static float pref_h(DSLObj t, float w) {
+    static cm_m m; static int tried;
+    if (!tried) { tried = 1; m = cm_il_method("TMPro", "TMP_Text", "GetPreferredValues", 2, "System.Single,System.Single"); }
+    Obj tm = t ? cm_text_of(t) : NULL;
+    if (!m.fn || !tm) return 0;
+    typedef struct { float x, y; } V2f;
+    V2f v = CM_CALL(m, V2f, Obj, float, float, const void *)(tm, w, 100000.f, m.mi);
+    return v.y > 0 && v.y < 5000 ? v.y : 0;
+}
 static float txt(DSLObj parent, const char *name, float x, float y, float w, const char *s, float size, uint32_t col) {
     float h = lines_h(s, w, size);
     DSLObj t = U->text(parent, x, y, w, h, s, size, DSL_TXT_LEFT | DSL_TXT_WRAP, col);
+    float ph = pref_h(t, w);
+    if (ph > 0) { h = ph + 4; U->place(t, x, y, w, h); }
     if (name) cmw_named(t, CMW_TEXT, name, NULL, NULL, s);
     return h;
 }
@@ -351,7 +388,7 @@ static void team_click(void *ud, DSLObj w) {
     int n = lib ? mu_team_at(lib, i, name, sizeof name, ids) : 0;
     st.nids = 0;
     for (int k = 0; k < n && st.nids < P.max_squad; k++) snprintf(st.ids[st.nids++], 17, "%s", ids[k]);
-    snprintf(st.team, sizeof st.team, "%s", name);
+    snprintf(st.team, sizeof st.team, "%s", name); st.team_i = (int)i;
     status[0] = 0; paint_all();
 }
 static void unit_toggle(void *ud, DSLObj w) {
@@ -360,16 +397,61 @@ static void unit_toggle(void *ud, DSLObj w) {
     if (at >= 0) { memmove(st.ids[at], st.ids[at + 1], (size_t)(st.nids - at - 1) * 17); st.nids--; }
     else if (st.nids < P.max_squad) snprintf(st.ids[st.nids++], 17, "%s", in.id);
     else { U->toggle_set(w, 0); snprintf(status, sizeof status, TRN("An expedition holds %d unit: untick one first.", "An expedition holds %d units: untick one first.", P.max_squad), P.max_squad); status_warn = 1; }
-    st.team[0] = 0;
+    st.team[0] = 0; st.team_i = -1;
     paint_all();
 }
 static void gallery_open_click(void *ud, DSLObj w);
+/* a My Units unit by id: its info and its place in the library. 0 ok */
+static int unit_info_by_id(const char *id, mu_info *out, size_t *at) {
+    size_t n = lib ? mu_count(lib) : 0;
+    for (size_t i = 0; i < n; i++) if (!mu_info_at(lib, i, out) && !strcmp(out->id, id)) { if (at) *at = i; return 0; }
+    return -1;
+}
+/* the builder's name of a team saved from the Wiki Build Gallery (library.json teams[i].author, lane cmunits). 1 = has one */
+static int team_author(size_t i, char *out, size_t n) {
+    jv *t = jget(lib, "teams"); out[0] = 0;
+    if (!t || t->t != JN_ARR || i >= t->cnt) return 0;
+    jtxt(jget(t->v[i], "author"), out, n);
+    return out[0] != 0;
+}
+/* ------------------------------------------------------------------ scroll thumbs: the kit's scroll lists have no bar, so a
+   long list showed no sign of more below (owner v0.1.11: "the battle kit list is cut at the bottom"). A thin gold bar on
+   the right edge shows where the list is and that it goes on; it follows the wheel every frame. */
+#define NTHUMB 2
+static struct { uintptr_t h_ct, h_bar; float x, y, vh, ch; } th[NTHUMB];
+static float thumb_h(int i) { float bh = th[i].vh * th[i].vh / th[i].ch; return bh < 24 ? 24 : bh; }
+static void thumb_add(int k, DSLObj parent, DSLObj content, float x, float y, float vh, float ch) {   /* k: 0 squad list, 1 fight list */
+    cm_il_hset(&th[k].h_ct, NULL); cm_il_hset(&th[k].h_bar, NULL);
+    if (ch <= vh + 1) return;
+    DSLObj track = cmw_flat(U->panel(parent, x, y, 4, vh, 0), 0x3A3540FFu);
+    if (track) cm_raycast(track, false);
+    th[k].x = x; th[k].y = y; th[k].vh = vh; th[k].ch = ch;
+    DSLObj bar = cmw_flat(U->panel(parent, x, y, 4, thumb_h(k), 0), GOLD);
+    if (bar) cm_raycast(bar, false);
+    cm_il_hset(&th[k].h_ct, content); cm_il_hset(&th[k].h_bar, bar);
+}
+static void thumb_tick(void *ud) {
+    (void)ud;
+    static cm_m pos; static void *k_sr; static int tried;
+    if (!tried) { tried = 1; k_sr = cm_il_class("UnityEngine.UI", "ScrollRect"); pos = cm_il_method("UnityEngine.UI", "ScrollRect", "get_verticalNormalizedPosition", 0, NULL); }
+    if (!pos.fn || !k_sr) return;
+    for (int i = 0; i < NTHUMB; i++) {
+        Obj ct = cm_il_hget(th[i].h_ct), bar = cm_il_hget(th[i].h_bar);
+        if (!cm_alive(ct) || !cm_alive(bar)) continue;
+        Obj sr = cm_comp(cm_parent(ct), k_sr); if (!sr) continue;
+        float np = CM_CALL(pos, float, Obj, const void *)(sr, pos.mi);
+        if (np < 0) np = 0;
+        if (np > 1) np = 1;
+        float bh = thumb_h(i);
+        U->place(bar, th[i].x, th[i].y + (1 - np) * (th[i].vh - bh), 4, bh);
+    }
+}
 static void paint_left(void) {
     cmw_forget("fights:l.");
     if (left) U->destroy(left);
     left = cmw_flat(U->panel(body, LX, 16, LW, BODY_H - 110, 0), 0x00000000);
     float y = head(left, 0, 0, LW, TR("Squad"));
-    const char *src_l[2] = { TR("My Units"), TR("Gallery") };
+    const char *src_l[2] = { TR("My Units"), TR("Wiki Build Gallery") };
     for (int s = 0; s < 2; s++) {
         char nm[40]; snprintf(nm, sizeof nm, "fights:l.src%d", s);
         cmw_named(U->button(left, s * (LW / 2 + 4), y, LW / 2 - 4, 38, src_l[s], src_click, (void *)(intptr_t)s), CMW_BUTTON, nm, src_click, (void *)(intptr_t)s, src_l[s]);
@@ -381,29 +463,61 @@ static void paint_left(void) {
         if (!lib) { txt(left, "fights:l.note", 0, y, LW, TR("My Units could not be read."), 15, WARN); return; }
         DSLObj sc = U->scroll(left, 0, y, LW, lh); float sy = 0;
         size_t nt = mu_team_count(lib), nu = mu_count(lib);
-        if (!nt && !nu) { txt(sc, "fights:l.note", 0, 0, LW - 12, TR("My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Gallery."), 15, SUB); return; }
+        if (!nt && !nu) { txt(sc, "fights:l.note", 0, 0, LW - 12, TR("My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."), 15, SUB); return; }
+        static char in_team[512]; memset(in_team, 0, sizeof in_team);   /* library units shown under a team */
+        float uw = LW - 16;
+        /* owner v0.1.11 #1: teams as headers (team icon, name, count; a click picks the whole team), the builder's name
+           when the team came from the Wiki Build Gallery, then the team's units, each picked one by one */
         for (size_t i = 0; i < nt; i++) {
-            char name[96], ids[MU_TEAM_MAX][17], lab[160], nm[40];
+            char name[96], ids[MU_TEAM_MAX][17], lab[200], nm[40], au[96];
             int n = mu_team_at(lib, i, name, sizeof name, ids);
-            snprintf(lab, sizeof lab, "%s (%d)", name, n); snprintf(nm, sizeof nm, "fights:l.team%zu", i);
-            cmw_named(U->button(sc, 0, sy, LW - 12, 38, lab, team_click, (void *)(intptr_t)i), CMW_BUTTON, nm, team_click, (void *)(intptr_t)i, lab);
-            sy += 44;
+            int picked = st.team_i == (int)i && !strcmp(st.team, name);
+            mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
+            DSLObj ib = U->panel(sc, 0, sy + 2, 40, 40, 0x1E1C21FFu);   /* the team icon: its first unit's portrait (as My Units) */
+            Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
+            if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
+            if (ib && sp) cm_set_sprite(ib, sp, 0xFFFFFFFFu);
+            if (ib) cm_raycast(ib, false);
+            snprintf(lab, sizeof lab, "%s%s (%d)%s", picked ? "<color=#D9BE8F>" : "", name, n, picked ? "</color>" : "");
+            snprintf(nm, sizeof nm, "fights:l.team%zu", i);
+            DSLObj b = cmw_named(U->button(sc, 46, sy, uw - 46, 44, lab, team_click, (void *)(intptr_t)i), CMW_BUTTON, nm, team_click, (void *)(intptr_t)i, lab);
+            if (b) cm_text_ellipsis(b);
+            sy += 48;
+            if (team_author(i, au, sizeof au)) {
+                char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
+                snprintf(nm, sizeof nm, "fights:l.team%zu.by", i);
+                sy += txt(sc, nm, 46, sy - 2, uw - 46, by, 14, SUB);
+            }
+            for (int k = 0; k < n; k++) {
+                mu_info in; size_t ui;
+                if (unit_info_by_id(ids[k], &in, &ui)) continue;
+                if (ui < sizeof in_team) in_team[ui] = 1;
+                int on = 0; for (int q = 0; q < st.nids; q++) if (!strcmp(st.ids[q], in.id)) on = 1;
+                snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.team%zu.u%d", i, k);
+                cmw_named(U->toggle(sc, 22, sy, uw - 22, lab, on, unit_toggle, (void *)(intptr_t)ui), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)ui, lab);
+                sy += 40;
+            }
+            sy += 10;
         }
+        int head_done = 0;
         for (size_t i = 0; i < nu; i++) {
             mu_info in; if (mu_info_at(lib, i, &in)) continue;
+            if (i < sizeof in_team && in_team[i]) continue;
+            if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units not in a team"), 16, GOLD) + 2; head_done = 1; }
             int on = 0; for (int k = 0; k < st.nids; k++) if (!strcmp(st.ids[k], in.id)) on = 1;
             char lab[160], nm[40]; snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.unit%zu", i);
-            cmw_named(U->toggle(sc, 0, sy, LW - 12, lab, on, unit_toggle, (void *)(intptr_t)i), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)i, lab);
+            cmw_named(U->toggle(sc, 0, sy, uw, lab, on, unit_toggle, (void *)(intptr_t)i), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)i, lab);
             sy += 40;
         }
-        U->scroll_height(sc, sy);
+        U->scroll_height(sc, sy + 8);
+        thumb_add(0, left, sc, LW - 5, y, lh, sy + 8);
     } else {
         if (st.gal_builds) {
             y += txt(left, "fights:l.galtitle", 0, y, LW, st.gal_title, 17, MAIN);
             for (int i = 0; i < st.gal_n; i++) y += txt(left, NULL, 12, y, LW - 12, st.gal_names[i], 15, SUB);
             y += 8;
-        } else y += txt(left, "fights:l.note", 0, y, LW, TR("Pick a team or a unit in the Gallery, then press Test Fight there."), 15, SUB) + 8;
-        cmw_named(U->button(left, 0, y, LW, 40, TR("Open the Gallery"), gallery_open_click, NULL), CMW_BUTTON, "fights:l.gallery", gallery_open_click, NULL, TR("Open the Gallery"));
+        } else y += txt(left, "fights:l.note", 0, y, LW, TR("Pick a team or a unit in the Wiki Build Gallery, then press Test Fight there."), 15, SUB) + 8;
+        cmw_named(U->button(left, 0, y, LW, 40, TR("Open the Wiki Build Gallery"), gallery_open_click, NULL), CMW_BUTTON, "fights:l.gallery", gallery_open_click, NULL, TR("Open the Wiki Build Gallery"));
     }
 }
 
@@ -411,9 +525,9 @@ static void paint_left(void) {
 static void mode_change(void *ud, DSLObj w) { (void)ud; st.mode = U->value_get(w); status[0] = 0; paint_all(); }
 static void boss_change(void *ud, DSLObj w) { (void)ud; st.boss = U->value_get(w); paint_all(); }
 static void msat_change(void *ud, DSLObj w) { (void)ud; st.msat = U->value_get(w); }
-static void combat_change(void *ud, DSLObj w) { (void)ud; st.combat = U->value_get(w); paint_all(); }
-static void mgmt_change(void *ud, DSLObj w) { (void)ud; st.mgmt = U->value_get(w); }
-static void mgmt_own_change(void *ud, DSLObj w) { (void)ud; int cur = mgmt_index(); st.mgmt_own = U->toggle_get(w); st.mgmt = cur; paint_all(); }
+static void combat_change(void *ud, DSLObj w) { (void)ud; st.combat = U->value_get(w); diff_save(); paint_all(); }
+static void mgmt_change(void *ud, DSLObj w) { (void)ud; st.mgmt = U->value_get(w); diff_save(); }
+static void mgmt_own_change(void *ud, DSLObj w) { (void)ud; int cur = mgmt_index(); st.mgmt_own = U->toggle_get(w); st.mgmt = cur; diff_save(); paint_all(); }
 static void kit_change(void *ud, DSLObj w) { st.kit[(int)(intptr_t)ud] = U->toggle_get(w); paint_all(); }
 static void insc_change(void *ud, DSLObj w) { (void)ud; st.kit_insc = U->toggle_get(w); paint_all(); }
 static void monq_submit(void *ud, DSLObj w) { (void)ud; U->field_get(w, st.monq, sizeof st.monq); paint_all(); }
@@ -440,6 +554,45 @@ static void fmt_n(double v, char *o, size_t n) {                     /* 1000000 
     for (size_t i = 0; i < l && k + 2 < n; i++) { if (i && (l - i) % 3 == 0) o[k++] = ','; o[k++] = d[i]; }
     o[k] = 0;
 }
+/* owner v0.1.11 #2: the wiki's boss preview (art, name, key stats) for the chosen boss, in game style, from the game's own
+   data (UnitTable) and sprites (the unit's Body sprite); the stat names are the game's. Returns its height. */
+static void fmt_stat(int i, float v, char *o, size_t n) {
+    char t[40];
+    if (i == TFC_ASPD) snprintf(o, n, "%g", (double)((long long)(v * 100 + 0.5)) / 100);
+    else if (i == TFC_CRIT) snprintf(o, n, "%g%%", (double)((long long)(v * 10 + 0.5)) / 10);
+    else { fmt_n(v, t, sizeof t); snprintf(o, n, "%s", t); }
+}
+static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
+    const float H = 156, A = 132;
+    DSLObj card = cmw_flat(U->panel(parent, 0, y, w, H, 0), 0x2D2A31FFu);
+    if (!card) return 0;
+    cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu);
+    cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
+    DSLObj box = cmw_flat(U->panel(card, 12, 12, A, A, 0), 0x1E1C21FFu);
+    Obj sp = tfc_unit_sprite(b->key);
+    DSLObj art = sp && box ? U->panel(box, 6, 6, A - 12, A - 12, 0xFFFFFFFFu) : NULL;
+    if (art) { cm_set_sprite(art, sp, 0xFFFFFFFFu); cm_raycast(art, false); }
+    float x = 12 + A + 16, cw = w - x - 12;
+    DSLObj nmt = U->text(card, x, 10, cw, 30, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
+    if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.bossname", NULL, NULL, b->tn[0] ? b->tn : b->n); }
+    float v[TFC_N];
+    if (tfc_unit_stats(b->key, v)) { txt(card, "fights:r.bossstats", x, 46, cw, TR("The game's data for this boss is not loaded yet."), 14, SUB); return H; }
+    /* the wiki unit card's rows: HP, attacks, attack speed, critical chance, resistances, movement speed */
+    char stats[1200]; size_t k = 0;
+    float colw = cw / 2, ry = 46;
+    for (int i = 0; i < TFC_N; i++) {
+        char key[96], val[40]; snprintf(key, sizeof key, "TEXTKEY_STATUS_%s_NAME", tfc_field[i]);
+        const char *lab = cm_gw(key, tfc_field[i]);
+        fmt_stat(i, v[i], val, sizeof val);
+        float cx = x + (i % 2) * colw, cy = ry + (float)(i / 2) * 24;
+        DSLObj l = U->text(card, cx, cy, colw - 70, 22, lab, 14, DSL_TXT_LEFT, SUB);
+        if (l) cm_text_ellipsis(l);
+        U->text(card, cx + colw - 74, cy, 64, 22, val, 15, DSL_TXT_RIGHT, MAIN);
+        if (k + 100 < sizeof stats) k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", tfc_field[i], val);
+    }
+    cmw_named(card, CMW_TEXT, "fights:r.bosscard", NULL, NULL, stats);
+    return H;
+}
 static void paint_right(void) {
     cmw_forget("fights:r.");
     if (right_sc) U->destroy(right_sc);
@@ -453,7 +606,7 @@ static void paint_right(void) {
     }
     names_refresh();
     right_sc = cmw_flat(U->panel(body, RX, 16, RW, BODY_H - 110, 0), 0x00000000);   /* holder: one destroy removes it all */
-    DSLObj vp = U->scroll(right_sc, 0, 0, RW, BODY_H - 110);
+    DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, BODY_H - 110);
     right = vp;
     /* What do you want */
     y += head(right, 0, y, w, TR("What do you want"));
@@ -473,6 +626,7 @@ static void paint_right(void) {
         const char *bl[8]; for (int i = 0; i < P.nbosses; i++) bl[i] = P.bosses[i].tn[0] ? P.bosses[i].tn : P.bosses[i].n;
         cmw_named(U->value_row(right, 0, y, w, TR("Boss"), bl, P.nbosses, st.boss, boss_change, NULL), CMW_VALUE, "fights:r.boss", boss_change, NULL, bl[st.boss]);
         y += 50;
+        if (!strcmp(mode_id(), "boss")) y += boss_card(right, y, w, &P.bosses[st.boss]) + 10;
         if (P.bosses[st.boss].abyss && P.nmsat) {
             char lab[12][48]; const char *ll[12];
             for (int i = 0; i < P.nmsat; i++) { snprintf(lab[i], sizeof lab[i], P.msat_keys[i] ? TR("Day %d") : TR("Off"), P.msat_keys[i]); dsi_utf8_fix_end(lab[i]); ll[i] = lab[i]; }
@@ -533,7 +687,24 @@ static void paint_right(void) {
         for (int i = 0; i < P.nkits; i++) {
             char lab[200], nm[40]; snprintf(lab, sizeof lab, TRN("%s  (%d slot, %g weight)", "%s  (%d slots, %g weight)", P.kits[i].slots), P.kits[i].n, P.kits[i].slots, P.kits[i].w);
             snprintf(nm, sizeof nm, "fights:r.kit%d", i);
-            cmw_named(U->toggle(right, 0, y, w, lab, st.kit[i], kit_change, (void *)(intptr_t)i), CMW_TOGGLE, nm, kit_change, (void *)(intptr_t)i, lab);
+            /* owner v0.1.11 #4: the kit's header icons at the start of the row, as the wiki's kit chip (builder.js paintSup:
+               the first 4 items' icons), drawn from the game's own item sprites */
+            float ix = 0; int ni = P.kits[i].nit < 4 ? P.kits[i].nit : 4;
+            for (int j = 0; j < ni; j++) {
+                Obj sp = cm_icon(CM_ICON_ITEM, P.kits[i].ik[j]);
+                DSLObj ic = U->panel(right, ix, y + 6, 28, 28, sp ? 0xFFFFFFFFu : 0x1E1C21FFu);
+                if (ic && sp) cm_set_sprite(ic, sp, 0xFFFFFFFFu);
+                if (ic) cm_raycast(ic, false);
+                ix += 30;
+            }
+            if (ni) ix += 6;
+            DSLObj kt = cmw_named(U->toggle(right, ix, y, w - ix, lab, st.kit[i], kit_change, (void *)(intptr_t)i), CMW_TOGGLE, nm, kit_change, (void *)(intptr_t)i, lab);
+            if (kt && P.kits[i].nit) {                                   /* the wiki chip's hover: the kit item by item */
+                char tb[900]; size_t k = 0; tb[0] = 0;
+                for (int j = 0; j < P.kits[i].nit && k + 120 < sizeof tb; j++)
+                    k += (size_t)snprintf(tb + k, sizeof tb - k, "%s%s x%d", j ? "\n" : "", P.kits[i].itn[j][0] ? P.kits[i].itn[j] : P.kits[i].in_[j], P.kits[i].iq[j]);
+                U->tooltip(kt, P.kits[i].n, tb);
+            }
             y += 40;
             if (st.kit[i]) { sl += P.kits[i].slots; wt += P.kits[i].w; any = 1; }
         }
@@ -543,7 +714,13 @@ static void paint_right(void) {
         y += txt(right, NULL, 12, y, w - 12, t, 14, SUB) + 4;
         if (any && P.insc_n[0]) {
             char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on custom saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);
-            cmw_named(U->toggle(right, 0, y, w, lab, st.kit_insc, insc_change, NULL), CMW_TOGGLE, "fights:r.insc", insc_change, NULL, lab);
+            /* owner v0.1.11 #5 (and the wiki's own rule, builder.js paintSup): the inscription's icon first; hovering it shows
+               the game's own hover card for that inscription */
+            Obj sp = P.insc_k[0] ? cm_icon(CM_ICON_AFFECTER, P.insc_k) : NULL;
+            DSLObj ic = cmw_named(U->panel(right, 0, y + 3, 34, 34, sp ? 0xFFFFFFFFu : 0x1E1C21FFu), CMW_TEXT, "fights:r.inscicon", NULL, NULL, P.insc_k);
+            if (ic && sp) cm_set_sprite(ic, sp, 0xFFFFFFFFu);
+            if (ic && P.insc_k[0]) cm_gtip_add(ic, CM_GTIP_AFFECTER, P.insc_k);
+            cmw_named(U->toggle(right, 40, y, w - 40, lab, st.kit_insc, insc_change, NULL), CMW_TOGGLE, "fights:r.insc", insc_change, NULL, lab);
             y += 42;
             y += txt(right, NULL, 12, y, w - 12, TR("Added by default so every unit has enough carry weight for the battle kits."), 14, SUB);
             if (st.kit_insc) snprintf(t, sizeof t, TR("Every character gains %s so the load is carryable."), P.insc_tn[0] ? P.insc_tn : P.insc_n);
@@ -553,6 +730,7 @@ static void paint_right(void) {
         for (int i = 0; i < P.nmiss; i++) y += txt(right, NULL, 12, y, w - 12, P.miss[i], 14, WARN);
     }
     U->scroll_height(vp, y + 16);
+    thumb_add(1, right_sc, vp, RW - 5, 0, BODY_H - 110, y + 16);
 }
 static void paint_status(void) {
     char sq[400]; int n = st.src == 1 ? (st.gal_builds ? st.gal_n : 0) : st.nids;
@@ -603,8 +781,9 @@ extern void gal_open(void);
 static void gallery_open_click(void *ud, DSLObj w) { (void)ud; (void)w; gal_open(); }
 
 static void test_state(char *out, size_t n) {
-    snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\"}",
-             engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.nids, st.src, status, P.tag);
+    snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d}",
+             engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.nids, st.src, status, P.tag,
+             P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 
@@ -615,6 +794,7 @@ __attribute__((visibility("default"))) void cm_fights_init(const DSLHost *host, 
     tfw_init(host, self);
     cmw_test_opener("fights", tf_open);
     cmw_test_state(test_state);
+    cmw_tick_add(thumb_tick, NULL);
     cm_home_add("test-fights", TR_NOOP("Test Fights"), NULL, 40, tf_open);
     cm_i18n_on_change(tf_relang);
 }
