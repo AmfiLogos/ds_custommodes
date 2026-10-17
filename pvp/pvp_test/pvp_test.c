@@ -1,9 +1,12 @@
 // pvp_test.c - unit tests for pvp_core.c (PvP rules state). make -C pvp_test test
 #include "../pvp_core.h"
 #include "../pvp_modcheck.h"
+#define DSI_IMPLEMENTATION
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 static int fails, checks;
 #define CHECK(c) do { checks++; if (!(c)) { printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
@@ -320,7 +323,31 @@ int main(void) {
       CHECK(pvp_modset_check(0, &hell, &hell2, "Ben", 0, why, sizeof why) == 1 && strstr(why, "custom-modes 0.1.3") && strstr(why, "other files"));
       CHECK(pvp_modset_check(0, &hell, &unk, "Ben", 0, why, sizeof why) == 1 && strstr(why, "did not start the game from the launcher"));
       CHECK(pvp_modset_check(0, &none, &unk, "Ben", 0, why, sizeof why) == 0);
-      CHECK(pvp_modset_check(0, &unk, &unk, "Ben", 0, why, sizeof why) == 0); }
+      CHECK(pvp_modset_check(0, &unk, &unk, "Ben", 0, why, sizeof why) == 0);
+      /* the refusal mail (i18n): code + args, each guest shows it in its own language; "why" = the host's text for
+         guests before the codes, and a new guest shows an old host's "why" as it is */
+      { pvp_why w, r; char mail[3200], txt[700];
+        CHECK(pvp_modset_check_why(0, &hell, &gcd, "Ben \"B\"", 0, &w) == 1 && w.code == PVP_WHY_MISMATCH);
+        pvp_why_text(&w, why, sizeof why);
+        CHECK(pvp_modset_check(0, &hell, &gcd, "Ben \"B\"", 0, txt, sizeof txt) == 1 && !strcmp(txt, why));
+        CHECK(pvp_why_json(&w, why, mail, sizeof mail) > 0 && pvp_why_parse(mail, strlen(mail), &r, txt, sizeof txt) == 0);
+        CHECK(r.code == PVP_WHY_MISMATCH && !strcmp(r.who, "Ben \"B\"") && !strcmp(r.b, "gcd-cdr 1.0.0") && !strcmp(txt, why));
+        const char *old = "{\"why\":\"Vanilla check is on: \\\"X\\\" has the gameplay mod m 1.0.\"}";
+        CHECK(pvp_why_parse(old, strlen(old), &r, txt, sizeof txt) == 0 && r.code == PVP_WHY_NONE && !strcmp(txt, "Vanilla check is on: \"X\" has the gameplay mod m 1.0."));
+        /* a guest in French: the text comes from its own table; a translation whose conversions differ is dropped */
+        char dir[] = "/tmp/pvp_i18n_XXXXXX", fp[200];
+        if (mkdtemp(dir)) {
+          snprintf(fp, sizeof fp, "%s/fr.json", dir); FILE *f = fopen(fp, "wb");
+          if (f) { fputs("{\"Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.\": "
+                         "[\"FR1 %s %s %s\", \"FR2 %s %s %s\"], \"A player\": \"Un joueur\", \"Missing: %s.\": \"Manque %d.\"}", f); fclose(f); }
+          dsi_set_dir(dir); CHECK(dsi_set_lang(2) == 1 && dsi_loaded() == 2 && dsi_dropped() == 1);
+          CHECK(pvp_modset_check_why(1, &none, &hell, "", 0, &w) == 1 && w.code == PVP_WHY_VANILLA && w.n == 2);
+          CHECK(pvp_why_json(&w, "host text", mail, sizeof mail) > 0 && pvp_why_parse(mail, strlen(mail), &r, txt, sizeof txt) == 0);
+          CHECK(!strcmp(txt, "FR2 Un joueur hell-difficulty 2.0.0, custom-modes 0.1.3 Un joueur"));
+          CHECK(pvp_modset_check(0, &hell, &none, "Ben", 0, txt, sizeof txt) == 1 && strstr(txt, " Missing: hell-difficulty"));   /* dropped: English */
+          dsi_set_lang(0); dsi_set_dir(NULL);
+        } else CHECK(0);
+      } }
 
     /* PvP v1 (fepvp13): BASE = the settlement map, teams walk to its two ends (placing), no transfer */
     {

@@ -12,13 +12,16 @@
 #include "mp.h"
 #include "pvp_modcheck.h"
 #include "fe/fe_json.h"
+#include "i18n/ds_i18n.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define PVP_M_MODS_ASK 14            /* host -> player: {"vanilla":0|1}; the player answers with PVP_M_MODS */
 #define PVP_M_MODS 15                /* player -> host: its mods (pvp_modset_json) */
-#define PVP_M_MODS_REFUSED 16        /* host -> every player: {"why":"..."} Start Match was refused */
+#define PVP_M_MODS_REFUSED 16        /* host -> every player: Start Match was refused: {"code":N,"n":N,"who","a","b"}
+                                        (pvp_why_json; each guest shows it in its own language) + "why" = the host's text,
+                                        which a guest from before the codes shows as it is (and a new guest, from an old host) */
 
 mp_session *mp_game_session(void) __attribute__((weak_import));
 static dsnet_client *cli(void) { mp_session *s = mp_game_session ? mp_game_session() : NULL; return s ? mp_client(s) : NULL; }
@@ -89,12 +92,8 @@ int pvp_mods_mail(dsnet_client *c, const uint8_t from[16], uint8_t kind, const u
         return 1;
     }
     if (kind == PVP_M_MODS_REFUSED && !dsnet_is_host(c)) {
-        jv *m = jparse((const char *)data, len, err, sizeof err), *w = jget(m, "why");
-        char raw[700] = ""; if (w && w->t == JN_STR) snprintf(raw, sizeof raw, "%.*s", (int)w->n, w->s);
-        /* the host wrote it with JSON escapes for quotes only */
-        size_t o = 0; for (size_t i = 0; raw[i] && o + 1 < sizeof last_msg; i++) { if (raw[i] == '\\' && raw[i + 1]) i++; last_msg[o++] = raw[i]; } last_msg[o] = 0;
-        rig_log("pvp mods: the host refused Start Match: %s", last_msg);
-        jfree(m);
+        pvp_why w; pvp_why_parse((const char *)data, len, &w, last_msg, sizeof last_msg);
+        rig_log("pvp mods: the host refused Start Match (code %d): %s", w.code, last_msg);
         return 1;
     }
     return 0;
@@ -112,10 +111,9 @@ void pvp_mods_frame(void) {
         if (memcmp(u, me, 16)) ask_one(c, u);
     }
 }
-static void refuse_all(dsnet_client *c, const char *why) {
-    char b[1600]; size_t o = (size_t)snprintf(b, sizeof b, "{\"why\":\"");
-    for (const char *s = why; *s && o + 4 < sizeof b; s++) { if (*s == '"' || *s == '\\') b[o++] = '\\'; b[o++] = *s; }
-    o += (size_t)snprintf(b + o, sizeof b - o, "\"}");
+static void refuse_all(dsnet_client *c, const pvp_why *w, const char *why) {
+    char b[3200]; size_t o = pvp_why_json(w, why, b, sizeof b);
+    if (!o) return;
     uint32_t pm = dsnet_present_mask(c); uint8_t me[16], u[16]; dsnet_my_uid(c, me);
     for (int p = 0; p < 32; p++) if (pm >> p & 1 && !dsnet_player_uid(c, p, u) && memcmp(u, me, 16)) dsnet_mail_send(c, u, PVP_M_MODS_REFUSED, b, o);
 }
@@ -124,19 +122,20 @@ int pvp_mods_gate(int vanilla, char *why, size_t n) {
     why[0] = 0;
     dsnet_client *c = cli(); if (!c || !dsnet_is_host(c)) return 0;
     const pvp_modset *host = pvp_mods_mine();
-    int me = dsnet_player_id(c), refused = pvp_modset_check(vanilla, host, host, "You", 1, why, n);
+    pvp_why w; int me = dsnet_player_id(c), refused = pvp_modset_check_why(vanilla, host, host, "", 1, &w);
     uint32_t pm = dsnet_present_mask(c); char waiting[300] = ""; size_t wl = 0;
     for (int p = 0; p < 32 && !refused; p++) {
         if (!(pm >> p & 1) || p == me) continue;
-        const char *nm = dsnet_player_name(c, p); char who[40]; snprintf(who, sizeof who, "%s", nm && nm[0] ? nm : "A player");
+        const char *nm = dsnet_player_name(c, p); char who[40]; snprintf(who, sizeof who, "%s", nm && nm[0] ? nm : TR("A player")); dsi_utf8_fix_end(who);
         if (!rep[p].have) { uint8_t u[16]; if (!dsnet_player_uid(c, p, u)) ask_one(c, u);
                             wl += (size_t)snprintf(waiting + wl, wl < sizeof waiting ? sizeof waiting - wl : 0, "%s%s", wl ? ", " : "", who); continue; }
-        refused = pvp_modset_check(vanilla, host, &rep[p].m, who, 0, why, n);
+        refused = pvp_modset_check_why(vanilla, host, &rep[p].m, nm && nm[0] ? who : "", 0, &w);
     }
-    if (!refused && waiting[0]) { snprintf(why, n, "Waiting for the mod list of %s. Press Start Match again in a moment.", waiting); refused = 2; }
+    if (refused) pvp_why_text(&w, why, n);
+    if (!refused && waiting[0]) { snprintf(why, n, TR("Waiting for the mod list of %s. Press Start Match again in a moment."), waiting); dsi_utf8_fix_end(why); refused = 2; }
     snprintf(last_msg, sizeof last_msg, "%s", refused ? why : "");
     rig_log("pvp mods: gate (Vanilla check %s): %s", vanilla ? "on" : "off", refused ? why : "everyone may play");
-    if (refused == 1) refuse_all(c, why);
+    if (refused == 1) refuse_all(c, &w, why);
     return refused;
 }
 /* window note: what the rule means for these players right now (host: from the reports; guest: its own mods) */
@@ -145,10 +144,12 @@ void pvp_mods_summary(int vanilla, int host, char *out, size_t n) {
     char l[500] = ""; size_t at = 0;
     for (int i = 0; i < m->ngame; i++) { char nm[160]; pvp_modset_name(m->game[i], nm, sizeof nm); at += (size_t)snprintf(l + at, at < sizeof l ? sizeof l - at : 0, "%s%s", at ? ", " : "", nm); }
     if (vanilla) {
-        if (m->ngame) snprintf(out, n, "Mods that only change your screen are fine. Gameplay mods are not: turn off %s.", l);
-        else snprintf(out, n, "Mods that only change your screen are fine. Gameplay mods are not.");
-    } else if (host) snprintf(out, n, m->ngame ? "Every player needs the host's gameplay mods: %s." : "The host has no gameplay mod: nobody may have one.", l);
-    else snprintf(out, n, "Every player needs the host's gameplay mods (the launcher gets them).");
+        if (m->ngame) snprintf(out, n, TR("Mods that only change your screen are fine. Gameplay mods are not: turn off %s."), l);
+        else snprintf(out, n, "%s", TR("Mods that only change your screen are fine. Gameplay mods are not."));
+    } else if (host && m->ngame) snprintf(out, n, TR("Every player needs the host's gameplay mods: %s."), l);
+    else if (host) snprintf(out, n, "%s", TR("The host has no gameplay mod: nobody may have one."));
+    else snprintf(out, n, "%s", TR("Every player needs the host's gameplay mods (the launcher gets them)."));
+    dsi_utf8_fix_end(out);
 }
 char *pvp_mods_exec(const char *cmd, const char *line) {   /* tests: pvp_mods {"session": path, "ask": 0|1, "gate": 0|1} */
     if (strcmp(cmd, "pvp_mods")) return NULL;

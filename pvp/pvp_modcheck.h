@@ -25,7 +25,21 @@ int    pvp_modset_parse(const char *json, size_t n, pvp_modset *m);
 size_t pvp_modset_json(const pvp_modset *m, char *out, size_t cap);
 /* "<id> <version>" of a gameplay line (for messages) */
 void   pvp_modset_name(const char *line, char *out, size_t cap);
+/* A refusal as a code + its arguments, so each player shows it in its own language (the mail PVP_M_MODS_REFUSED carries
+ * this, plus the host's text as "why" for older guests). who = the player's name ("" = unnamed: "A player"),
+ * a = the mod list / mod name, b = the second list (PVP_WHY_MISMATCH: not allowed), n = how many mods (plurals). */
+enum { PVP_WHY_NONE, PVP_WHY_VANILLA_SELF, PVP_WHY_VANILLA, PVP_WHY_FILES, PVP_WHY_NO_LAUNCHER, PVP_WHY_MISMATCH, PVP_WHY_N };
+typedef struct pvp_why { int code, n; char who[64], a[600], b[600]; } pvp_why;
 /* The host's check before a match starts, one player at a time. host = the host's mods, peer = this player's,
- * who = the player's name, self = 1 when the player is the host. 0 = allowed; 1 = refused, why = the message that
- * names the offending mod(s). */
+ * who = the player's name, self = 1 when the player is the host. 0 = allowed; 1 = refused, w = why (code + args). */
+int    pvp_modset_check_why(int vanilla, const pvp_modset *host, const pvp_modset *peer, const char *who, int self, pvp_why *w);
+/* the same, with the message in the current language (i18n/ds_i18n.h) */
 int    pvp_modset_check(int vanilla, const pvp_modset *host, const pvp_modset *peer, const char *who, int self, char *why, size_t n);
+/* w as text in the current language ("" for PVP_WHY_NONE or an unknown code) */
+void   pvp_why_text(const pvp_why *w, char *out, size_t n);
+/* the refusal mail: {"code":N,"n":N,"who":"..","a":"..","b":"..","why":"<text>"} (why = the host's text, for guests
+   before codes). Returns the length (0 = no room). */
+size_t pvp_why_json(const pvp_why *w, const char *why_text, char *out, size_t cap);
+/* the mail read back: w + the text to show (in the current language; from an older host without "code": its "why"
+   as it is). 0 ok, -1 bad JSON. */
+int    pvp_why_parse(const char *json, size_t len, pvp_why *w, char *text, size_t n);
