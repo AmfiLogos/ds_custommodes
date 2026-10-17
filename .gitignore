@@ -34,7 +34,6 @@
 !/tools/
 !/lang/
 !/NOTES_i18n.md
-!/NOTES_i18n_mp.md
 # 3. Binaries, debug files, game files and dumps (copyright: never publish)
 *_bin
 *.dSYM/

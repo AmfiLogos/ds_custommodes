@@ -111,7 +111,8 @@ static void lang_dir(void) {
 #ifdef _WIN32
     HMODULE m = NULL;
     if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)(void *)lang_dir, &m)) {
-        DWORD k = GetModuleFileNameA(m, d, (DWORD)sizeof d); if (!k || k >= sizeof d) d[0] = 0;
+        wchar_t w[600]; DWORD k = GetModuleFileNameW(m, w, 600);      /* UTF-8, as ds_i18n.h opens it (_wfopen) */
+        if (!k || k >= 600 || WideCharToMultiByte(CP_UTF8, 0, w, -1, d, (int)sizeof d, NULL, NULL) <= 0) d[0] = 0;
     }
     char *sl = strrchr(d, '\\');
 #else

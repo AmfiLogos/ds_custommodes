@@ -71,9 +71,28 @@ static void lang_poll(void *ud) {
     apply(v, "the game");
 }
 
+#ifdef _WIN32
+#include <windows.h>
+/* Windows: the folder of this DLL in UTF-8 (ds_i18n.h opens with _wfopen; the loader's module_dir is an ANSI path), so
+   both Custom Modes DLLs (cm_mp.c lang_dir does the same) find one mods/custom-modes/lang/ on any install path */
+static const char *own_dir(char *out, size_t n) {
+    HMODULE m = NULL; wchar_t w[600]; out[0] = 0;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)(void *)own_dir, &m)) return NULL;
+    DWORD k = GetModuleFileNameW(m, w, 600);
+    if (!k || k >= 600 || WideCharToMultiByte(CP_UTF8, 0, w, -1, out, (int)n, NULL, NULL) <= 0) { out[0] = 0; return NULL; }
+    char *sl = strrchr(out, '\\'); if (!sl) { out[0] = 0; return NULL; }
+    *sl = 0;
+    return out;
+}
+#endif
+
 void cm_i18n_init(const DSLHost *host, DSLPlugin *self) {
     H = host; ME = self;
+#ifdef _WIN32
+    char own[1200]; const char *md = own_dir(own, sizeof own);
+#else
     const char *md = host->api_version >= 2 && host->module_dir ? host->module_dir(self) : NULL;
+#endif
     char d[1200] = "";
     if (md && *md) {
         snprintf(d, sizeof d, "%s", md);
