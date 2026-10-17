@@ -13,6 +13,7 @@
 #include "bld_work.h"
 #include "mu_ui.h"
 #include "myunits.h"
+#include "mu_look.h"
 #include "cm_home.h"
 #include "cm_il.h"
 #include "sg_cache.h"
@@ -999,18 +1000,34 @@ static float draw_presets(DSLObj p, float y) {
 }
 
 /* ------------------------------------------------------------------ the sheet (the character sheet's look) */
+#define ROW_H 22
 static float sheet_group(DSLObj p, float y, float sw, const char *title, int rows) {
-    deco(p, 4, y + 4, sw - 8, 24, SP_HEADER, C_CONTENTS);
-    text_fit(p, 12, y, sw - 24, 32, title, 15, DSL_TXT_LEFT, MU_C_MAIN);
-    y += 34;
-    deco(p, 4, y, sw - 8, rows * 26 + 8, SP_CONTENTS, C_CONTENTS);
-    return y + 4;
+    deco(p, 4, y + 3, sw - 8, 22, SP_HEADER, C_CONTENTS);
+    text_fit(p, 12, y, sw - 24, 28, title, 15, DSL_TXT_LEFT, MU_C_MAIN);
+    y += 30;
+    deco(p, 4, y, sw - 8, rows * ROW_H + 6, SP_CONTENTS, C_CONTENTS);
+    return y + 3;
 }
 static float sheet_row(DSLObj p, float y, float sw, const char *n, const char *v, const char *rkey) {
-    text_fit(p, 14, y, sw - 120, 26, n, 14, DSL_TXT_LEFT, MU_C_SUB);
-    DSLObj o = mu_text(p, sw - 104, y, 90, 26, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
+    text_fit(p, 14, y, sw - 120, ROW_H, n, 14, DSL_TXT_LEFT, MU_C_SUB);
+    DSLObj o = mu_text(p, sw - 104, y, 90, ROW_H, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
     if (rkey) { char rn[120]; snprintf(rn, sizeof rn, "~stat:%s", rkey); reg(rn, o); }
-    return y + 26;
+    return y + ROW_H;
+}
+/* the unit's avatar (portrait) and its in-game sprite (race, face, worn gear), both made by the game (mu_look.h) */
+static float sheet_looks(DSLObj p, float y, float sw) {
+    mu_look lk; memset(&lk, 0, sizeof lk);
+    sraw(jget(W.st, "race"), lk.race, sizeof lk.race); sraw(jget(W.st, "portrait"), lk.portrait, sizeof lk.portrait);
+    const jv *eq = arr("eq");
+    for (size_t i = 0; eq && i < eq->cnt && lk.ngear < MU_LOOK_GEAR; i++) { sraw(jget(eq->v[i], "k"), lk.gear[lk.ngear], sizeof lk.gear[0]); if (lk.gear[lk.ngear][0]) lk.ngear++; }
+    float h = 100;
+    deco(p, 4, y, sw - 8, h + 8, SP_CONTENTS, C_CONTENTS);
+    DSLObj a = mu_look_avatar(p, 10, y + 4, h, &lk);
+    if (!a) mu_icon(p, 10, y + 4, h, CM_ICON_AFFECTER, lk.race, 0, NULL);
+    DSLObj s2 = mu_look_sprite(p, 18 + h, y + 4, sw - 30 - h, h, &lk);
+    if (a) reg("~look:avatar", a);
+    if (s2) reg("~look:sprite", s2);
+    return y + h + 14;
 }
 static void draw_sheet(void) {
     if (W.sheet) U->destroy(W.sheet);
@@ -1018,7 +1035,7 @@ static void draw_sheet(void) {
     float sw = W.w - W.sx - 20;
     W.sheet = clear_holder(W.win, W.sx, W.my, sw, W.mh);
     if (!W.sheet || !W.st) return;
-    jv *sh = jget(W.st, "sheet"); float y = 0;
+    jv *sh = jget(W.st, "sheet"); float y = sheet_looks(W.sheet, 0, sw);
     const jv *st = arr_in(sh, "stats"), *mj = arr_in(sh, "majors");
     if (st) {
         y = sheet_group(W.sheet, y, sw, cm_gw("TEXTKEY_EntityStatusUI_CombatStat", "Combat Stat"), (int)st->cnt);
@@ -1026,7 +1043,7 @@ static void draw_sheet(void) {
             char k[64], n[80], t[60]; sraw(jget(st->v[i], "k"), k, sizeof k); sraw(jget(st->v[i], "n"), n, sizeof n); sraw(jget(st->v[i], "t"), t, sizeof t);
             y = sheet_row(W.sheet, y, sw, stat_word(k, n), t, n);
         }
-        y += 10;
+        y += 8;
     }
     if (mj) {
         y = sheet_group(W.sheet, y, sw, cm_gw("TEXTKEY_Shared_MajorStat_NAME", "Major Stat"), (int)mj->cnt);
@@ -1034,7 +1051,7 @@ static void draw_sheet(void) {
             char k[64], n[80], t[60]; sraw(jget(mj->v[i], "k"), k, sizeof k); sraw(jget(mj->v[i], "n"), n, sizeof n); sraw(jget(mj->v[i], "t"), t, sizeof t);
             y = sheet_row(W.sheet, y, sw, stat_word(k, n), t, n);
         }
-        y += 10;
+        y += 8;
     }
     jv *sp = jget(W.st, "sp"), *in = jget(W.st, "insc"); char t[80];
     y = sheet_group(W.sheet, y, sw, TR("Points left"), 3);

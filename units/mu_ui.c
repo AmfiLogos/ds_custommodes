@@ -1,6 +1,7 @@
 // mu_ui.c - shared pieces of the My Units and Bring Units windows (mu_ui.h).
 #include "mu_ui.h"
 #include "cm_il.h"
+#include "mu_look.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -140,8 +141,14 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     else mu_icon(card, 8, 8, 72, CM_ICON_AFFECTER, c->race, 0, rn);
     char lv[64]; snprintf(lv, sizeof lv, TR("Lv %d"), level > 0 ? level : c->lvl);
     mu_text(card, 4, 82, 80, 24, lv, 14, DSL_TXT_CENTER, MU_C_GOLD);
+    /* the in-game character (race, face, worn gear), drawn by the game (mu_look.c), top right */
+    float lookw = 0;
+    { mu_look lk; memset(&lk, 0, sizeof lk);
+      snprintf(lk.race, sizeof lk.race, "%s", c->race ? c->race : ""); snprintf(lk.portrait, sizeof lk.portrait, "%s", face ? face : "");
+      for (int i = 0; i < c->neq && lk.ngear < MU_LOOK_GEAR; i++) snprintf(lk.gear[lk.ngear++], sizeof lk.gear[0], "%s", c->eq[i].item ? c->eq[i].item : "");
+      if (mu_look_sprite(card, w - 92, 8, 84, 84, &lk)) lookw = 92; }
     /* name, race / background / weapon */
-    float x0 = 90, tw = w - x0 - 10;
+    float x0 = 90, tw = w - x0 - 10 - lookw;
     char nm[128];
     if (name && *name) snprintf(nm, sizeof nm, "%s", name);
     else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : TR("Unit"));
@@ -155,20 +162,20 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     for (int i = 0; i < c->neq && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_ITEM, c->eq[i].item, 0 }; gr[n++] = 0; }
     int nb = bar ? nbar : c->nbar;
     for (int i = 0; i < nb && n < MUC_MAX * 2; i++) { const char *k = bar ? bar[i] : c->bar[i]; if (k && *k) { ic[n] = (IconRef){ CM_ICON_SKILL, k, 0 }; gr[n++] = 1; } }
-    icon_row(card, x0, 52, w - 8, 24, ic, gr, n);
+    icon_row(card, x0, 52, w - 8 - lookw, 24, ic, gr, n);
     /* row B: branches ACTIVE | PASSIVE (dim = nothing learned in it) | banked milestones */
     n = 0;
     for (int i = 0; i < c->nactive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->active[i].tree, !c->active[i].invested }; gr[n++] = 0; }
     for (int i = 0; i < c->npassive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->passive[i].tree, !c->passive[i].invested }; gr[n++] = 1; }
     for (int i = 0; i < c->nstacks; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->stacks[i].skill, !c->stacks[i].learned }; gr[n++] = 2; }
-    icon_row(card, x0, 78, w - 8, 24, ic, gr, n);
+    icon_row(card, x0, 78, w - 8 - lookw, 24, ic, gr, n);
     /* row C: passive skills | inscriptions | soul stones | traits acquired in play */
     n = 0;
     for (int i = 0; i < c->npass && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->pass[i].skill, 0 }; gr[n++] = 0; }
     for (int i = 0; i < c->ninsc && n < MUC_MAX * 2; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->insc[i], 0 }; gr[n++] = 1; }
     for (int i = 0; i < c->nsouls && n < MUC_MAX * 2 + WK_MAX_LIST; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->souls[i], 0 }; gr[n++] = 2; }
     for (int i = 0; i < c->nacq && n < MUC_MAX * 3; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->acq[i], 0 }; gr[n++] = 3; }
-    icon_row(card, x0, 104, w - 8, 20, ic, gr, n);
+    icon_row(card, x0, 104, w - 8 - lookw, 20, ic, gr, n);
     in_card = -1;
     return card;
 }
