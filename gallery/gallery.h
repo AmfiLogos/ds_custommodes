@@ -37,6 +37,9 @@ typedef struct gal_unit {
     char gear[16][GAL_KEY]; int ngear;                /* g: equipped items */
     int  majors[6];                                   /* m: Strength, Constitution, WillPower, Intelligence, Agility, Perception */
     char talents[6][16];                              /* mt: talent per major ("Genius"), "" = none */
+    char souls[4][GAL_KEY]; int nsouls;               /* so: soul stones (AFFECTER_ keys) */
+    char acq[12][GAL_KEY]; int nacq;                  /* aq: traits acquired in play (AFFECTER_ keys) */
+    struct { char key[32]; double v; int pct, good; } extra[8]; int nextra;   /* x: [stat, value, is %, gain] */
 } gal_unit;
 
 typedef struct gal_item {
@@ -74,8 +77,13 @@ int  gal_fetch_authors(const char *text, gal_item *out, int max, char *err, size
 
 gal_words *gal_words_parse(const char *json, size_t n, char *err, size_t errn);
 gal_words *gal_words_fetch(char *err, size_t errn);
+/* the words of the wiki page in a game language ("ja" -> /ja/builds/words.json, as the wiki's own gallery in that
+   language names builds); a language the wiki does not have (es, pt-BR) -> English. lang_code = dsi_code() */
+gal_words *gal_words_fetch_lang(const char *lang_code, char *err, size_t errn);
 void       gal_words_free(gal_words *w);
 const char *gal_word(const gal_words *w, const char *group, const char *key);   /* W.<group>[key] (first of a pair) */
+const char *gal_word_at(const gal_words *w, const char *group, const char *key, int i);   /* element i of W.<group>[key] */
+int  gal_skill_passive(const gal_words *w, const char *skill);   /* W.skills[k][2] == "P" (the gallery's Passive row) */
 int  gal_word_keys(const gal_words *w, const char *group, const char **keys, int max);   /* keys of W.<group>, file order */
 
 /* the names, by teamname.js: a team "Elf Shield & Greatsword Fellowship", a character its race,

@@ -44,6 +44,7 @@ DSLObj mu_icon(DSLObj parent, float x, float y, float s, int kind, const char *k
    0 = no card for this kind (CM_ICON_TREE / _PORTRAIT) or the game's tooltip is not there (caller: the kit's name box) */
 int  mu_tip_game(DSLObj target, int kind, const char *key);
 void mu_tip_hide(void);
+void mu_tip_forget(DSLObj target);                         /* before the icon is destroyed (a page built again) */
 DSLObj mu_tip_test_target(int i);
 size_t mu_tip_test_state(char *out, size_t cap);
 /* the game's name of a key (TEXTKEY_<key>_NAME, then the key without its AFFECTER_ / prefix) */

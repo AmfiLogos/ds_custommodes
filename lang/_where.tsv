@@ -9,7 +9,7 @@
 "%d sub SP"	builder/bld_ui.c:374
 "%d unit brought||%d units brought"	fe/fe_menu.c:447 pvp/pvp_ui.c:814
 "%d unit each||%d units each"	fe/fe_menu.c:43
-"%d unit||%d units"	fe/fe_menu.c:201 pvp/pvp_ui.c:258
+"%d unit||%d units"	gallery/gal_ui.c:368 fe/fe_menu.c:201 pvp/pvp_ui.c:258
 "%d:%02d per round"	pvp/pvp_ui.c:107
 "%s\n\nA save on this computer, newest first. Click it to see its units."	pvp/pvp_ui.c:682
 "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)"	fights/tf_ui.c:688
@@ -17,7 +17,7 @@
 "%s  -  auxiliary tree, Sub SP, from an inscription"	builder/bld_ui.c:360
 "%s  -  weapon tree, Main SP"	builder/bld_ui.c:359
 "%s  -  weapon tree, Main SP, from an inscription"	builder/bld_ui.c:359
-"%s  Lv %d"	gallery/gal_ui.c:230 gallery/gal_ui.c:296 fights/tf_ui.c:496 fights/tf_ui.c:508
+"%s  Lv %d"	gallery/gal_ui.c:241 gallery/gal_ui.c:462 fights/tf_ui.c:496 fights/tf_ui.c:508
 "%s %.*s is not in this game version"	units/pvp_wiki.c:278
 "%s (you)"	pvp/pvp_ui.c:206
 "%s cannot go in the %s slot"	units/pvp_build.c:207
@@ -64,12 +64,12 @@
 "Already Brought Home"	fe/fe_menu.c:308
 "Already brought home on %s."	cm_mp.c:180
 "An expedition holds %d unit: untick one first.||An expedition holds %d units: untick one first."	fights/tf_ui.c:399
-"Any"	gallery/gal_ui.c:327 gallery/gal_ui.c:327
+"Any"	gallery/gal_ui.c:630 gallery/gal_ui.c:630
 "Apply to a new save"	fe/fe_menu.c:268 fe/fe_menu.c:373
 "Arena"	pvp/pvp_ui.c:113
 "Arrow"	units/mu_ui.c:104
 "Axe"	units/mu_ui.c:105
-"Back"	home/cm_home.c:95
+"Back"	home/cm_home.c:95 gallery/gal_ui.c:583 gallery/gal_ui.c:583
 "Back from the Expedition"	fe/fe_menu.c:212
 "Back to the PvP window."	pvp/pvp_ui.c:686
 "Back to the Title"	pvp/pvp_ui.c:657 pvp/pvp_ui.c:688
@@ -100,13 +100,13 @@
 "Brought home %s"	fe/fe_menu.c:202
 "Brought: %s. The host starts the match with them."	pvp/pvp_ui.c:484
 "Building your save file..."	fights/tf_ui.c:346
-"Builds by %s"	gallery/gal_ui.c:162
+"Builds by %s"	gallery/gal_ui.c:173
 "Cancel"	units/mu_bring.c:449 units/mu_window.c:187 units/mu_window.c:196 units/mu_window.c:313 units/mu_window.c:341 builder/bld_ui.c:555
 "Capture the Flag"	pvp/pvp_ui.c:104
 "Choose management difficulty separately"	fights/tf_ui.c:678 fights/tf_ui.c:678
 "Choose the teams and the rules, then press Start Match."	pvp/pvp_ui.c:191
 "Choosing units..."	fe/fe_menu.c:448 pvp/pvp_ui.c:815
-"Clear"	gallery/gal_ui.c:363 gallery/gal_ui.c:363
+"Clear"	gallery/gal_ui.c:704 gallery/gal_ui.c:704
 "Click to add or remove it. A copy travels with its gear and backpack; the unit itself stays at home and keeps working."	fe/fe_menu.c:368
 "Click to pick or unpick this unit. The dungeon team is 4 units in total, shared between the players."	pvp/pvp_ui.c:683
 "Close"	units/mu_window.c:306
@@ -114,7 +114,9 @@
 "Closes the result. The world is the same as before the match."	pvp/pvp_ui.c:689
 "Closes this window. Nothing is sent."	fe/fe_menu.c:370 pvp/pvp_ui.c:675
 "Combat"	fights/tf_ui.c:672
-"Complete only"	gallery/gal_ui.c:324 gallery/gal_ui.c:324
+"Compact Plus"	gallery/gal_ui.c:620
+"Complete only"	gallery/gal_ui.c:637 gallery/gal_ui.c:637
+"Copies"	gallery/gal_ui.c:362
 "Copies the picked units with their gear and sends them to the host. A new Bring replaces your last one."	pvp/pvp_ui.c:684
 "Copy a team link on the wiki builder first (Share), then press Paste Wiki Link."	pvp/pvp_ui.c:496
 "Copy a team or unit link on the wiki builder, or paste it here."	units/mu_link.c:60
@@ -126,8 +128,8 @@
 "Could not bring the units: %s"	pvp/pvp_ui.c:485 pvp/pvp_ui.c:781
 "Could not bring these units."	fe/fe_game.c:673
 "Could not bring these units: the save could not be read."	fe/fe_game.c:673
-"Could not load the gallery. Try again later."	gallery/gal_ui.c:90
-"Could not load this team. Try again later."	gallery/gal_ui.c:208
+"Could not load the gallery. Try again later."	gallery/gal_ui.c:101
+"Could not load this team. Try again later."	gallery/gal_ui.c:219
 "Could not read My Units: %s"	builder/bld_ui.c:174
 "Could not save My Units: %s"	units/mu_window.c:58 builder/bld_ui.c:189
 "Could not use the wiki link: %s"	pvp/pvp_ui.c:504
@@ -143,6 +145,7 @@
 "Delete team"	units/mu_window.c:196 units/mu_window.c:331
 "Delete this team?\nIts units stay in My Units."	units/mu_window.c:196
 "Deleted %d unit.||Deleted %d units."	units/mu_window.c:180
+"Details"	gallery/gal_ui.c:500
 "Died · home as at the last hub save"	fe/fe_menu.c:236
 "Died · removed at home, with its gear"	fe/fe_menu.c:235
 "Difficulty"	fights/tf_ui.c:668
@@ -172,7 +175,9 @@
 "Fight: how many rounds are played at most; the first team to win most of them wins the match. Capture the Flag: how many captures win the match."	pvp/pvp_ui.c:116
 "Finished base"	fights/tf_ui.c:615
 "Fire Staff"	units/mu_ui.c:100
+"Focus: %s"	gallery/gal_ui.c:370
 "Foreign Expedition"	cm_mp.c:99
+"From Lv %d"	gallery/gal_ui.c:369
 "From a save"	units/mu_bring.c:283 units/mu_bring.c:426 units/mu_bring.c:429
 "Game folder"	fe/fe_game.c:626
 "Gear"	builder/bld_ui.c:28 builder/bld_ui.c:394
@@ -186,8 +191,9 @@
 "Host"	pvp/pvp_ui.c:85
 "How many"	fights/tf_ui.c:642
 "In a dungeon: load it and return to the settlement first."	fe/fe_menu.c:155
+"Incomplete"	gallery/gal_ui.c:372
 "Inscription off. Units may be overweight if you keep the kits packed."	fights/tf_ui.c:727
-"Inscriptions"	builder/bld_ui.c:28 builder/bld_ui.c:445 builder/bld_ui.c:452
+"Inscriptions"	gallery/gal_ui.c:562 builder/bld_ui.c:28 builder/bld_ui.c:445 builder/bld_ui.c:452
 "Inscriptions free"	builder/bld_ui.c:483
 "Items made from hub stock stay in the hub."	fe/fe_menu.c:253
 "Keeps the results. Bring them home later from Multiplayer > Expedition results."	fe/fe_menu.c:374
@@ -195,12 +201,14 @@
 "Left off, the economy matches the combat difficulty (%s)."	fights/tf_ui.c:680
 "Left out of the kits: %s (%s)."	fights/tf_ui.c:131
 "Level"	builder/bld_ui.c:532 builder/bld_ui.c:553
-"Loading builds..."	gallery/gal_ui.c:102
+"Likes"	gallery/gal_ui.c:362
+"List"	gallery/gal_ui.c:620
+"Loading builds..."	gallery/gal_ui.c:113
 "Loading the wiki's Unit Builder..."	builder/bld_ui.c:498
 "Loading..."	fights/tf_ui.c:298
 "Locked: %s"	builder/bld_ui.c:381
 "Loot stays in the hub"	fe/fe_menu.c:46
-"Lv %d"	units/mu_ui.c:141 builder/bld_ui.c:373
+"Lv %d"	gallery/gal_ui.c:399 units/mu_ui.c:141 builder/bld_ui.c:373
 "Made with %s. Load and save it once in this build first."	fe/fe_menu.c:156
 "Made with %s; the expedition ran on %s."	cm_mp.c:183
 "Magic Saturation"	fights/tf_ui.c:633
@@ -216,16 +224,16 @@
 "Mods that only change your screen are fine. Gameplay mods are not: turn off %s."	pvp/pvp_mods.c:147
 "More saves ›"	fe/fe_menu.c:141
 "More units ›"	fe/fe_menu.c:141
-"Most popular"	gallery/gal_ui.c:315
+"Most popular"	gallery/gal_ui.c:620
 "Multiplayer folder"	fe/fe_game.c:626
 "My Units"	units/mu_bring.c:284 units/mu_bring.c:427 units/mu_bring.c:429 units/mu_init.c:30 units/mu_window.c:296 fights/tf_ui.c:454
 "My Units could not be read."	fights/tf_ui.c:463
-"My Units could not be written."	gallery/gal_ui.c:258
+"My Units could not be written."	gallery/gal_ui.c:269
 "My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."	fights/tf_ui.c:466
 "Name"	units/mu_window.c:338 builder/bld_ui.c:551
 "Nature Staff"	units/mu_ui.c:101
 "New unit"	units/mu_bring.c:432 units/mu_bring.c:433 units/mu_window.c:305
-"Newest"	gallery/gal_ui.c:315
+"Newest"	gallery/gal_ui.c:620
 "No gear"	fe/fe_menu.c:173
 "No kit ticked: the squad walks in with only its gear."	fights/tf_ui.c:712
 "No link. Copy a team or unit link on the wiki builder first."	units/wk_link.c:150
@@ -233,8 +241,8 @@
 "No pause"	pvp/pvp_ui.c:108
 "No pause: nobody can pause during the match. Planning pause: the game stops every 7 seconds of fighting so everyone can give orders; it goes on after 5 seconds or when everyone pressed Ready."	pvp/pvp_ui.c:118
 "No portals in a PvP match"	pvp/pvp_game.c:265 pvp/pvp_game.c:274
-"No public builds match these filters yet."	gallery/gal_ui.c:88
-"No public builds match this search."	gallery/gal_ui.c:89
+"No public builds match these filters yet."	gallery/gal_ui.c:99
+"No public builds match this search."	gallery/gal_ui.c:100
 "No save at the settlement"	fe/fe_menu.c:177
 "No saves found."	units/mu_bring.c:304
 "No saves to bring units from."	units/mu_bring.c:329
@@ -260,8 +268,11 @@
 "Only the host starts the match."	pvp/pvp_ui.c:835
 "Open the Wiki Build Gallery"	fights/tf_ui.c:520 fights/tf_ui.c:520
 "Open to see what your units bring home. Each result can be brought home once."	fe/fe_menu.c:380
-"Opening the build..."	gallery/gal_ui.c:267
+"Opening the build..."	gallery/gal_ui.c:278
+"Opens"	gallery/gal_ui.c:362
 "Opens the PvP match setup, where two teams of players fight each other. After the match, the world is back as it was."	pvp/pvp_ui.c:667
+"Page %d / %d"	gallery/gal_ui.c:658
+"Page %d / %d+"	gallery/gal_ui.c:658
 "Paste Wiki Link"	pvp/pvp_ui.c:432 pvp/pvp_ui.c:685
 "Paste a wiki builder link"	units/mu_window.c:311
 "Pause"	pvp/pvp_ui.c:113
@@ -282,7 +293,7 @@
 "PvP Match"	pvp/pvp_ui.c:189 pvp/pvp_ui.c:667 pvp/pvp_ui.c:709
 "PvP Rules"	pvp/pvp_ui.c:858
 "Race"	builder/bld_ui.c:28 builder/bld_ui.c:329
-"Races"	gallery/gal_ui.c:331
+"Races"	gallery/gal_ui.c:634
 "Reading the link..."	units/mu_window.c:115
 "Ready"	pvp/pvp_ui.c:580 pvp/pvp_ui.c:603 pvp/pvp_ui.c:668
 "Ready to bring home"	fe/fe_menu.c:202
@@ -307,24 +318,25 @@
 "Rules:"	fe/fe_menu.c:216
 "Save"	units/mu_bring.c:82 units/mu_window.c:340 pvp/pvp_ui.c:682 builder/bld_ui.c:554 builder/bld_ui.c:557
 "Save as team"	units/mu_window.c:326
-"Save to My Units"	gallery/gal_ui.c:304 gallery/gal_ui.c:304
+"Save to My Units"	gallery/gal_ui.c:500 gallery/gal_ui.c:586 gallery/gal_ui.c:586
 "Saved %d unit as %s.||Saved %d units as %s."	units/mu_window.c:153
 "Saved %s"	units/mu_bring.c:301
 "Saved as \"%s\". Load it from Load campaign.\nYour old save is not changed, and a backup copy was made first."	fe/fe_menu.c:220
 "Saved to My Units and ticked."	units/mu_bring.c:274
 "Saved to My Units."	units/mu_window.c:133
 "Saved to My Units. Not ticked: you can bring %d at most."	units/mu_bring.c:273
-"Saved to My Units: %s"	gallery/gal_ui.c:257
+"Saved to My Units: %s"	gallery/gal_ui.c:268
 "Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:557
-"Saving..."	gallery/gal_ui.c:267 builder/bld_ui.c:205
-"Search"	gallery/gal_ui.c:362 gallery/gal_ui.c:362
+"Saving..."	gallery/gal_ui.c:278 builder/bld_ui.c:205
+"Search"	gallery/gal_ui.c:703 gallery/gal_ui.c:703
 "Search monsters by name..."	fights/tf_ui.c:639
-"Search: name, author, race, background or weapon"	gallery/gal_ui.c:360
-"Searching..."	gallery/gal_ui.c:193
+"Search: name, author, race, background or weapon"	gallery/gal_ui.c:701
+"Searching..."	gallery/gal_ui.c:204
 "Sends copies of the picked units to the host. You can bring other units instead until the host presses Start."	fe/fe_menu.c:369
 "Sends everyone to the arena floor with the teams and rules shown. The match begins by itself once everyone has arrived."	pvp/pvp_ui.c:674
+"Shared %.10s"	gallery/gal_ui.c:371
 "Shield"	units/mu_ui.c:99
-"Show more"	gallery/gal_ui.c:367 gallery/gal_ui.c:367
+"Skill Trees"	gallery/gal_ui.c:560
 "Skill trees: %s"	builder/bld_ui.c:319
 "Skills"	builder/bld_ui.c:28
 "Spear"	units/mu_ui.c:98
@@ -346,9 +358,9 @@
 "Team"	pvp/pvp_ui.c:677
 "Team %zu"	units/mu_window.c:150
 "Team deleted. Its units stay in My Units."	units/mu_window.c:191
-"Teams"	gallery/gal_ui.c:315
+"Teams"	gallery/gal_ui.c:620
 "Test"	fights/tf_ui.c:616
-"Test Fight"	gallery/gal_ui.c:306 gallery/gal_ui.c:306
+"Test Fight"	gallery/gal_ui.c:500 gallery/gal_ui.c:585 gallery/gal_ui.c:585
 "Test Fights"	fights/tf_ui.c:757 fights/tf_ui.c:798
 "Test Fights could not start the wiki's fight maker. Try again later."	fights/tf_ui.c:235 fights/tf_ui.c:244
 "Test Fights needs the wiki's files once (dungeonsettlers.wiki), and they could not be downloaded: %s"	fights/tf_ui.c:230
@@ -435,7 +447,7 @@
 "Unit Builder"	builder/bld_init.c:12 builder/bld_ui.c:546
 "Unit Builder - Edit"	builder/bld_ui.c:546
 "Unit name"	units/mu_window.c:339 builder/bld_ui.c:552
-"Units"	gallery/gal_ui.c:315 pvp/pvp_ui.c:419
+"Units"	gallery/gal_ui.c:620 pvp/pvp_ui.c:419
 "Units changed at home since they left. Bring home:"	fe/fe_menu.c:264
 "Units come from this save. It is only read: nothing in it changes until you bring the results home."	fe/fe_menu.c:367
 "Units in %s"	fe/fe_menu.c:162
@@ -450,13 +462,13 @@
 "Vanilla check is on: turn off your gameplay mod %s, or set Vanilla check to Off.||Vanilla check is on: turn off your gameplay mods %s, or set Vanilla check to Off."	pvp/pvp_modcheck.c:115
 "Waiting for the mod list of %s. Press Start Match again in a moment."	pvp/pvp_mods.c:135
 "Water Staff"	units/mu_ui.c:101
-"Weapon trees"	gallery/gal_ui.c:332
+"Weapon trees"	gallery/gal_ui.c:635
 "What do you want"	fights/tf_ui.c:612
 "What will be applied"	fe/fe_menu.c:257
 "Where the match is played. A dungeon floor: the same map for everyone, with no monsters, no items and no portal. In a PvP world or an expedition hub: this settlement. Teams start at opposite ends."	pvp/pvp_ui.c:119
 "Which fight"	fights/tf_ui.c:625
 "Which room"	fights/tf_ui.c:625
-"Wiki Build Gallery"	gallery/gal_ui.c:355 gallery/gal_ui.c:396 fights/tf_ui.c:454
+"Wiki Build Gallery"	gallery/gal_ui.c:694 gallery/gal_ui.c:742 fights/tf_ui.c:454
 "Working..."	fights/tf_ui.c:743
 "Writes the results into a NEW save next to your home save. Your old save is not changed, and the whole save folder is copied to a backup first. Results apply once."	fe/fe_menu.c:373
 "XP"	fe/fe_menu.c:224
@@ -476,10 +488,9 @@
 "an item of one unit is missing from this save"	cm_mp.c:176
 "background %.*s is not in this game version"	units/pvp_wiki.c:292
 "backup failed: nothing applied"	cm_mp.c:190
-"bad gallery id"	gallery/gallery.c:215
+"bad gallery id"	gallery/gallery.c:227
 "bad url"	units/wk_http.c:26 units/wk_http.c:135 fights/cm_http.c:58
-"by %s"	units/mu_window.c:233 fights/tf_ui.c:487
-"by %s  -  Opens %d  -  Copies %d  -  Likes %d"	gallery/gal_ui.c:290
+"by %s"	gallery/gal_ui.c:484 gallery/gal_ui.c:589 units/mu_window.c:233 fights/tf_ui.c:487
 "choose below"	builder/bld_ui.c:403
 "click to change"	builder/bld_ui.c:403
 "connection error"	fights/cm_http.c:134
@@ -517,7 +528,7 @@
 "not a unit build"	units/pvp_wiki.c:288
 "not obtainable"	builder/bld_ui.c:429
 "only %s is allowed"	fights/cm_http.c:147
-"out of memory"	gallery/gallery.c:174
+"out of memory"	gallery/gallery.c:186
 "passive"	builder/bld_ui.c:376
 "race %.*s is not in this game version"	units/pvp_wiki.c:290
 "race %s has no look (portraits) in this game build"	units/pvp_build.c:198
@@ -525,12 +536,12 @@
 "skill tree"	units/pvp_wiki.c:301
 "soul stone"	units/pvp_wiki.c:348
 "talent tier out of range"	units/pvp_build.c:200
-"the Gallery did not answer (error %d)"	gallery/gallery.c:201
+"the Gallery did not answer (error %d)"	gallery/gallery.c:213
 "the cached wiki files are unreadable: %s"	fights/sg_cache.c:143
 "the download broke off (error %lu)"	fights/cm_http.c:85
 "the download could not start"	units/wk_http.c:106 units/wk_http.c:140 fights/cm_http.c:121
-"the gallery answer has no items"	gallery/gallery.c:172
-"the gallery words have no W"	gallery/gallery.c:231
+"the gallery answer has no items"	gallery/gallery.c:184
+"the gallery words have no W"	gallery/gallery.c:243
 "the game's save folder is not known"	fights/tf_worlds.c:119
 "the generated save has no usable name"	fights/tf_worlds.c:116
 "the home save is gone"	cm_mp.c:189
@@ -543,13 +554,13 @@
 "the wiki sent more data than expected"	fights/cm_http.c:87 fights/cm_http.c:131
 "the wiki's files do not say which game version they are for"	fights/sg_cache.c:114
 "these results are damaged"	cm_mp.c:179
-"this build is no longer in the gallery"	gallery/gallery.c:185 gallery/gallery.c:201
+"this build is no longer in the gallery"	gallery/gallery.c:197 gallery/gallery.c:213
 "this one-unit link is damaged or cut short"	units/wk_link.c:131
 "this save is not the campaign the units came from"	cm_mp.c:182
 "this save is not the hub of that run"	cm_mp.c:178
 "this unit is not in My Units any more"	units/myunits.c:211 units/myunits.c:262
 "timed out"	units/wk_http.c:39 units/wk_http.c:154 fights/cm_http.c:75 fights/cm_http.c:133
-"too many filters"	gallery/gallery.c:157 gallery/gallery.c:208
+"too many filters"	gallery/gallery.c:169 gallery/gallery.c:220
 "trait"	units/pvp_wiki.c:300
 "tree %s has no pool"	units/pvp_build.c:220
 "two-handed"	builder/bld_ui.c:428
