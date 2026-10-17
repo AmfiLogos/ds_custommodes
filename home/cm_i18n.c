@@ -20,25 +20,38 @@ int cm_i18n_on_change(void (*fn)(void)) {
 }
 int cm_i18n_loader_relabels(void) { return H && H->api_version >= 4; }
 
-/* the saved choice: <persistentDataPath>/UserSetting.json, GeneralSettingData.SaveCurrentLanguageType. host->data_dir is
-   <persistentDataPath>/Mods. 0 (English) when unknown. */
+/* the saved choice: GeneralSettingData.SaveCurrentLanguageType of the UserSetting.json the game reads, looked for where the
+   loader looks (dsl_lang_early): $DSML_DATA, $DSRIG_DIR/data, then the folder above host->data_dir (<data>/Mods; it is the
+   profile's folder when DSML_DATA is not set, so it can miss). 0 (English) when unknown. */
 static int file_lang;
-static int read_usersetting(void) {
-    const char *dd = DSL_HAS(H, data_dir) ? H->data_dir() : NULL;
-    if (!dd || !*dd) return 0;
-    char p[1200]; snprintf(p, sizeof p, "%s", dd);
-    size_t L = strlen(p);
-    while (L && (p[L - 1] == '/' || p[L - 1] == '\\')) p[--L] = 0;
-    while (L && p[L - 1] != '/' && p[L - 1] != '\\') p[--L] = 0;   /* drop "Mods": keep the separator */
-    if (!L) return 0;
-    snprintf(p + L, sizeof p - L, "UserSetting.json");
-    FILE *f = fopen(p, "rb"); if (!f) return 0;
+static char *read_file(const char *p) {
+    FILE *f = fopen(p, "rb"); if (!f) return NULL;
     char *b = malloc(1 << 20); size_t n = b ? fread(b, 1, (1 << 20) - 1, f) : 0; fclose(f);
-    if (!b) return 0;
-    b[n] = 0;
-    int v = dsi_lang_from_usersetting(b);
-    free(b);
-    return v;
+    if (b) b[n] = 0;
+    return b;
+}
+static int read_usersetting(void) {
+    char c[3][1200]; int nc = 0;
+    const char *e = getenv("DSML_DATA");
+    if (e && *e) snprintf(c[nc++], sizeof c[0], "%s/UserSetting.json", e);
+    if ((e = getenv("DSRIG_DIR")) && *e) snprintf(c[nc++], sizeof c[0], "%s/data/UserSetting.json", e);
+    const char *dd = DSL_HAS(H, data_dir) ? H->data_dir() : NULL;
+    if (dd && *dd) {
+        char *p = c[nc]; snprintf(p, sizeof c[0], "%s", dd);
+        size_t L = strlen(p);
+        while (L && (p[L - 1] == '/' || p[L - 1] == '\\')) p[--L] = 0;
+        while (L && p[L - 1] != '/' && p[L - 1] != '\\') p[--L] = 0;   /* drop "Mods": keep the separator */
+        if (L) { snprintf(p + L, sizeof c[0] - L, "UserSetting.json"); nc++; }
+    }
+    for (int k = 0; k < nc; k++) {
+        char *b = read_file(c[k]); if (!b) continue;
+        int v = dsi_lang_from_usersetting(b);
+        free(b);
+        H->log(ME, "i18n: saved language %d from %s", v, c[k]);
+        return v;
+    }
+    H->log(ME, "i18n: no UserSetting.json found: English until the game's language is known");
+    return 0;
 }
 
 /* Refactor.Setting.LanguageSetting.GetCurrentLanguage(): static int32, no arguments (a static read in the game) */
@@ -65,9 +78,10 @@ static void lang_poll(void *ud) {
     if (!get_lang) return;
     int v = get_lang(NULL);
     if (v < 0 || v >= DSI_LANGS) v = 0;
-    /* while the game boots, the static is still 0 (English) until GeneralSetting loads the saved choice: follow the
-       game only once it agrees with UserSetting.json (or after ~30 s of frames) */
-    if (!settled) { if (v != file_lang && ++polls < 1800) return; settled = 1; }
+    /* while the game boots, the static is still 0 (English) until GeneralSetting loads the saved choice. Any other value
+       is the loaded choice: follow it at once (UserSetting.json may be missing, or say another language than the game
+       picked). A 0 against a saved other language waits for the title (loaded by then), ~30 s of frames at most. */
+    if (!settled) { if (v == 0 && file_lang != 0 && ++polls < 1800 && !cmw_title_shown()) return; settled = 1; }
     apply(v, "the game");
 }
 
