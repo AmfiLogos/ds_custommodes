@@ -273,9 +273,8 @@ __attribute__((visibility("default"))) int mu_look_test(const char *s, char *out
     if (p2) *p2++ = 0; if (p3) *p3++ = 0;
     snprintf(u.race, sizeof u.race, "%s", b); if (p2) snprintf(u.portrait, sizeof u.portrait, "%s", p2);
     for (char *t = p3 ? strtok(p3, ",") : NULL; t && u.ngear < MU_LOOK_GEAR; t = strtok(NULL, ",")) snprintf(u.gear[u.ngear++], sizeof u.gear[0], "%s", t);
-    struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
+    clock_t t0 = clock();                       /* CPU time of the main thread's work */
     Obj sp = make_sprite(&u);
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-    snprintf(out, cap, "%s %.2f ms", sp ? "ok" : "none", (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6);
+    snprintf(out, cap, "%s %.2f ms", sp ? "ok" : "none", (double)(clock() - t0) * 1000.0 / CLOCKS_PER_SEC);
     return sp ? 0 : 1;
 }
