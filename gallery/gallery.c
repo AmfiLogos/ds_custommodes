@@ -339,6 +339,8 @@ static void fill(const char *tpl, const kv *map, int nm, char *out, size_t n) {
     if (n) out[o < n ? o : n - 1] = 0;
 }
 static void tpl_or(const gal_words *w, const char *key, const char *def, char *o, size_t n) {
+    const char *h = gal_name_hook ? gal_name_hook(key, NULL) : NULL;              /* a template of the player's language */
+    if (h && *h) { snprintf(o, n, "%s", h); return; }
     const jv *v = word_v(w, key, NULL);
     if (v && v->t == JN_STR && v->n) str_of(v, o, n); else snprintf(o, n, "%s", def);
 }
@@ -361,7 +363,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
         kv m[2] = { { "a", names[0] }, { "b", names[1] } };
         fill(pair, m, 2, tn, sizeof tn);
     } else if (nn) snprintf(tn, sizeof tn, "%s", names[0]);
-    const char *nw = gal_word(w, "nouns", it->name_noun);
+    const char *nw = gal_name_word(w, "nouns", it->name_noun);
     snprintf(noun, sizeof noun, "%s", *nw ? nw : it->name_noun);
     tpl_or(w, "tpl", "{race} {trees} {noun}", tpl, sizeof tpl);
     kv m[3] = { { "race", rn }, { "trees", tn }, { "noun", noun } };

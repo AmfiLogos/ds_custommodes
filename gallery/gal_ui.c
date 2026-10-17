@@ -317,12 +317,36 @@ static void game_name(const char *key, char *o, size_t n) { mu_name_of(key, o, n
    (TEXTKEY_Equipment_<tree>_NAME: Sword, Bow ...); the other trees (Warrior, Fire Magic ...) have no short game name:
    the wiki's word in the player's language */
 static _Thread_local int hook_off;                   /* the worker thread (gal_link_author): no game calls there */
+/* the wiki has no gallery words in Spanish and Portuguese: the words with no short game name, ours */
+static const struct { const char *group, *key, *es, *pt; } ESPT[] = {
+    { "trees", "Berserker", "Berserker", "Berserker" }, { "trees", "Blitz", "Relámpago", "Relâmpago" },
+    { "trees", "Burst", "Estallido", "Explosão" }, { "trees", "Execution", "Ejecución", "Execução" },
+    { "trees", "FireMagic", "Magia de fuego", "Magia de fogo" }, { "trees", "Fortress", "Fortaleza", "Fortaleza" },
+    { "trees", "Guardian", "Guardián", "Guardião" }, { "trees", "Harmony", "Armonía", "Harmonia" },
+    { "trees", "NatureMagic", "Magia de la naturaleza", "Magia da natureza" }, { "trees", "Stake", "Estaca", "Estaca" },
+    { "trees", "Tide", "Marea", "Maré" }, { "trees", "Warrior", "Guerrero", "Guerreiro" },
+    { "trees", "WaterMagic", "Magia de agua", "Magia de água" },
+    { "nouns", "vanguard", "Vanguardia", "Vanguarda" }, { "nouns", "warband", "Banda de guerra", "Bando de guerra" },
+    { "nouns", "blades", "Hojas", "Lâminas" }, { "nouns", "circle", "Círculo", "Círculo" },
+    { "nouns", "coven", "Aquelarre", "Coven" }, { "nouns", "conclave", "Cónclave", "Conclave" },
+    { "nouns", "company", "Compañía", "Companhia" }, { "nouns", "order", "Orden", "Ordem" },
+    { "nouns", "fellowship", "Hermandad", "Irmandade" },
+    { "tpl", NULL, "{noun} {race} de {trees}", "{noun} {race} de {trees}" }, { "pair", NULL, "{a} y {b}", "{a} e {b}" },
+    { "unit", NULL, "Colono", "Colono" } };
+static const char *espt(const char *group, const char *key) {
+    const char *c = dsi_code(); int es = !strcmp(c, "es"), pt = !strcmp(c, "pt-BR");
+    if (!es && !pt) return NULL;
+    for (size_t i = 0; i < sizeof ESPT / sizeof *ESPT; i++)
+        if (!strcmp(ESPT[i].group, group) && (!ESPT[i].key ? !key : key && !strcmp(ESPT[i].key, key))) return es ? ESPT[i].es : ESPT[i].pt;
+    return NULL;
+}
 static const char *name_hook(const char *group, const char *key) {
     if (hook_off) return NULL;
+    if (!key) return espt(group, NULL);                                /* a template */
     static char ring[8][128]; static unsigned slot; char *o = ring[slot++ & 7]; o[0] = 0;
     if (!strcmp(group, "races") || !strcmp(group, "bg")) { char k[128]; snprintf(k, sizeof k, "TEXTKEY_%s_NAME", key); if (cm_gettext(k, o, 128)) o[0] = 0; }
     else if (!strcmp(group, "trees")) { char k[128]; snprintf(k, sizeof k, "TEXTKEY_Equipment_%s_NAME", key); if (cm_gettext(k, o, 128)) o[0] = 0; }
-    return o[0] ? o : NULL;
+    return o[0] ? o : espt(group, key);
 }
 static const char *tree_name(const char *t) {
     char k[96]; snprintf(k, sizeof k, "TEXTKEY_SKILLTREE_%s_NAME", t);
@@ -488,7 +512,7 @@ static void unit_list(DSLObj p, float x, float y, float w, const gal_item *it, i
     float tx = x + 38, treex = x + w - 3 * 26;
     txt(p, tx, y, (treex - tx) * 0.5f - 6, LU_H, t, 14, DSL_TXT_LEFT, MAIN);
     crumb(g, 0, t, sizeof t);
-    txt(p, tx + (treex - tx) * 0.5f, y, (treex - tx) * 0.5f - 6, LU_H, t, 12, DSL_TXT_LEFT, SUB);
+    txt(p, tx + (treex - tx) * 0.5f, y + 8, (treex - tx) * 0.5f - 6, 18, t, 12, DSL_TXT_LEFT, SUB);   /* one line: a tall box wraps */
     Ic ic[8]; int gr[8], n = 0;
     for (int i = 0; i < g->ntrees && n < 3; i++) { ic[n] = (Ic){ CM_ICON_TREE, g->trees[i], 0 }; gr[n++] = 0; }
     icons(p, treex, y + 6, x + w + 4, 22, ic, gr, n, 0, NULL);
