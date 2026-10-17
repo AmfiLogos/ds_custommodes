@@ -610,5 +610,7 @@
  "tree %s has no pool": "ツリー %s に候補がありません",
  "two-handed": "両手",
  "unit %d: %s": "ユニット %d：%s",
- "where they came from": "元の場所"
+ "where they came from": "元の場所",
+ "In the squad: %s": "部隊：%s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れてください。チームのチェックはそのユニットをまとめて追加・解除します。"
 }

@@ -637,5 +637,7 @@
  "tree %s has no pool": "a árvore %s não tem conjunto",
  "two-handed": "de duas mãos",
  "unit %d: %s": "unidade %d: %s",
- "where they came from": "de onde vieram"
+ "where they came from": "de onde vieram",
+ "In the squad: %s": "No esquadrão: %s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "Marque as unidades que entram. A caixa de uma equipe adiciona ou remove todas as suas unidades."
 }

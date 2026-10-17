@@ -610,5 +610,7 @@
  "tree %s has no pool": "트리 %s에 풀이 없습니다",
  "two-handed": "양손",
  "unit %d: %s": "유닛 %d: %s",
- "where they came from": "원래 위치"
+ "where they came from": "원래 위치",
+ "In the squad: %s": "분대: %s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "들어갈 유닛을 체크하십시오. 팀을 체크하면 그 팀의 유닛을 모두 넣거나 뺍니다."
 }

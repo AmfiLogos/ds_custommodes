@@ -854,6 +854,15 @@ int pvp_v1_lobby_start(char *err, size_t errn) {
 static const int v1_rows[V1R_N] = { PVR_MODE, PVR_WIN, PVR_TIME, PVR_PAUSE, PVR_VANILLA };
 static uintptr_t h_v1_root, h_v1_parent, h_v1_row[V1R_N], h_v1_val[V1R_N], h_v1_arrow[V1R_N][2], h_v1_note, h_v1_title, h_v1_lab[V1R_N];
 static unsigned v1_gen;                                                  /* language of the labels set once */
+#define V1_STEP 62
+#define V1_H (62 + V1_STEP * V1R_N + 52)                                    /* the panel's height: title band, rows, note */
+/* owner v0.1.12 #2: the menu's choice box (mpmenu.c title_build: 430 x 588 centred at -78, -63) was taller than these rules,
+   an empty block above the title and one below the note. While the PvP page shows, the box takes this panel's height with
+   its top where it was; draw(NULL) gives it back. */
+static void v1_box(Obj panel, int fit) {
+    Obj box = panel ? u_tr_parent(u_tr(panel)) : NULL; if (!box) return;
+    if (fit) place(box, -78, -89 + 26 + 588 / 2 - V1_H / 2, 430, V1_H); else place(box, -78, -89 + 26, 430, 588);
+}
 static void v1_labels(void) {
     cmt_set(pvt(h_v1_title), TR("PvP Rules"));
     for (int i = 0; i < V1R_N; i++) cmt_set(pvt(h_v1_lab[i]), TR(pv_label[v1_rows[i]]));
@@ -864,7 +873,7 @@ static void v1_page_build(Obj panel) {
     Obj tv = title_view(); Obj src = tv ? AT(tv, 0x50, Obj) : NULL; if (!u_alive(src)) return;
     if (!scan_done) assets_scan_now();
     Obj tpl_img = first_image(u_tr(src), 0), tpl_txt = AT(src, 0x130, Obj);
-    const float pw = 430, rh = 48, step = 62, ph = 68 + step * V1R_N + 70;
+    const float pw = 430, rh = 48, step = V1_STEP, ph = V1_H;
     #define QX(x) ((x) - pw / 2)
     #define QY(y) (ph / 2 - (y))
     #define KEEP(hh, o) { Obj o_ = (o); u_gc_free(hh); hh = o_ ? u_gc_new(o_) : 0; }
@@ -883,7 +892,7 @@ static void v1_page_build(Obj panel) {
             KEEP(h_v1_arrow[i][a], ar);
         }
     }
-    KEEP(h_v1_note, mk_txt(tpl_txt, R, 0, 12, 513, 1, 0, QY(62 + step * V1R_N + 28), 394, 44, C_SUB));
+    KEEP(h_v1_note, mk_txt(tpl_txt, R, 0, 12, 513, 1, 0, QY(62 + step * V1R_N + 22), 394, 44, C_SUB));
     v1_labels();
     #undef QX
     #undef QY
@@ -901,9 +910,13 @@ static void v1_step(int i, int d) {
 }
 void pvp_v1_page_draw(void *panel) {
     Obj root = pvt(h_v1_root);
-    if (!panel) { if (root) u_active(root, false); return; }
+    if (!panel) {
+        if (root) { u_active(root, false); v1_box(u_gc_get(h_v1_parent), 0); }
+        return;
+    }
     if (!root || u_gc_get(h_v1_parent) != (Obj)panel) { v1_page_build((Obj)panel); root = pvt(h_v1_root); if (!root) return; }
     u_active(root, true);
+    v1_box((Obj)panel, 1);
     if (v1_gen != cmt_gen()) v1_labels();
     if (pv.vanilla < 0) pv.vanilla = pvp_mods_default_vanilla ? pvp_mods_default_vanilla() : 1;
     if (F(0x51ACDD0, bool (*)(int, void *))(0, NULL)) {                    /* Input.GetMouseButtonDown(0) */

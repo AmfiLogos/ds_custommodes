@@ -383,22 +383,41 @@ static float head(DSLObj parent, float x, float y, float w, const char *s) {
 
 /* left: the squad */
 static void src_click(void *ud, DSLObj w) { (void)w; st.src = (int)(intptr_t)ud; paint_all(); }
+static int picked_at(const char *id) { for (int k = 0; k < st.nids; k++) if (!strcmp(st.ids[k], id)) return k; return -1; }
+static void unpick(int at) { memmove(st.ids[at], st.ids[at + 1], (size_t)(st.nids - at - 1) * 17); st.nids--; }
+static void squad_full_warn(void) { snprintf(status, sizeof status, TRN("An expedition holds %d unit: untick one first.", "An expedition holds %d units: untick one first.", P.max_squad), P.max_squad); status_warn = 1; }
+/* the save keeps a team's name only when the squad is exactly that team (owner v0.1.12: units are picked one by one) */
+static void team_sync(void) {
+    st.team[0] = 0; st.team_i = -1;
+    size_t nt = lib ? mu_team_count(lib) : 0;
+    for (size_t i = 0; i < nt && st.nids; i++) {
+        char ids[MU_TEAM_MAX][17], name[96]; int n = mu_team_at(lib, i, name, sizeof name, ids), all = n == st.nids;
+        for (int k = 0; k < n && all; k++) all = picked_at(ids[k]) >= 0;
+        if (all) { snprintf(st.team, sizeof st.team, "%s", name); st.team_i = (int)i; return; }
+    }
+}
+/* the team's tick: select all / none of its units (owner v0.1.12 #1: no more "the whole team at once" by default) */
 static void team_click(void *ud, DSLObj w) {
     (void)w; size_t i = (size_t)(intptr_t)ud; char ids[MU_TEAM_MAX][17]; char name[96];
-    int n = lib ? mu_team_at(lib, i, name, sizeof name, ids) : 0;
-    st.nids = 0;
-    for (int k = 0; k < n && st.nids < P.max_squad; k++) snprintf(st.ids[st.nids++], 17, "%s", ids[k]);
-    snprintf(st.team, sizeof st.team, "%s", name); st.team_i = (int)i;
-    status[0] = 0; paint_all();
+    int n = lib ? mu_team_at(lib, i, name, sizeof name, ids) : 0, in = 0;
+    for (int k = 0; k < n; k++) in += picked_at(ids[k]) >= 0;
+    status[0] = 0; status_warn = 0;
+    if (n && in == n) { for (int k = 0; k < n; k++) { int at = picked_at(ids[k]); if (at >= 0) unpick(at); } }
+    else for (int k = 0; k < n; k++) {
+        if (picked_at(ids[k]) >= 0) continue;
+        if (st.nids >= P.max_squad) { squad_full_warn(); break; }
+        snprintf(st.ids[st.nids++], 17, "%s", ids[k]);
+    }
+    team_sync(); paint_all();
 }
 static void unit_toggle(void *ud, DSLObj w) {
     size_t i = (size_t)(intptr_t)ud; mu_info in; if (!lib || mu_info_at(lib, i, &in)) return;
-    int at = -1; for (int k = 0; k < st.nids; k++) if (!strcmp(st.ids[k], in.id)) at = k;
-    if (at >= 0) { memmove(st.ids[at], st.ids[at + 1], (size_t)(st.nids - at - 1) * 17); st.nids--; }
+    int at = picked_at(in.id);
+    status[0] = 0; status_warn = 0;
+    if (at >= 0) unpick(at);
     else if (st.nids < P.max_squad) snprintf(st.ids[st.nids++], 17, "%s", in.id);
-    else { U->toggle_set(w, 0); snprintf(status, sizeof status, TRN("An expedition holds %d unit: untick one first.", "An expedition holds %d units: untick one first.", P.max_squad), P.max_squad); status_warn = 1; }
-    st.team[0] = 0; st.team_i = -1;
-    paint_all();
+    else { U->toggle_set(w, 0); squad_full_warn(); }
+    team_sync(); paint_all();
 }
 static void gallery_open_click(void *ud, DSLObj w);
 /* a My Units unit by id: its info and its place in the library. 0 ok */
@@ -466,22 +485,30 @@ static void paint_left(void) {
         if (!nt && !nu) { txt(sc, "fights:l.note", 0, 0, LW - 12, TR("My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."), 15, SUB); return; }
         static char in_team[512]; memset(in_team, 0, sizeof in_team);   /* library units shown under a team */
         float uw = LW - 16;
-        /* owner v0.1.11 #1: teams as headers (team icon, name, count; a click picks the whole team), the builder's name
-           when the team came from the Wiki Build Gallery, then the team's units, each picked one by one */
+        /* owner v0.1.12 #1: every unit has its own tick; a team's header is a tick too, a shortcut that adds or removes all
+           its units (on = all of them in the squad). The line above the list names the units in the squad. */
+        {
+            char sq[700]; size_t k = 0; sq[0] = 0;
+            for (int q = 0; q < st.nids; q++) { mu_info in; if (unit_info_by_id(st.ids[q], &in, NULL)) continue;
+                                                k += (size_t)snprintf(sq + k, sizeof sq - k, "%s%s", k ? ", " : "", in.name); if (k >= sizeof sq) break; }
+            char line[900];
+            if (sq[0]) { snprintf(line, sizeof line, TR("In the squad: %s"), sq); dsi_utf8_fix_end(line); }
+            else snprintf(line, sizeof line, "%s", TR("Tick the units to send in. A team's tick adds or removes all its units."));
+            sy += txt(sc, "fights:l.picked", 0, sy, uw, line, 15, sq[0] ? GOLD : SUB) + 8;
+        }
         for (size_t i = 0; i < nt; i++) {
             char name[96], ids[MU_TEAM_MAX][17], lab[200], nm[40], au[96];
-            int n = mu_team_at(lib, i, name, sizeof name, ids);
-            int picked = st.team_i == (int)i && !strcmp(st.team, name);
+            int n = mu_team_at(lib, i, name, sizeof name, ids), nin = 0;
+            for (int k = 0; k < n; k++) nin += picked_at(ids[k]) >= 0;
             mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
             DSLObj ib = U->panel(sc, 0, sy + 2, 40, 40, 0x1E1C21FFu);   /* the team icon: its first unit's portrait (as My Units) */
             Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
             if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
             if (ib && sp) cm_set_sprite(ib, sp, 0xFFFFFFFFu);
             if (ib) cm_raycast(ib, false);
-            snprintf(lab, sizeof lab, "%s%s (%d)%s", picked ? "<color=#D9BE8F>" : "", name, n, picked ? "</color>" : "");
+            snprintf(lab, sizeof lab, "%s%s  (%d/%d)%s", nin ? "<color=#D9BE8F>" : "", name, nin, n, nin ? "</color>" : "");
             snprintf(nm, sizeof nm, "fights:l.team%zu", i);
-            DSLObj b = cmw_named(U->button(sc, 46, sy, uw - 46, 44, lab, team_click, (void *)(intptr_t)i), CMW_BUTTON, nm, team_click, (void *)(intptr_t)i, lab);
-            if (b) cm_text_ellipsis(b);
+            cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, lab, n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
             sy += 48;
             if (team_author(i, au, sizeof au)) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
@@ -492,9 +519,9 @@ static void paint_left(void) {
                 mu_info in; size_t ui;
                 if (unit_info_by_id(ids[k], &in, &ui)) continue;
                 if (ui < sizeof in_team) in_team[ui] = 1;
-                int on = 0; for (int q = 0; q < st.nids; q++) if (!strcmp(st.ids[q], in.id)) on = 1;
+                int on = picked_at(in.id) >= 0;
                 snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.team%zu.u%d", i, k);
-                cmw_named(U->toggle(sc, 22, sy, uw - 22, lab, on, unit_toggle, (void *)(intptr_t)ui), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)ui, lab);
+                cmw_named(U->toggle(sc, 68, sy, uw - 68, lab, on, unit_toggle, (void *)(intptr_t)ui), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)ui, lab);
                 sy += 40;
             }
             sy += 10;
@@ -504,7 +531,7 @@ static void paint_left(void) {
             mu_info in; if (mu_info_at(lib, i, &in)) continue;
             if (i < sizeof in_team && in_team[i]) continue;
             if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units not in a team"), 16, GOLD) + 2; head_done = 1; }
-            int on = 0; for (int k = 0; k < st.nids; k++) if (!strcmp(st.ids[k], in.id)) on = 1;
+            int on = picked_at(in.id) >= 0;
             char lab[160], nm[40]; snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.unit%zu", i);
             cmw_named(U->toggle(sc, 0, sy, uw, lab, on, unit_toggle, (void *)(intptr_t)i), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)i, lab);
             sy += 40;

@@ -610,5 +610,7 @@
  "tree %s has no pool": "技能树 %s 没有奖励池",
  "two-handed": "双手",
  "unit %d: %s": "单位 %d：%s",
- "where they came from": "它们的来源"
+ "where they came from": "它们的来源",
+ "In the squad: %s": "小队中：%s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "勾选要入场的单位。勾选队伍会一次加入或移除其全部单位。"
 }

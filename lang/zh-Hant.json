@@ -610,5 +610,7 @@
  "tree %s has no pool": "技能樹 %s 沒有池",
  "two-handed": "雙手",
  "unit %d: %s": "單位 %d：%s",
- "where they came from": "原來的存檔"
+ "where they came from": "原來的存檔",
+ "In the squad: %s": "小隊中：%s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "勾選要進場的單位。勾選隊伍會一次加入或移除其全部單位。"
 }

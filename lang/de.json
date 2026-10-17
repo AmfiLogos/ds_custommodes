@@ -637,5 +637,7 @@
  "tree %s has no pool": "Baum %s hat keinen Pool",
  "two-handed": "zweihändig",
  "unit %d: %s": "Einheit %d: %s",
- "where they came from": "woher sie stammen"
+ "where they came from": "woher sie stammen",
+ "In the squad: %s": "Im Trupp: %s",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "Hake die Einheiten an, die hineingehen. Der Haken eines Teams fügt alle seine Einheiten hinzu oder entfernt sie."
 }
