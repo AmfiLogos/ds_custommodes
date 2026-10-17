@@ -5,7 +5,7 @@
 Custom Modes is a code mod for Dungeon Settlers. It adds:
 
 - **My Units**
-- **Unit Builder**: race, background, traits, level, skills and gear, then Save to My Units.
+- **Unit Builder**: race and portrait, background, traits (also those gained in play and a soul stone), level-ups (offering, stat gain, talents, elixirs), skills, gear (with quick sets), inscriptions, with search and filters, then Save to My Units.
 - **Gallery**
 - **Test Fights**
 - **Foreign Expedition hub**: a third choice on the multiplayer Host page. Players bring units from a save or from My Units.

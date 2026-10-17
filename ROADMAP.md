@@ -32,5 +32,5 @@ Have you tried one of these? Please open an issue and tell us what happened.
 
 ## Known issues
 
-- **The Unit Builder window does not edit everything.** Talents, portrait, soul stones, traits gained in play, elixirs and hunger or exhaustion are not in it. A unit you open from a wiki link keeps these as they are.
+- **The Unit Builder window does not edit everything.** Hunger or exhaustion and the shortcut bar are not in it. A unit you open from a wiki link keeps these as they are.
 - **Gear rolls use the middle value.** In the Unit Builder you pick which stat each random gear roll gives. Its value is the middle of its range, the same default the wiki uses. There is no slider.
