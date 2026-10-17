@@ -143,6 +143,18 @@ static void read_item(const jv *o, gal_item *it) {
         g->ngear = arr_strs(jget(x, "g"), g->gear[0], sizeof g->gear[0], 16);
         const jv *m = jget(x, "m"), *mt = jget(x, "mt");
         for (int j = 0; j < 6; j++) { g->majors[j] = int_of(jget(m, MAJORS[j])); str_of(jget(mt, MAJORS[j]), g->talents[j], sizeof g->talents[j]); }
+        g->nsouls = arr_strs(jget(x, "so"), g->souls[0], sizeof g->souls[0], 4);
+        g->nacq = arr_strs(jget(x, "aq"), g->acq[0], sizeof g->acq[0], 12);
+        const jv *ex = jget(x, "x");
+        for (size_t e = 0; ex && ex->t == JN_ARR && e < ex->cnt && g->nextra < 8; e++) {
+            const jv *r = ex->v[e];
+            if (!r || r->t != JN_ARR || r->cnt < 2) continue;
+            str_of(r->v[0], g->extra[g->nextra].key, sizeof g->extra[0].key);
+            g->extra[g->nextra].v = r->v[1]->t == JN_NUM ? jnumv(r->v[1]) : 0;
+            g->extra[g->nextra].pct = r->cnt > 2 && jtruthy(r->v[2]);
+            g->extra[g->nextra].good = r->cnt > 3 && jtruthy(r->v[3]);
+            if (g->extra[g->nextra].key[0]) g->nextra++;
+        }
     }
     read_au(jget(o, "au"), it);
     it->ntags = arr_strs(jget(o, "tags"), it->tags[0], sizeof it->tags[0], 8);
@@ -241,6 +253,19 @@ gal_words *gal_words_fetch(char *err, size_t errn) {
     cmh_free(&r);
     return w;
 }
+gal_words *gal_words_fetch_lang(const char *lang_code, char *err, size_t errn) {
+    static const struct { const char *game, *wiki; } L[] = {
+        { "fr", "fr" }, { "de", "de" }, { "ja", "ja" }, { "ko", "ko" }, { "ru", "ru" }, { "zh-Hans", "zh" }, { "zh-Hant", "zht" } };
+    const char *w = NULL;
+    for (size_t i = 0; lang_code && i < sizeof L / sizeof *L; i++) if (!strcmp(L[i].game, lang_code)) w = L[i].wiki;
+    if (!w) return gal_words_fetch(err, errn);
+    char url[160]; cmh_resp r;
+    snprintf(url, sizeof url, CM_WIKI "/%s/builds/words.json", w);
+    if (fetch_json(url, GAL_WORDS_MAX, &r, err, errn)) return gal_words_fetch(err, errn);   /* that page missing: English */
+    gal_words *g = gal_words_parse(r.body, r.n, err, errn);
+    cmh_free(&r);
+    return g ? g : gal_words_fetch(err, errn);
+}
 void gal_words_free(gal_words *w) { if (w) { jfree(w->root); free(w); } }
 
 /* W.<group>[key], or W.<group> itself when key is NULL; a [name, icon, ...] entry gives its name */
@@ -260,6 +285,22 @@ const char *gal_word(const gal_words *w, const char *group, const char *key) {
     str_of(v, o, sizeof word_buf[0]);
     return o;
 }
+
+const char *gal_word_at(const gal_words *w, const char *group, const char *key, int i) {
+    const jv *g = w ? jget(w->W, group) : NULL, *v = (g && g->t == JN_OBJ && key) ? jget(g, key) : NULL;
+    if (v && v->t == JN_ARR) v = i >= 0 && (size_t)i < v->cnt ? v->v[i] : NULL;
+    else if (i) v = NULL;
+    if (!v || v->t != JN_STR) return "";
+    char *o = word_buf[word_slot++ & 7];
+    str_of(v, o, sizeof word_buf[0]);
+    return o;
+}
+const char *(*gal_name_hook)(const char *group, const char *key);
+const char *gal_name_word(const gal_words *w, const char *group, const char *key) {
+    const char *h = gal_name_hook && key && *key ? gal_name_hook(group, key) : NULL;
+    return h && *h ? h : gal_word(w, group, key);
+}
+int gal_skill_passive(const gal_words *w, const char *skill) { return !strcmp(gal_word_at(w, "skills", skill, 2), "P"); }
 
 /* the keys of W.<group> in the file's order (filter lists: races, trees). Returns the count; keys point into w. */
 int gal_word_keys(const gal_words *w, const char *group, const char **keys, int max) {
@@ -298,13 +339,15 @@ static void fill(const char *tpl, const kv *map, int nm, char *out, size_t n) {
     if (n) out[o < n ? o : n - 1] = 0;
 }
 static void tpl_or(const gal_words *w, const char *key, const char *def, char *o, size_t n) {
+    const char *h = gal_name_hook ? gal_name_hook(key, NULL) : NULL;              /* a template of the player's language */
+    if (h && *h) { snprintf(o, n, "%s", h); return; }
     const jv *v = word_v(w, key, NULL);
     if (v && v->t == JN_STR && v->n) str_of(v, o, n); else snprintf(o, n, "%s", def);
 }
 
 void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n) {
     char rn[128] = "", tpl[128], pair[128], tn[256] = "", noun[128] = "", unit[128];
-    if (it->name_race[0]) snprintf(rn, sizeof rn, "%s", gal_word(w, "races", it->name_race));
+    if (it->name_race[0]) snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", it->name_race));
     if (!it->name_noun[0]) {                                   /* a solo character: its race */
         tpl_or(w, "unit", "", unit, sizeof unit);
         snprintf(out, n, "%s", rn[0] ? rn : unit);
@@ -312,7 +355,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
     }
     char names[4][128]; int nn = 0;
     for (int i = 0; i < it->name_ntrees && i < 4; i++) {
-        const char *t = gal_word(w, "trees", it->name_trees[i]);
+        const char *t = gal_name_word(w, "trees", it->name_trees[i]);
         if (*t) snprintf(names[nn++], sizeof names[0], "%s", t);
     }
     if (nn == 2) {
@@ -320,7 +363,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
         kv m[2] = { { "a", names[0] }, { "b", names[1] } };
         fill(pair, m, 2, tn, sizeof tn);
     } else if (nn) snprintf(tn, sizeof tn, "%s", names[0]);
-    const char *nw = gal_word(w, "nouns", it->name_noun);
+    const char *nw = gal_name_word(w, "nouns", it->name_noun);
     snprintf(noun, sizeof noun, "%s", *nw ? nw : it->name_noun);
     tpl_or(w, "tpl", "{race} {trees} {noun}", tpl, sizeof tpl);
     kv m[3] = { { "race", rn }, { "trees", tn }, { "noun", noun } };
@@ -330,7 +373,7 @@ void gal_item_title(const gal_item *it, const gal_words *w, char *out, size_t n)
 void gal_member_name(const gal_item *it, int index, const gal_words *w, char *out, size_t n) {
     char rn[128] = "", tpl[128], num[16];
     const char *race = index >= 0 && index < it->nunits ? it->units[index].race : "";
-    if (race[0]) snprintf(rn, sizeof rn, "%s", gal_word(w, "races", race));
+    if (race[0]) snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", race));
     if (!rn[0]) tpl_or(w, "unit", "", rn, sizeof rn);
     if (!it->team) { snprintf(out, n, "%s", rn); return; }
     tpl_or(w, "member", "{race} {n}", tpl, sizeof tpl);
@@ -344,8 +387,8 @@ void gal_author_name(const gal_item *it, const gal_words *w, char *out, size_t n
     if (!it->au_pseudo) { if (n) out[0] = 0; return; }
     char tpl[128], rn[128], bg[128], num[16];
     tpl_or(w, "pseudo", "{race} {background} {n}", tpl, sizeof tpl);
-    snprintf(rn, sizeof rn, "%s", gal_word(w, "races", it->au_race));
-    snprintf(bg, sizeof bg, "%s", gal_word(w, "bg", it->au_bg));
+    snprintf(rn, sizeof rn, "%s", gal_name_word(w, "races", it->au_race));
+    snprintf(bg, sizeof bg, "%s", gal_name_word(w, "bg", it->au_bg));
     snprintf(num, sizeof num, "%d", it->au_n);
     kv m[3] = { { "race", rn }, { "background", bg }, { "n", num } };
     fill(tpl, m, 3, out, n);

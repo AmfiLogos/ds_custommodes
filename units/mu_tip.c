@@ -222,6 +222,18 @@ int mu_tip_game(DSLObj target, int kind, const char *key) {
     return 1;
 }
 void mu_tip_hide(void) { if (state > 0) hide(); }
+/* an icon about to be destroyed: its entry goes now (a window that rebuilds a page would hold the old and the new icons
+   until the next tick, and the table is full sooner) */
+void mu_tip_forget(DSLObj target) {
+    for (int i = ntips - 1; i >= 0; i--) {
+        if (cm_il_hget(tips[i].h) != (Obj)target) continue;
+        if (shown == i) hide();
+        cm_il_hfree(tips[i].h);
+        if (shown == ntips - 1) shown = i;
+        tips[i] = tips[--ntips];
+        return;
+    }
+}
 /* test: the hover icons drawn (in order) and the card shown */
 DSLObj mu_tip_test_target(int i) { return i >= 0 && i < ntips ? (DSLObj)cm_il_hget(tips[i].h) : NULL; }
 size_t mu_tip_test_state(char *out, size_t cap) {

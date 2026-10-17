@@ -108,6 +108,10 @@ int main(int argc, char **argv) {
     gal_member_name(b, 0, w, s, sizeof s); CHECK(!strcmp(s, "Elf"), "solo member: %s", s);
     gal_author_name(b, w, s, sizeof s); CHECK(!strcmp(s, "Lycan Mage 52"), "author b: %s", s);
     CHECK(!strcmp(gal_word(w, "bg", "AFFECTER_Mage"), "Mage"), "word of a pair");
+    /* the preview's Traits and Passive rows: soul stones, traits acquired in play, the active / passive split */
+    CHECK(a->units[0].nsouls == 1 && !strcmp(a->units[0].souls[0], "AFFECTER_GiantStoneGolemSoul") && a->units[0].nacq == 1 &&
+          a->units[0].nextra == 1 && a->units[0].extra[0].pct && !gal_skill_passive(w, "SKILL_ShieldUp") &&
+          gal_skill_passive(w, "SKILL_GuardiansTaunt") && !a->units[1].nsouls, "souls, acquired traits, extras, passive split");
 
     /* one item with its blob */
     free(t); snprintf(p, sizeof p, "%s/item_char.json", fx); t = slurp(p, &n);
