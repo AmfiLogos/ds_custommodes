@@ -1,6 +1,7 @@
 /* pvp_modcheck - Vanilla check (pure C). See pvp_modcheck.h. */
 #include "pvp_modcheck.h"
 #include "fe/fe_json.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -73,15 +74,18 @@ static void names(const pvp_modset *a, const pvp_modset *notin, char *out, size_
         if (at >= cap) { out[cap - 1] = 0; return; }
     }
 }
-int pvp_modset_check(int vanilla, const pvp_modset *host, const pvp_modset *peer, const char *who, int self, char *why, size_t n) {
+static void wset(pvp_why *w, int code, const char *who, const char *a, const char *b, int n) {
+    w->code = code; w->n = n;
+    snprintf(w->who, sizeof w->who, "%s", who ? who : ""); snprintf(w->a, sizeof w->a, "%s", a ? a : ""); snprintf(w->b, sizeof w->b, "%s", b ? b : "");
+    dsi_utf8_fix_end(w->who); dsi_utf8_fix_end(w->a); dsi_utf8_fix_end(w->b);
+}
+int pvp_modset_check_why(int vanilla, const pvp_modset *host, const pvp_modset *peer, const char *who, int self, pvp_why *w) {
     char l[600];
-    why[0] = 0;
+    memset(w, 0, sizeof *w);
     if (vanilla) {
         if (!peer->ngame) return 0;
         names(peer, NULL, l, sizeof l);
-        if (self) snprintf(why, n, "Vanilla check is on: turn off your gameplay mod%s %s, or set Vanilla check to Off.", peer->ngame > 1 ? "s" : "", l);
-        else snprintf(why, n, "Vanilla check is on: %s has the gameplay mod%s %s. %s must turn %s off in the Mods window.",
-                      who, peer->ngame > 1 ? "s" : "", l, who, peer->ngame > 1 ? "them" : "it");
+        wset(w, self ? PVP_WHY_VANILLA_SELF : PVP_WHY_VANILLA, who, l, NULL, peer->ngame);
         return 1;
     }
     if (self) return 0;                                          /* mods allowed: the host's set is the reference */
@@ -92,16 +96,77 @@ int pvp_modset_check(int vanilla, const pvp_modset *host, const pvp_modset *peer
             int j = has_key(peer, host->game[i]);
             if (j >= 0 && strcmp(peer->game[j], host->game[i])) {
                 char nm[160]; pvp_modset_name(host->game[i], nm, sizeof nm);
-                snprintf(why, n, "%s's copy of %s is not the same as the host's (other files). %s must start the game from the launcher again.", who, nm, who);
+                wset(w, PVP_WHY_FILES, who, nm, NULL, 1);
                 return 1;
             }
         }
         return 0;
     }
-    if (!peer->known && miss[0]) { snprintf(why, n, "%s did not start the game from the launcher, so %s cannot have the host's gameplay mods: %s.", who, who, miss); return 1; }
-    size_t at = (size_t)snprintf(why, n, "%s's gameplay mods are not the host's.", who);
-    if (miss[0] && at < n) at += (size_t)snprintf(why + at, n - at, " Missing: %s.", miss);
-    if (extra[0] && at < n) at += (size_t)snprintf(why + at, n - at, " Not allowed: %s.", extra);
-    if (at < n) snprintf(why + at, n - at, " %s must join from the launcher, which gets the host's mods.", who);
+    if (!peer->known && miss[0]) { wset(w, PVP_WHY_NO_LAUNCHER, who, miss, NULL, 0); return 1; }
+    wset(w, PVP_WHY_MISMATCH, who, miss, extra, 0);
     return 1;
+}
+void pvp_why_text(const pvp_why *w, char *why, size_t n) {
+    if (!n) return;
+    why[0] = 0;
+    const char *who = w->who[0] ? w->who : TR("A player");
+    switch (w->code) {
+    case PVP_WHY_VANILLA_SELF:
+        snprintf(why, n, TRN("Vanilla check is on: turn off your gameplay mod %s, or set Vanilla check to Off.",
+                             "Vanilla check is on: turn off your gameplay mods %s, or set Vanilla check to Off.", w->n), w->a);
+        break;
+    case PVP_WHY_VANILLA:
+        snprintf(why, n, TRN("Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.",
+                             "Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.", w->n), who, w->a, who);
+        break;
+    case PVP_WHY_FILES:
+        snprintf(why, n, TR("%s's copy of %s is not the same as the host's (other files). %s must start the game from the launcher again."), who, w->a, who);
+        break;
+    case PVP_WHY_NO_LAUNCHER:
+        snprintf(why, n, TR("%s did not start the game from the launcher, so %s cannot have the host's gameplay mods: %s."), who, who, w->a);
+        break;
+    case PVP_WHY_MISMATCH: {
+        size_t at = (size_t)snprintf(why, n, TR("%s's gameplay mods are not the host's."), who);
+        if (w->a[0] && at < n) { at += (size_t)snprintf(why + at, n - at, " "); if (at < n) at += (size_t)snprintf(why + at, n - at, TR("Missing: %s."), w->a); }
+        if (w->b[0] && at < n) { at += (size_t)snprintf(why + at, n - at, " "); if (at < n) at += (size_t)snprintf(why + at, n - at, TR("Not allowed: %s."), w->b); }
+        if (at < n) { at += (size_t)snprintf(why + at, n - at, " "); if (at < n) snprintf(why + at, n - at, TR("%s must join from the launcher, which gets the host's mods."), who); }
+        break; }
+    default: break;
+    }
+    dsi_utf8_fix_end(why);
+}
+int pvp_modset_check(int vanilla, const pvp_modset *host, const pvp_modset *peer, const char *who, int self, char *why, size_t n) {
+    pvp_why w; int r = pvp_modset_check_why(vanilla, host, peer, who, self, &w);
+    if (n) why[0] = 0;
+    if (r) pvp_why_text(&w, why, n);
+    return r;
+}
+size_t pvp_why_json(const pvp_why *w, const char *why_text, char *out, size_t cap) {
+    size_t a = 0; char t[64];
+    snprintf(t, sizeof t, "{\"code\":%d,\"n\":%d,\"who\":", w->code, w->n); a = put(out, cap, a, t, 0);
+    a = put(out, cap, a, w->who, 1);
+    a = put(out, cap, a, ",\"a\":", 0); a = put(out, cap, a, w->a, 1);
+    a = put(out, cap, a, ",\"b\":", 0); a = put(out, cap, a, w->b, 1);
+    a = put(out, cap, a, ",\"why\":", 0); a = put(out, cap, a, why_text ? why_text : "", 1);
+    a = put(out, cap, a, "}", 0);
+    return a + 1 < cap ? a : 0;
+}
+static void unq(const jv *v, char *out, size_t cap) {           /* a string as put() wrote it (only \" and \\ escaped) */
+    char r[700]; raw(v, r, sizeof r);
+    size_t o = 0; for (size_t i = 0; r[i] && o + 1 < cap; i++) { if (r[i] == '\\' && r[i + 1]) i++; out[o++] = r[i]; }
+    if (cap) out[o < cap ? o : cap - 1] = 0;
+    dsi_utf8_fix_end(out);
+}
+int pvp_why_parse(const char *json, size_t len, pvp_why *w, char *text, size_t n) {
+    memset(w, 0, sizeof *w); if (n) text[0] = 0;
+    char err[120]; jv *o = jparse(json, len, err, sizeof err);
+    if (!o || o->t != JN_OBJ) { jfree(o); return -1; }
+    jv *c = jget(o, "code");
+    unq(jget(o, "who"), w->who, sizeof w->who); unq(jget(o, "a"), w->a, sizeof w->a); unq(jget(o, "b"), w->b, sizeof w->b);
+    w->n = (int)jnumv(jget(o, "n"));
+    w->code = c ? (int)jnumv(c) : PVP_WHY_NONE;
+    if (w->code > PVP_WHY_NONE && w->code < PVP_WHY_N) pvp_why_text(w, text, n);
+    else unq(jget(o, "why"), text, n);                         /* an older host (no code), or a code this copy does not know */
+    jfree(o);
+    return 0;
 }

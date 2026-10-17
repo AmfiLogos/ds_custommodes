@@ -8,6 +8,7 @@
  * for "Your save". The template's own clan units stay until the start: the expedition / PvP start replaces the clan with
  * the brought units (fe_build_hub). */
 #include "rig.h"
+#include "fe/cm_mp_text.h"
 #include "fe_json.h"
 #include "fe_save.h"
 #include "sg_cache.h"
@@ -50,7 +51,7 @@ static int fe_world_template(char **text, size_t *len, char *err, size_t errn) {
     sgc c; sgc_init(&c, root);
     if (!sgc_template(&c, file, text, len, err, errn)) return 0;
     rig_log("fe hub: wiki cache: %s", err);
-    snprintf(err, errn, "The hub map could not be downloaded from dungeonsettlers.wiki (needed once). Check the internet connection and try again.");
+    snprintf(err, errn, "%s", TR("The hub map could not be downloaded from dungeonsettlers.wiki (needed once). Check the internet connection and try again."));
     return -1;
 }
 
@@ -88,7 +89,7 @@ static jv *fe_world_build(int kind, char *out_name, size_t on, char *err, size_t
     jv *w = jparse(text, len, err, errn); free(text);
     if (!w) return NULL;
     jv *h = jget(w, "CampaignSaveHeader");
-    if (!h || !jget(w, "ClanSaveData") || jnumv(jget(h, "CurrentMap")) != 0) { jfree(w); snprintf(err, errn, "The hub map file is not a base save."); return NULL; }
+    if (!h || !jget(w, "ClanSaveData") || jnumv(jget(h, "CurrentMap")) != 0) { jfree(w); snprintf(err, errn, "%s", TR("The hub map file is not a base save.")); return NULL; }
     int nres = 0, nreg = 0;
     if (kind == FE_WORLD_HUB) unlock_all(w, &nres, &nreg);
     char cg[37], ver[80], stem[64], ts[32];
@@ -133,7 +134,7 @@ int fe_world_write(int kind, char *name, size_t nn, char *path, size_t pn, char 
     snprintf(dir, sizeof dir, "%s/data/Saves", rig_dir); mkdir(dir, 0755);
     snprintf(p, sizeof p, "%s/%s.json", dir, name);
     int rc = jsave_new(w, p); jfree(w);
-    if (rc) { snprintf(err, errn, "The hub map could not be written into the Saves folder."); rig_log("fe hub: write %s failed (%s)", p, strerror(errno)); return -1; }
+    if (rc) { snprintf(err, errn, "%s", TR("The hub map could not be written into the Saves folder.")); rig_log("fe hub: write %s failed (%s)", p, strerror(errno)); return -1; }
     if (path) snprintf(path, pn, "%s", p);
     if (kind == FE_WORLD_PVP) snprintf(pvp_file, sizeof pvp_file, "%s", p);
     rig_log("fe hub: %s written", p);
@@ -148,7 +149,7 @@ void pvp_v1_forget_world(void) {
 }
 /* host, at the title: build the world, write it into data/Saves and load it. 0 = the load is queued. */
 int fe_world_start(int kind, char *err, size_t errn) {
-    if (scene() != 1 || !mf) { snprintf(err, errn, "Start this from the title screen."); return -1; }
+    if (scene() != 1 || !mf) { snprintf(err, errn, "%s", TR("Start this from the title screen.")); return -1; }
     char name[64];
     if (fe_world_write(kind, name, sizeof name, NULL, 0, err, errn)) return -1;
     queue_load(name);

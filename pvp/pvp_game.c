@@ -16,6 +16,7 @@
  *    bucket (Player, Player) and keeps the units of the other team (stock: a mover alerts the Unawared units whose
  *    aggro area it enters). */
 #include "rig.h"
+#include "fe/cm_mp_text.h"
 #include "mp.h"
 #include "pvp_core.h"
 #include <string.h>
@@ -261,7 +262,7 @@ static void (*o_portal)(Obj, Obj, void *);
 static void h_portal(Obj self, Obj msg, void *mi) {
     if (pvp_arena(&g)) {
         n_portal_refused++;
-        if (ui_notice && n_portal_refused % 64 == 1) ui_notice("No portals in a PvP match");
+        if (ui_notice && n_portal_refused % 64 == 1) ui_notice(TR("No portals in a PvP match"));
         return;
     }
     o_portal(self, msg, mi);
@@ -270,7 +271,7 @@ static void h_portal(Obj self, Obj msg, void *mi) {
 int pvp_portal_blocked(void) {
     if (!pvp_arena(&g)) return 0;
     n_portal_refused++;
-    if (ui_notice) ui_notice("No portals in a PvP match");
+    if (ui_notice) ui_notice(TR("No portals in a PvP match"));
     return 1;
 }
 /* (4) owner 2026-10-14: in a match a PvP unit goes DOWN and stays down; it never dies (no item drop, no corpse). The stock
@@ -934,22 +935,22 @@ static void messages_frame(void) {
         }
         if (g.fight_start && !g.placing && seen_fight != g.fight_start) {
             seen_fight = g.fight_start;
-            if (g.arena) center(g.mode == PVP_MODE_CTF ? "Round %d - Capture the flag!" : "Round %d - Fight!", g.round);
+            if (g.arena) center(g.mode == PVP_MODE_CTF ? TR("Round %d - Capture the flag!") : TR("Round %d - Fight!"), g.round);
         }
-        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center("Planning pause: give your orders, then press Ready"); }
+        if (g.plans != seen_plans && g.planning) { seen_plans = g.plans; center(TR("Planning pause: give your orders, then press Ready")); }
         if (ctf_seq != seen_ctf) {
             seen_ctf = ctf_seq; char nm[48]; pvp_ui_unit_name(ctf_last_unit, nm, sizeof nm);
             const char *fl = team_name(ctf_last_team);
-            if (ctf_last_kind == 0) center("%s took the %s flag", nm[0] ? nm : "A unit", fl);
-            else if (ctf_last_kind == 1) center("The %s flag was dropped", fl);
-            else if (ctf_last_kind == 2) center("The %s flag is back home", fl);
-            else center("%s scores!", team_name(ctf_last_team == PVP_TEAM_BLUE ? PVP_TEAM_RED : PVP_TEAM_BLUE));
+            if (ctf_last_kind == 0) center(TR("%s took the %s flag"), nm[0] ? nm : "A unit", fl);
+            else if (ctf_last_kind == 1) center(TR("The %s flag was dropped"), fl);
+            else if (ctf_last_kind == 2) center(TR("The %s flag is back home"), fl);
+            else center(TR("%s scores!"), team_name(ctf_last_team == PVP_TEAM_BLUE ? PVP_TEAM_RED : PVP_TEAM_BLUE));
         }
         if (g.resetting && g.resetting != seen_reset) {
             seen_reset = g.resetting;
-            if (g.resetting == PVP_RESET_MATCH) center("%s wins the match  %d - %d", g.match_winner ? team_name(g.match_winner) : "Nobody", g.score[1], g.score[2]);
-            else if (g.last_winner) center("%s wins the round  %d - %d", team_name(g.last_winner), g.score[1], g.score[2]);
-            else center("Round drawn  %d - %d", g.score[1], g.score[2]);
+            if (g.resetting == PVP_RESET_MATCH) center(TR("%s wins the match  %d - %d"), g.match_winner ? team_name(g.match_winner) : "Nobody", g.score[1], g.score[2]);
+            else if (g.last_winner) center(TR("%s wins the round  %d - %d"), team_name(g.last_winner), g.score[1], g.score[2]);
+            else center(TR("Round drawn  %d - %d"), g.score[1], g.score[2]);
         }
     }
 }
