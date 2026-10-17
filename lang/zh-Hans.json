@@ -152,6 +152,7 @@
  "Can learn": "可学习",
  "Cancel": "取消",
  "Capture the Flag": "夺旗",
+ "Choose a build, open its Details, then press \"Use this unit\".": "选择一个构筑，打开详情，然后点击“使用此单位”。",
  "Choose management difficulty separately": "单独选择管理难度",
  "Choose the teams and the rules, then press Start Match.": "选择队伍和规则，然后按“开始对战”。",
  "Choosing units...": "正在选择单位……",
@@ -558,6 +559,7 @@
  "Up to %d unit for the match. Copies only: your saves and My Units do not change.||Up to %d units for the match. Copies only: your saves and My Units do not change.": [
   "本次对战最多 %d 个单位。仅限副本：你的存档和我的单位都不会改变。"
  ],
+ "Use this unit": "使用此单位",
  "Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring.": "使用 Dungeon Settlers 维基构筑器中的队伍链接（分享 > 复制链接）：其单位将根据游戏自身数据在此构建，并发送给房主。新的带入会替换你上一次的带入。",
  "Vanilla check": "原版检查",
  "Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.": [

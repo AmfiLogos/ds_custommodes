@@ -182,6 +182,7 @@
  "Can learn": "Можно изучить",
  "Cancel": "Отменить",
  "Capture the Flag": "Захват флага",
+ "Choose a build, open its Details, then press \"Use this unit\".": "Выберите билд, откройте «Подробнее», затем нажмите «Взять этот юнит».",
  "Choose management difficulty separately": "Выбрать сложность управления отдельно",
  "Choose the teams and the rules, then press Start Match.": "Выберите команды и правила, затем нажмите «Начать матч».",
  "Choosing units...": "Выбор юнитов...",
@@ -606,6 +607,7 @@
   "До %d юнитов на матч. Только копии: ваши сохранения и «Мои юниты» не меняются.",
   "До %d юнитов на матч. Только копии: ваши сохранения и «Мои юниты» не меняются."
  ],
+ "Use this unit": "Взять этот юнит",
  "Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring.": "Использует ссылку на команду из конструктора вики Dungeon Settlers (Поделиться > копировать ссылку): её юниты собираются здесь из собственных данных игры и отправляются хосту. Новое «Взять» заменяет предыдущее.",
  "Vanilla check": "Проверка на ваниллу",
  "Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.": [

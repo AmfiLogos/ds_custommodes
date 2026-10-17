@@ -167,6 +167,7 @@
  "Can learn": "Aprendibles",
  "Cancel": "Cancelar",
  "Capture the Flag": "Captura la bandera",
+ "Choose a build, open its Details, then press \"Use this unit\".": "Elige una build, abre sus Detalles y pulsa «Usar esta unidad».",
  "Choose management difficulty separately": "Elige la dificultad de gestión por separado",
  "Choose the teams and the rules, then press Start Match.": "Elige los equipos y las reglas, luego pulsa Empezar partida.",
  "Choosing units...": "Eligiendo unidades...",
@@ -582,6 +583,7 @@
   "Hasta %d unidad para la partida. Solo copias: tus partidas y Mis unidades no cambian.",
   "Hasta %d unidades para la partida. Solo copias: tus partidas y Mis unidades no cambian."
  ],
+ "Use this unit": "Usar esta unidad",
  "Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring.": "Usa un enlace de equipo del creador de la wiki de Dungeon Settlers (Compartir > copiar enlace): sus unidades se crean aquí con los datos del propio juego y se envían al anfitrión. Uno nuevo reemplaza tu último Traer.",
  "Vanilla check": "Comprobación vanilla",
  "Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.": [

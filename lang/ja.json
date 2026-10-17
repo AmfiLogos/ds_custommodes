@@ -152,6 +152,7 @@
  "Can learn": "習得可能",
  "Cancel": "キャンセル",
  "Capture the Flag": "旗取り",
+ "Choose a build, open its Details, then press \"Use this unit\".": "ビルドを選び、詳細を開いて「このユニットを使う」を押してください。",
  "Choose management difficulty separately": "管理難易度を別に選ぶ",
  "Choose the teams and the rules, then press Start Match.": "チームとルールを選んで、マッチ開始を押してください。",
  "Choosing units...": "ユニットを選択中...",
@@ -558,6 +559,7 @@
  "Up to %d unit for the match. Copies only: your saves and My Units do not change.||Up to %d units for the match. Copies only: your saves and My Units do not change.": [
   "マッチには最大%d体まで。コピーのみ：セーブとマイユニットは変わりません。"
  ],
+ "Use this unit": "このユニットを使う",
  "Uses a team link from the Dungeon Settlers wiki builder (Share > copy link): its units are built here from the game's own data and sent to the host. A new one replaces your last Bring.": "Dungeon SettlersのWikiビルダーのチームリンクを使います（共有 > リンクをコピー）。ユニットはゲーム本来のデータからここで作られ、ホストに送られます。新しく送ると、前回の「連れていく」と置き換わります。",
  "Vanilla check": "バニラチェック",
  "Vanilla check is on: %s has the gameplay mod %s. %s must turn it off in the Mods window.||Vanilla check is on: %s has the gameplay mods %s. %s must turn them off in the Mods window.": [
