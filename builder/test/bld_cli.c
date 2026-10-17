@@ -28,7 +28,7 @@ static void raw_str(const jv *v, char *out, size_t n) { if (v && v->t == JN_STR)
 static void pick_action(const jv *st, char *out, size_t n) {
     char k[160];
     for (int tries = 0; tries < 20; tries++) {
-        switch (rnd(18)) {
+        switch (rnd(24)) {
         case 0: { jv *a = jget(st, "races"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"race\",\"k\":\"%s\"}", k); return; }
         case 1: { jv *a = jget(st, "bgs"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"bg\",\"k\":\"%s\"}", k); return; }
         case 2: case 3: { jv *a = jget(st, "inds"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"ind\",\"k\":\"%s\"}", k); return; }
@@ -58,6 +58,28 @@ static void pick_action(const jv *st, char *out, size_t n) {
             if (!r || !r->cnt || !tg || !tg->cnt) break;
             char slot[40]; raw_str(jget(s, "slot"), slot, sizeof slot);
             snprintf(out, n, "{\"t\":\"roll\",\"slot\":\"%s\",\"r\":%d,\"i\":%d}", slot, (int)rnd(r->cnt), rnd(6) ? (int)rnd(tg->cnt) : -1); return;
+        }
+        case 18: {   /* level-ups: offering, stat gain per level, a talent, all talents, random talents, an elixir */
+            unsigned w = rnd(6);
+            if (w == 0) { jv *a = jget(jget(st, "lv"), "offers"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"offer\",\"v\":\"%s\"}", k); return; }
+            if (w == 1) { static const char *g[] = { "min", "avg", "max" }; snprintf(out, n, "{\"t\":\"gain\",\"v\":\"%s\"}", g[rnd(3)]); return; }
+            jv *ti = jget(st, "tiers"); if (!ti || !ti->cnt) break;
+            char t[40]; raw_str(jget(ti->v[rnd(ti->cnt)], "k"), t, sizeof t);
+            if (w == 2) { jv *tl = jget(st, "tal"); if (!tl || !tl->cnt) break; raw_str(jget(tl->v[rnd(tl->cnt)], "m"), k, sizeof k); snprintf(out, n, "{\"t\":\"tal\",\"m\":\"%s\",\"v\":\"%s\"}", k, t); return; }
+            if (w == 3) { snprintf(out, n, "{\"t\":\"talAll\",\"v\":\"%s\"}", t); return; }
+            if (w == 4) { snprintf(out, n, "{\"t\":\"talRandom\"}"); return; }
+            jv *e = jget(st, "elix"); if (!e || !e->cnt) break; raw_str(jget(e->v[rnd(e->cnt)], "m"), k, sizeof k);
+            snprintf(out, n, "{\"t\":\"elix\",\"m\":\"%s\",\"v\":%d}", k, (int)rnd(6)); return;
+        }
+        case 19: { jv *a = jget(st, "souls"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"soul\",\"k\":\"%s\"}", k); return; }
+        case 20: { jv *a = jget(st, "acq"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"acq\",\"k\":\"%s\"}", k); return; }
+        case 21: { jv *a = jget(st, "portraits"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"portrait\",\"k\":\"%s\"}", k); return; }
+        case 22: case 23: {   /* gear quick sets: a weapon family, the shield opt-in, a set */
+            jv *s = jget(st, "sets"); if (!s) break;
+            unsigned w = rnd(3);
+            if (w == 0) { jv *a = jget(s, "weapons"); if (!a || !a->cnt) break; raw_str(jget(a->v[rnd(a->cnt)], "k"), k, sizeof k); snprintf(out, n, "{\"t\":\"weapon\",\"v\":\"%s\"}", k); return; }
+            if (w == 1) { snprintf(out, n, "{\"t\":\"shield\",\"v\":%d}", (int)rnd(2)); return; }
+            jv *a = jget(s, "list"); if (!a || !a->cnt) break; snprintf(out, n, "{\"t\":\"qset\",\"i\":%d}", (int)rnd(a->cnt)); return;
         }
         }
     }
