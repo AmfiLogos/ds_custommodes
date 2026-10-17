@@ -76,7 +76,7 @@ static Obj view(void) {
     return cm_alive(v) ? v : NULL;
 }
 /* the card above the Custom Modes windows (as the loader kit's own tooltip: loader dsl_ui.c raise_view, order 32050) */
-static void raise(Obj v) {
+static void raise_view(Obj v) {
     if (!k_canvas || !m_inparent.fn || !m_override.fn || !m_order.fn) return;
     Obj cv = CM_CALL(m_inparent, Obj, Obj, Obj, const void *)(cm_tr(v), cm_il_type_obj(k_canvas), m_inparent.mi);
     if (!cm_alive(cv)) return;
@@ -101,7 +101,7 @@ static void show(int i, Obj target) {
     Obj v = view(); float r[4];
     if (!v || !rect_screen(target, r)) return;
     if (shown) hide();
-    raise(v);
+    raise_view(v);
     struct { uint8_t b[0xC0]; } ctx; memset(&ctx, 0, sizeof ctx); ctx.b[f_hidehold] = 1;   /* no "hold for more" part */
     V2 pos = { r[2] + 8, r[3] };                                       /* the card's top-left: right of the icon, level with its top */
     CM_CALL(m_show, void, Obj, Guid, int, Obj, V2, int, __typeof__(ctx), const void *)(v, TIP_ID, T[i].type, cm_il_str(T[i].key), pos, 0, ctx, m_show.mi);
