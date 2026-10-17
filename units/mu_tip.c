@@ -82,7 +82,7 @@ static Obj view(void) {
     return v;
 }
 /* the tooltip view above the My Units window (kit layer 30900, notices 32040+), as the kit does for its own tips */
-static void raise(Obj v) {
+static void raise_view(Obj v) {
     if (!k_canvas || !m_override.fn || !m_order.fn) return;
     Obj cv = CM_CALL(m_inparent, Obj, Obj, Obj, const void *)(v, cm_il_type_obj(k_canvas), m_inparent.mi);
     if (!cm_alive(cv)) return;
@@ -155,7 +155,7 @@ static void show(int i) {
     Obj v = view(), rt = cm_il_hget(tips[i].h);
     if (!v || !rt) return;
     if (shown >= 0) hide();
-    raise(v);
+    raise_view(v);
     float r[4]; if (screen_rect(rt, r)) return;
     /* the card's top-left: right of the icon, level with its top */
     if (show_at(i, (V2t){ r[2] + 6, r[3] })) { tips[i].type = 0; return; }   /* the game cannot show this key: plain icon from now */
