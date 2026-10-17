@@ -9,6 +9,7 @@
 // same code builds for Windows.
 #include "cm_home.h"
 #include "cm_il.h"
+#include "cm_i18n.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -21,7 +22,7 @@ static const DSLHost *H; static DSLPlugin *ME; static const DSLUi *U;
 const DSLHost *cm_host(void) { return H; }
 DSLPlugin *cm_self(void) { return ME; }
 
-/* ------------------------------------------------------------------ entries */
+/* ------------------------------------------------------------------ entries (label / tip: English, the key of TR) */
 #define EMAX 12
 typedef struct { char id[48], label[96], tip[400]; int order, seq; void (*open)(void); } Entry;
 static Entry ents[EMAX]; static int nents, seq_n;
@@ -87,11 +88,12 @@ static int build_page(Obj view) {
     memcpy(ord, ents, sizeof ents); qsort(ord, (size_t)nents, sizeof *ord, ent_cmp);
     nbt = 0;
     for (int i = 0; i < nents; i++) {
-        bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 44, ord[i].label, on_entry, (void *)(intptr_t)i);
-        if (bt[nbt] && ord[i].tip[0]) U->tooltip(bt[nbt], ord[i].label, ord[i].tip);
+        bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 44, TR(ord[i].label), on_entry, (void *)(intptr_t)i);
+        if (bt[nbt] && ord[i].tip[0]) U->tooltip(bt[nbt], TR(ord[i].label), TR(ord[i].tip));
         nbt++;
     }
-    bt[nbt++] = U->button((DSLObj)pt, 0, 0, 262, 44, "<color=#A69085>Back</color>", on_back, NULL);
+    char back[300]; snprintf(back, sizeof back, "<color=#A69085>%s</color>", cm_gw("TEXTKEY_Common_Back", TR_NOOP("Back")));
+    bt[nbt++] = U->button((DSLObj)pt, 0, 0, 262, 44, back, on_back, NULL);
     hset(&h_view, view); hset(&h_col, col); hset(&h_page, pt);
     H->log(ME, "home: page built (%d entries + Back)", nents);
     return 0;
@@ -124,9 +126,13 @@ int cm_home_test_state(char *out, size_t cap) {
     }
     return shown;
 }
+/* by the entry's English label (the TR key, not the text on screen), its id, or "Back": the same in every language */
 DSLObj cm_home_test_button(const char *label) {
     if (!label) return NULL;
-    for (int i = 0; i < nbt; i++) if (!strcmp(label, i < nbt - 1 ? ord[i].label : "Back")) return bt[i];
+    for (int i = 0; i < nbt; i++) {
+        if (i == nbt - 1) { if (!strcmp(label, "Back")) return bt[i]; continue; }
+        if (!strcmp(label, ord[i].label) || !strcmp(label, ord[i].id)) return bt[i];
+    }
     return NULL;
 }
 
@@ -158,11 +164,24 @@ static size_t home_state(char *out, size_t cap) {
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"buttons\":\"%s\"}", on, l);
 }
 
+/* the language changed (title screen, Options): the page is built again with the new texts (open again if it was open);
+   the title button's label is the loader's copy, registered again when the loader takes that as an update */
+static void lang_changed(void) {
+    if (alive(hget(h_page))) {
+        int was_on = page_on;
+        if (was_on) cm_home_close();
+        cm_destroy(go_of(hget(h_page))); hset(&h_page, NULL); hset(&h_view, NULL); nbt = 0;
+        if (was_on) cm_home_open();
+    }
+    if (cm_i18n_loader_relabels()) dsl_title_add_button(H, ME, TR("Custom Modes"), 110, NULL, on_title, NULL);
+}
+
 int cm_home_init(const DSLHost *host, DSLPlugin *self) {
     H = host; ME = self; U = dsl_ui(host);
     cm_test_register("home", cm_home_test_button, home_state);
     if (!U) { host->log(self, "home: no widget kit (loader older than API 3): the Custom Modes button is off"); return 0; }
-    int r = dsl_title_add_button(host, self, "Custom Modes", 110, NULL, on_title, NULL);
+    int r = dsl_title_add_button(host, self, TR("Custom Modes"), 110, NULL, on_title, NULL);
     host->log(self, "home: title button \"Custom Modes\" %s", r ? "refused" : "added");
+    cm_i18n_on_change(lang_changed);
     return 0;
 }

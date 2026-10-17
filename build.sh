@@ -40,5 +40,6 @@ if [[ $WHAT == (win|all) ]]; then
   for f in custom-modes.dll custom-modes-mp.dll; do cp $T/win/build/mods/custom-modes/$f $O/$f.tmp; mv -f $O/$f.tmp $O/$f
     ~/tools/llvm-mingw/bin/llvm-strip --strip-debug $O/$f; done
   cp mod.json $O/mod.json
+  if [[ -d lang ]]; then mkdir -p $O/lang; for f in lang/*.json(N); do [[ ${f:t} == en.json ]] || cp $f $O/lang/; done; fi
 fi
 for f in $H/build/(mac|win)/custom-modes/*.(dylib|dll)(N); do shasum -a 256 $f | sed "s|  $H/| |"; done

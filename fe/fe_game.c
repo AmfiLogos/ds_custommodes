@@ -10,6 +10,7 @@
  * Files: <rig_dir>/data/fe/{exports,runs/<run>,results,claims.json,protected.json}; backups: env DSRIG_FE_BACKUP or
  * <rig_dir>/data/fe/backups/<time>/. */
 #include "rig.h"
+#include "fe/cm_mp_text.h"
 #include "mp.h"
 #include "mp_game.h"
 #include "net/dsnet.h"
@@ -175,14 +176,14 @@ static jv *picks_entries(const mu_pick *picks, int n, const char *me, const char
         char e1[300]; jv *save = jload(picks[i].save_file, e1, sizeof e1);
         jv *e = save ? fe_export_entry(save, picks[i].unit_guid, me, e1, sizeof e1) : NULL;
         jfree(save);
-        if (!e) { jfree(entries); snprintf(err, errn, "Could not bring %s: %s", picks[i].name, e1); return NULL; }
+        if (!e) { jfree(entries); char em[300]; snprintf(err, errn, TR("Could not bring %s: %s"), picks[i].name, cmt_msg(e1, em, sizeof em)); dsi_utf8_fix_end(err); return NULL; }
         jpush(entries, e); if (files) files[nf] = picks[i].save_file; nf++;
     }
     if (nl) {
         char e2[300] = "", notes[1000] = ""; jv *lib = mu_load(e2, sizeof e2);
         jv *le = lib ? mu_entries(lib, ids, nl, me, notes, sizeof notes, e2, sizeof e2) : NULL;
         jfree(lib);
-        if (!le) { jfree(entries); snprintf(err, errn, "Could not bring the My Units units: %s", e2); return NULL; }
+        if (!le) { jfree(entries); snprintf(err, errn, TR("Could not bring the My Units units: %s"), e2); return NULL; }
         if (notes[0]) say("My Units: %s", notes);
         for (size_t i = 0; i < le->cnt && nf < 64; i++) { jpush(entries, jcopy(le->v[i])); if (files) files[nf] = NULL; nf++; }
         jfree(le);
@@ -192,13 +193,13 @@ static jv *picks_entries(const mu_pick *picks, int n, const char *me, const char
 /* Foreign Expedition lobby */
 int fe_bring_picks(const mu_pick *picks, int n, char *err, size_t errn) {
     char me[33]; dsnet_client *c = cli();
-    if (!c || my_uid_hex(me)) { snprintf(err, errn, "Not in a multiplayer session."); return -1; }
+    if (!c || my_uid_hex(me)) { snprintf(err, errn, "%s", TR("Not in a multiplayer session.")); return -1; }
     const char *files[64] = { 0 };
     jv *entries = picks_entries(picks, n, me, files, err, errn);
     if (!entries) return -1;
     char *r = send_entries(entries, files, me, "Bring Units");
     int ok = r && strstr(r, "\"ok\":true");
-    if (!ok) snprintf(err, errn, "The units could not be sent to the host.");
+    if (!ok) snprintf(err, errn, "%s", TR("The units could not be sent to the host."));
     free(r); jfree(entries);
     return ok ? 0 : -1;
 }
@@ -206,7 +207,7 @@ int fe_bring_picks(const mu_pick *picks, int n, char *err, size_t errn) {
 int pvp_units_send_entries(jv *entries, char *err, size_t errn);
 int pvp_bring_picks(const mu_pick *picks, int n, char *err, size_t errn) {
     char me[33]; dsnet_client *c = cli();
-    if (!c || my_uid_hex(me)) { snprintf(err, errn, "Not in a multiplayer session."); return -1; }
+    if (!c || my_uid_hex(me)) { snprintf(err, errn, "%s", TR("Not in a multiplayer session.")); return -1; }
     jv *entries = picks_entries(picks, n, me, NULL, err, errn);
     if (!entries) return -1;
     return pvp_units_send_entries(entries, err, errn);
@@ -263,9 +264,9 @@ int fe_menu_start(int death, int xp, int loot, int recruit, char *err, size_t er
     char *r = cmd_start(line);
     int ok = r && strstr(r, "\"ok\":true") != NULL;
     if (!ok) {
-        if (r && strstr(r, "nobody brought")) snprintf(err, errn, "Nobody brought units yet: Bring units first.");
-        else if (r && strstr(r, "host only")) snprintf(err, errn, "Only the host starts a Foreign Expedition.");
-        else snprintf(err, errn, "The Foreign Expedition could not start.");
+        if (r && strstr(r, "nobody brought")) snprintf(err, errn, "%s", TR("Nobody brought units yet: Bring units first."));
+        else if (r && strstr(r, "host only")) snprintf(err, errn, "%s", TR("Only the host starts a Foreign Expedition."));
+        else snprintf(err, errn, "%s", TR("The Foreign Expedition could not start."));
     }
     free(r);
     return ok ? 0 : -1;
@@ -622,7 +623,7 @@ static const char *game_saves_dir(char *b, size_t n) {
     snprintf(b, n, "%s/Library/Application Support/CanOpener/Dungeon Settlers/Saves", home); return b;
 }
 int fe_list_saves(fe_save_info *out, int max) {
-    char dirs[2][1100]; const char *lab[2] = { "Multiplayer folder", "Game folder" }; int nd = 0, n = 0;
+    char dirs[2][1100]; const char *lab[2] = { TR_NOOP("Multiplayer folder"), TR_NOOP("Game folder") };   /* English kept (TR when shown) */ int nd = 0, n = 0;
     snprintf(dirs[nd++], sizeof dirs[0], "%s/data/Saves", rig_dir);
     if (game_saves_dir(dirs[1], sizeof dirs[1])) nd = 2;
     double mt[64];
@@ -669,7 +670,7 @@ int fe_bring_units(const char *path, const char (*guids)[40], int n, char *err, 
     for (int i = 0; i < n && o < sizeof line - 50; i++) o += (size_t)snprintf(line + o, sizeof line - o, "%s%s", i ? "," : "", guids[i]);
     snprintf(line + o, sizeof line - o, "\"}");
     char *r = cmd_bring(line); int ok = r && strstr(r, "\"ok\":true");
-    if (!ok) snprintf(err, errn, "Could not bring these units%s", r && strstr(r, "error") ? ": the save could not be read." : ".");
+    if (!ok) snprintf(err, errn, "%s", r && strstr(r, "error") ? TR("Could not bring these units: the save could not be read.") : TR("Could not bring these units."));
     free(r); return ok ? 0 : -1;
 }
 
@@ -729,7 +730,7 @@ int fe_result_targets(const char *run, fe_save_info *out, int max) {
         jv *s = read_json(all[i].path); int same = s && jstreq(jpath(s, "CampaignSaveHeader.CampaignGuid"), cg); jfree(s);
         if (same) out[n++] = all[i];
     }
-    if (!n && src[0] && n < max && !read_header(src, &out[n])) { snprintf(out[n].folder, sizeof out[n].folder, "where they came from"); n++; }
+    if (!n && src[0] && n < max && !read_header(src, &out[n])) { snprintf(out[n].folder, sizeof out[n].folder, "%s", TR_NOOP("where they came from")); n++; }
     return n;
 }
 int fe_apply_run(const char *run, const char *target, int choice, char *out_file, size_t on, char *err, size_t errn) {

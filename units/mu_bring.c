@@ -9,6 +9,7 @@
 #include "mu_save.h"
 #include "myunits.h"
 #include "cm_il.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,7 +79,7 @@ static void pretty_save_name(const char *path, char *out, size_t cap) {
         out[o++] = c == '_' ? ' ' : c;
     }
     out[o] = 0;
-    if (!o) snprintf(out, cap, "Save");
+    if (!o) snprintf(out, cap, "%s", TR("Save"));
 }
 static void load_saves(void) {
     B.nsaves = 0; B.su_for = -1;
@@ -110,7 +111,7 @@ static void load_save_units(void) {
     B.nsu = n < 0 ? 0 : n;
     for (int i = 0; i < B.nsu; i++) {                                  /* the game's default names are text keys */
         if (!strncmp(B.su[i].name, "TEXTKEY_", 8)) { char t[96]; if (!cm_gettext(B.su[i].name, t, sizeof t)) snprintf(B.su[i].name, sizeof B.su[i].name, "%s", t); }
-        if (!B.su[i].name[0]) snprintf(B.su[i].name, sizeof B.su[i].name, "Unit");
+        if (!B.su[i].name[0]) snprintf(B.su[i].name, sizeof B.su[i].name, "%s", TR("Unit"));
     }
 }
 
@@ -148,7 +149,7 @@ static int pick_find_lib(const char *id) {
 }
 static void pick_remove(int i) { if (i < 0 || i >= B.npicks) return; memmove(&B.picks[i], &B.picks[i + 1], (size_t)(B.npicks - i - 1) * sizeof *B.picks); B.npicks--; }
 static void refuse_msg(void) {
-    char m[200]; snprintf(m, sizeof m, "You can bring %d unit%s at most. Untick one first.", B.max, B.max == 1 ? "" : "s");
+    char m[200]; snprintf(m, sizeof m, TRN("You can bring %d unit at most. Untick one first.", "You can bring %d units at most. Untick one first.", B.max), B.max);
     set_msg(m, MU_C_BAD);
 }
 static int pick_add_lib(const char *id) {
@@ -231,8 +232,8 @@ static void on_left(void *ud, DSLObj w) {
             if (pick_add_lib(ids[k])) left++; else added++;
         }
         char m[300];
-        if (left) snprintf(m, sizeof m, "Ticked %d of the %d units of %s: you can bring %d at most.", added + had, n, nm, B.max);
-        else snprintf(m, sizeof m, "Ticked the %d units of %s.", n, nm);
+        if (left) snprintf(m, sizeof m, TR("Ticked %d of the %d units of %s: you can bring %d at most."), added + had, n, nm, B.max);
+        else snprintf(m, sizeof m, TRN("Ticked the %d unit of %s.", "Ticked the %d units of %s.", n), n, nm);
         set_msg(m, left ? MU_C_BAD : MU_C_GOLD);
     }
     refresh();
@@ -269,8 +270,8 @@ static void builder_saved(const char *unit_id, void *ud) {
     list_ids();
     if (unit_id && *unit_id && B.lib && mu_find(B.lib, unit_id)) {
         for (int i = 0; i < B.nids; i++) if (!strcmp(B.ids[i], unit_id)) { B.page = B.per_page > 0 ? i / B.per_page : 0; break; }
-        if (pick_add_lib(unit_id)) { char m[200]; snprintf(m, sizeof m, "Saved to My Units. Not ticked: you can bring %d at most.", B.max); set_msg(m, MU_C_BAD); }
-        else set_msg("Saved to My Units and ticked.", MU_C_GOLD);
+        if (pick_add_lib(unit_id)) { char m[200]; snprintf(m, sizeof m, TR("Saved to My Units. Not ticked: you can bring %d at most."), B.max); set_msg(m, MU_C_BAD); }
+        else set_msg(TR("Saved to My Units and ticked."), MU_C_GOLD);
     }
     refresh();
 }
@@ -278,9 +279,9 @@ static void on_new(void *ud, DSLObj w) { (void)ud; (void)w; if (cm_builder_open)
 
 /* ------------------------------------------------------------------ drawing */
 static void tab_labels(void) {
-    char t[80];
-    if (B.tab_save) { snprintf(t, sizeof t, "%sFrom a save%s", B.tab == MU_SRC_SAVE ? "<color=#D9BE8F>" : "", B.tab == MU_SRC_SAVE ? "</color>" : ""); U->set_text(B.tab_save, t); }
-    if (B.tab_lib) { snprintf(t, sizeof t, "%sMy Units%s", B.tab == MU_SRC_LIBRARY ? "<color=#D9BE8F>" : "", B.tab == MU_SRC_LIBRARY ? "</color>" : ""); U->set_text(B.tab_lib, t); }
+    char t[200];
+    if (B.tab_save) { snprintf(t, sizeof t, "%s%s%s", B.tab == MU_SRC_SAVE ? "<color=#D9BE8F>" : "", TR("From a save"), B.tab == MU_SRC_SAVE ? "</color>" : ""); U->set_text(B.tab_save, t); }
+    if (B.tab_lib) { snprintf(t, sizeof t, "%s%s%s", B.tab == MU_SRC_LIBRARY ? "<color=#D9BE8F>" : "", TR("My Units"), B.tab == MU_SRC_LIBRARY ? "</color>" : ""); U->set_text(B.tab_lib, t); }
 }
 static DSLObj left_row(float y, const char *label, int sel, int ud, const char *tip_t, const char *tip_b) {
     char t[300]; snprintf(t, sizeof t, "%s%s%s", sel ? "<color=#D9BE8F>" : "", label, sel ? "</color>" : "");
@@ -297,19 +298,19 @@ static void draw_left(void) {
     float y = 0;
     if (B.tab == MU_SRC_SAVE) {
         for (int i = 0; i < B.nsaves; i++, y += 44) {
-            char body[64]; snprintf(body, sizeof body, "%s%s", B.saves[i].when[0] ? "Saved " : "", B.saves[i].when);
+            char body[160] = ""; if (B.saves[i].when[0]) snprintf(body, sizeof body, TR("Saved %s"), B.saves[i].when);
             left_row(y, B.saves[i].name, i == B.sel_save, i, B.saves[i].name, body[0] ? body : " ");
         }
-        if (!B.nsaves) { mu_text(B.left, 4, 0, 184, 80, "No saves found.", 15, DSL_TXT_WRAP, MU_C_SUB); y = 80; }
+        if (!B.nsaves) { mu_text(B.left, 4, 0, 184, 80, TR("No saves found."), 15, DSL_TXT_WRAP, MU_C_SUB); y = 80; }
     } else {
         char t[200];
-        snprintf(t, sizeof t, "All units (%zu)", B.lib ? mu_count(B.lib) : (size_t)0);
+        snprintf(t, sizeof t, TR("All units (%zu)"), B.lib ? mu_count(B.lib) : (size_t)0);
         left_row(y, t, B.sel_team < 0, -1, NULL, NULL); y += 44;
         size_t nt = B.lib ? mu_team_count(B.lib) : 0;
         for (size_t i = 0; i < nt && i < TMAX; i++, y += 44) {
             char nm[200], ids[MU_TEAM_MAX][17]; int n = mu_team_at(B.lib, i, nm, sizeof nm, ids);
             snprintf(t, sizeof t, "%s (%d)", nm, n);
-            left_row(y, t, B.sel_team == (int)i, (int)i, nm, "Pick this team: its units are ticked.");
+            left_row(y, t, B.sel_team == (int)i, (int)i, nm, TR("Pick this team: its units are ticked."));
         }
     }
     U->scroll_height(B.left, y);
@@ -325,14 +326,14 @@ static void draw_cards(void) {
     if (B.tab == MU_SRC_SAVE) {
         load_save_units();
         n = B.nsu;
-        if (!B.nsaves) empty = "No saves to bring units from.";
+        if (!B.nsaves) empty = TR("No saves to bring units from.");
         else if (B.su_err[0]) { empty = B.su_err; ecol = MU_C_BAD; }
-        else if (!n) empty = "This save has no units.";
+        else if (!n) empty = TR("This save has no units.");
     } else {
         list_ids();
         n = B.nids;
         if (!B.lib) { empty = B.err; ecol = MU_C_BAD; }
-        else if (!n) empty = B.sel_team < 0 ? "No units in My Units yet. Add some in My Units (home page), or press \"New unit\"." : "This team has no units.";
+        else if (!n) empty = B.sel_team < 0 ? TR("No units in My Units yet. Add some in My Units (home page), or press \"New unit\".") : TR("This team has no units.");
     }
     B.per_page = (int)((B.rh - 8) / (MU_CARD_H + 8)); if (B.per_page < 1) B.per_page = 1; if (B.per_page > 16) B.per_page = 16;
     B.pages = (n + B.per_page - 1) / B.per_page; if (B.pages < 1) B.pages = 1;
@@ -357,14 +358,14 @@ static void draw_cards(void) {
         }
         if (!card) {
             card = U->panel(B.right, 52, y, B.rw - 60, MU_CARD_H, MU_C_ROW);
-            if (card) mu_text(card, 12, 10, B.rw - 84, MU_CARD_H - 20, e[0] ? e : "This unit cannot be shown.", 14, DSL_TXT_WRAP, MU_C_BAD);
+            if (card) mu_text(card, 12, 10, B.rw - 84, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
         }
         B.card[B.ncard++] = card;
     }
 }
 static void bar_update(void) {
     if (!B.open) return;
-    char t[80]; snprintf(t, sizeof t, "Picked %d / %d", B.npicks, B.max); U->set_text(B.t_picked, t);
+    char t[120]; snprintf(t, sizeof t, TR("Picked %d / %d"), B.npicks, B.max); U->set_text(B.t_picked, t);
     snprintf(t, sizeof t, "%d / %d", B.page + 1, B.pages); U->set_text(B.t_page, t);
     U->set_enabled(B.b_prev, B.page > 0); U->set_enabled(B.b_next, B.page + 1 < B.pages);
     U->set_enabled(B.b_bring, B.npicks > 0);
@@ -383,8 +384,8 @@ int mu_bring_open(const mu_bring_req *req) {
     if (!U || B.open || !req || req->max_units < 1 || !(req->sources & (MU_SRC_SAVE | MU_SRC_LIBRARY))) return -1;
     if (D.pending) { mu_tick_remove(tick_fn); fire_done(); }         /* the last window's answer goes first */
     B.req = *req;
-    snprintf(B.title, sizeof B.title, "%s", req->title && *req->title ? req->title : "Bring Units");
-    snprintf(B.sub, sizeof B.sub, "%s", req->subtitle ? req->subtitle : "");
+    snprintf(B.title, sizeof B.title, "%s", req->title && *req->title ? req->title : TR("Bring Units")); dsi_utf8_fix_end(B.title);
+    snprintf(B.sub, sizeof B.sub, "%s", req->subtitle ? req->subtitle : ""); dsi_utf8_fix_end(B.sub);
     B.req.title = B.title; B.req.subtitle = B.sub;
     B.max = req->max_units > PMAX ? PMAX : req->max_units;
     B.npicks = 0;
@@ -422,14 +423,14 @@ static int build_ui(void) {
     float x = 20, y = 76;
     int both = (B.req.sources & MU_SRC_SAVE) && (B.req.sources & MU_SRC_LIBRARY);
     if (both) {
-        B.tab_save = mu_button(B.win, x, y, 170, 40, "From a save", on_tab, (void *)(intptr_t)MU_SRC_SAVE); x += 176;
-        B.tab_lib = mu_button(B.win, x, y, 170, 40, "My Units", on_tab, (void *)(intptr_t)MU_SRC_LIBRARY); x += 180;
+        B.tab_save = mu_button(B.win, x, y, 170, 40, TR("From a save"), on_tab, (void *)(intptr_t)MU_SRC_SAVE); x += 176;
+        B.tab_lib = mu_button(B.win, x, y, 170, 40, TR("My Units"), on_tab, (void *)(intptr_t)MU_SRC_LIBRARY); x += 180;
     } else {
-        B.hdr = mu_text(B.win, x, y, 200, 40, B.tab == MU_SRC_SAVE ? "From a save" : "My Units", 19, DSL_TXT_LEFT, MU_C_GOLD); x += 210;
+        B.hdr = mu_text(B.win, x, y, 200, 40, B.tab == MU_SRC_SAVE ? TR("From a save") : TR("My Units"), 19, DSL_TXT_LEFT, MU_C_GOLD); x += 210;
     }
     if ((B.req.sources & MU_SRC_LIBRARY) && mu_builder_present()) {
-        B.b_new = mu_button(B.win, x, y, 140, 40, "New unit", on_new, NULL); x += 150;
-        U->tooltip(B.b_new, "New unit", "Make a unit in the Unit Builder. When you save it, it goes to My Units and is ticked here.");
+        B.b_new = mu_button(B.win, x, y, 140, 40, TR("New unit"), on_new, NULL); x += 150;
+        U->tooltip(B.b_new, TR("New unit"), TR("Make a unit in the Unit Builder. When you save it, it goes to My Units and is ticked here."));
     }
     B.status = mu_text(B.win, x, y, w - 20 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
     /* lists */
@@ -445,14 +446,22 @@ static int build_ui(void) {
         B.b_prev = mu_button(bot, px, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
         B.t_page = mu_text(bot, px + 48, 0, 104, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         B.b_next = mu_button(bot, px + 156, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
-        B.b_cancel = mu_button(bot, bw - 290, 2, 140, 40, "Cancel", on_cancel, NULL);
-        B.b_bring = mu_button(bot, bw - 140, 2, 140, 40, "Bring", on_bring, NULL);
+        B.b_cancel = mu_button(bot, bw - 290, 2, 140, 40, TR("Cancel"), on_cancel, NULL);
+        B.b_bring = mu_button(bot, bw - 140, 2, 140, 40, TR("Bring"), on_bring, NULL);
     }
     if (B.msg[0]) set_msg(B.msg, B.msg_col);
     return 0;
 }
 void mu_bring_close(void) { finish(0); }
 int  mu_bring_is_open(void) { return B.open; }
+/* the language changed: the open window is built again (same state), as after a screen layer change. The title and
+   subtitle are the caller's (already in the language they were given in). */
+void mu_bring_relang(void) {
+    if (!B.open || !B.win) return;
+    U->destroy(B.win); B.win = NULL; mu_drawn_reset();
+    if (build_ui()) { finish(0); return; }
+    refresh();
+}
 
 /* ------------------------------------------------------------------ tests (driver "bring:<name>") */
 DSLObj mu_bring_test_find(const char *n) {

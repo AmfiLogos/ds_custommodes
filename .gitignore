@@ -30,6 +30,10 @@
 !/home/
 !/pvp/
 !/units/
+!/i18n/
+!/tools/
+!/lang/
+!/NOTES_i18n.md
 # 3. Binaries, debug files, game files and dumps (copyright: never publish)
 *_bin
 *.dSYM/

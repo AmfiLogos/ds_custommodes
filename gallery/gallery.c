@@ -2,6 +2,7 @@
 #include "gallery.h"
 #include "../fights/cm_http.h"
 #include "../fe/fe_json.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +50,7 @@ static void unesc(const char *s, size_t len, char *o, size_t n) {
         if (k + 1 < n) o[k++] = c;
     }
     o[k] = 0;
+    dsi_utf8_fix_end(o);                        /* raw UTF-8 bytes are copied one by one: the cap may fall inside one */
 }
 static void str_of(const jv *v, char *o, size_t n) {
     if (!n) return;
@@ -149,9 +151,9 @@ int gal_parse_page(const char *json, size_t n, gal_page *out, char *err, size_t 
     jv *r = jparse(json, n, err, errn);
     if (!r) return -1;
     const jv *items = jget(r, "items");
-    if (!items || items->t != JN_ARR) { jfree(r); snprintf(err, errn, "the gallery answer has no items"); return -1; }
+    if (!items || items->t != JN_ARR) { jfree(r); snprintf(err, errn, "%s", TR("the gallery answer has no items")); return -1; }
     out->items = calloc(items->cnt ? items->cnt : 1, sizeof *out->items);
-    if (!out->items) { jfree(r); snprintf(err, errn, "out of memory"); return -1; }
+    if (!out->items) { jfree(r); snprintf(err, errn, "%s", TR("out of memory")); return -1; }
     for (size_t i = 0; i < items->cnt; i++) if (items->v[i]->t == JN_OBJ) read_item(items->v[i], &out->items[out->n++]);
     out->more = jtruthy(jget(r, "more"));
     jfree(r);
@@ -162,7 +164,7 @@ int gal_parse_item(const char *json, size_t n, gal_item *out, char **blob, char 
     if (blob) *blob = NULL;
     jv *r = jparse(json, n, err, errn);
     if (!r) return -1;
-    if (r->t != JN_OBJ || !jget(r, "id")) { jfree(r); snprintf(err, errn, "this build is no longer in the gallery"); return -1; }
+    if (r->t != JN_OBJ || !jget(r, "id")) { jfree(r); snprintf(err, errn, "%s", TR("this build is no longer in the gallery")); return -1; }
     read_item(r, out);
     const jv *b = jget(r, "blob");
     if (blob && b && b->t == JN_STR) {
@@ -178,21 +180,21 @@ void gal_page_free(gal_page *p) { if (p) { free(p->items); memset(p, 0, sizeof *
 static int fetch_json(const char *url, size_t max, cmh_resp *r, char *err, size_t errn) {
     if (cmh_get(url, GAL_TIMEOUT_MS, max, r, err, errn)) return -1;
     if (r->status != 200) {
-        snprintf(err, errn, r->status == 404 ? "this build is no longer in the gallery" : "the Gallery did not answer (error %d)", r->status);
+        snprintf(err, errn, r->status == 404 ? TR("this build is no longer in the gallery") : TR("the Gallery did not answer (error %d)"), r->status);
         cmh_free(r); return -1;
     }
     return 0;
 }
 int gal_fetch_page(const gal_query *q, gal_page *out, char *err, size_t errn) {
     char url[2048]; cmh_resp r;
-    if (gal_list_url(q, url, sizeof url)) { snprintf(err, errn, "too many filters"); return -1; }
+    if (gal_list_url(q, url, sizeof url)) { snprintf(err, errn, "%s", TR("too many filters")); return -1; }
     if (fetch_json(url, GAL_LIST_MAX, &r, err, errn)) return -1;
     int rc = gal_parse_page(r.body, r.n, out, err, errn);
     cmh_free(&r);
     return rc;
 }
 int gal_fetch_item(const char *id, gal_item *out, char **blob, char *err, size_t errn) {
-    for (const char *s = id; *s; s++) if (!isalnum((unsigned char)*s) && *s != '-') { snprintf(err, errn, "bad gallery id"); return -1; }
+    for (const char *s = id; *s; s++) if (!isalnum((unsigned char)*s) && *s != '-') { snprintf(err, errn, "%s", TR("bad gallery id")); return -1; }
     char url[256]; cmh_resp r;
     snprintf(url, sizeof url, CM_WIKI "/api/gallery?id=%s&full=1", id);
     if (fetch_json(url, GAL_ITEM_MAX, &r, err, errn)) return -1;
@@ -208,7 +210,7 @@ gal_words *gal_words_parse(const char *json, size_t n, char *err, size_t errn) {
     jv *r = jparse(json, n, err, errn);
     if (!r) return NULL;
     const jv *W = jget(r, "W");
-    if (!W || W->t != JN_OBJ) { jfree(r); snprintf(err, errn, "the gallery words have no W"); return NULL; }
+    if (!W || W->t != JN_OBJ) { jfree(r); snprintf(err, errn, "%s", TR("the gallery words have no W")); return NULL; }
     gal_words *w = calloc(1, sizeof *w);
     if (!w) { jfree(r); return NULL; }
     w->root = r; w->W = W;

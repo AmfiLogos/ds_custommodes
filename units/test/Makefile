@@ -9,7 +9,7 @@ C = ../..
 MP_ROOT ?= $(if $(wildcard ../../../src/mp_api.h),../../..,$(HOME)/ds_multiplayer)
 O = $(MP_ROOT)/build/units
 CF = -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fsanitize=address,undefined -I$(U) -I$(C) -I$(C)/fe
-LINK = $(U)/mu_card.c $(U)/mu_link.c $(U)/mu_clip.c $(U)/myunits.c $(U)/wk_link.c $(U)/wk_http.c $(U)/pvp_wiki.c $(U)/pvp_build.c \
+LINK = dsi_impl.c $(U)/mu_card.c $(U)/mu_link.c $(U)/mu_clip.c $(U)/myunits.c $(U)/wk_link.c $(U)/wk_http.c $(U)/pvp_wiki.c $(U)/pvp_build.c \
   $(C)/fe/fe_json.c $(C)/fe/fe_save.c -framework CoreFoundation -framework CFNetwork -framework AppKit -lz -lm
 N ?= 1500
 test:

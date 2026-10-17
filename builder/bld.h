@@ -11,6 +11,7 @@ void cm_builder_init(const DSLHost *host, DSLPlugin *self);
 void cm_builder_open(const char *unit_id_or_null, void (*saved)(const char *unit_id, void *ud), void *ud);
 int  bld_is_open(void);
 void bld_close_window(void);
+void bld_relang(void);                   /* the language changed: an open window is built again (cm_i18n_on_change) */
 /* test driver (ext/units13/driver "bld:<name>"): widgets by name, JSON state */
 DSLObj bld_test_find(const char *name);
 size_t bld_test_state(char *out, size_t cap);

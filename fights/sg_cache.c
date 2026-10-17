@@ -1,6 +1,7 @@
 /* sg_cache - see sg_cache.h */
 #include "sg_cache.h"
 #include "cm_http.h"
+#include "i18n/ds_i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,17 +107,17 @@ static int download_set(sgc *c, char *err, size_t errn) {
     for (int i = 0; i < 3; i++) {
         char url[512]; snprintf(url, sizeof url, CM_WIKI "/builder/%s", SCRIPTS[i]);
         if (cmh_get(url, c->timeout_ms, SCRIPT_MAX, &r[i], err, errn)) goto out;
-        if (r[i].status != 200 || r[i].n < 1000) { snprintf(err, errn, "the wiki did not send its files (error %d)", r[i].status); goto out; }
+        if (r[i].status != 200 || r[i].n < 1000) { snprintf(err, errn, TR("the wiki did not send its files (error %d)"), r[i].status); goto out; }
     }
     char t1[32], t2[32];
     if (sgc_tag_of_data(r[0].body, r[0].n, t1, sizeof t1) || sgc_tag_of_savegen(r[2].body, r[2].n, t2, sizeof t2)) {
-        snprintf(err, errn, "the wiki's files do not say which game version they are for"); goto out;
+        snprintf(err, errn, "%s", TR("the wiki's files do not say which game version they are for")); goto out;
     }
-    if (strcmp(t1, t2)) { snprintf(err, errn, "the wiki is between two updates (data %s, generator %s); try again in a minute", t1, t2); goto out; }
+    if (strcmp(t1, t2)) { snprintf(err, errn, TR("the wiki is between two updates (data %s, generator %s); try again in a minute"), t1, t2); goto out; }
     char dir[1100]; snprintf(dir, sizeof dir, "%s/builder", c->root); mkdirs(dir);
     for (int i = 0; i < 3; i++) {
         char p[1100]; snprintf(p, sizeof p, "%s/%s", dir, SCRIPTS[i]);
-        if (put_file(p, r[i].body, r[i].n)) { snprintf(err, errn, "could not save the wiki's files on this computer (%s)", strerror(errno)); goto out; }
+        if (put_file(p, r[i].body, r[i].n)) { snprintf(err, errn, TR("could not save the wiki's files on this computer (%s)"), strerror(errno)); goto out; }
     }
     rc = 0;
 out:
@@ -139,7 +140,7 @@ int sgc_scripts(sgc *c, long max_age_s, sg_sources *out, char *status, size_t sn
     }
     if (load_cached(c, out)) {
         /* a damaged set: one fresh try */
-        if (download_set(c, e2, sizeof e2) || load_cached(c, out)) { snprintf(err, errn, "the cached wiki files are unreadable: %s", e2); return -1; }
+        if (download_set(c, e2, sizeof e2) || load_cached(c, out)) { snprintf(err, errn, TR("the cached wiki files are unreadable: %s"), e2); return -1; }
         what = "downloaded";
     }
     if (status && sn) {
@@ -186,7 +187,7 @@ int sgc_template(void *user, const char *file, char **text, size_t *len, char *e
     cmh_resp r;
     if (cmh_get(url, c->timeout_ms * 4, TEMPLATE_MAX, &r, err, errn)) return -1;
     if (r.status != 200 || !looks_complete(r.body, r.n)) {
-        snprintf(err, errn, "%s", r.status == 200 ? "a file from the wiki arrived incomplete" : "the wiki is missing a file for this fight");
+        snprintf(err, errn, "%s", r.status == 200 ? TR("a file from the wiki arrived incomplete") : TR("the wiki is missing a file for this fight"));
         cmh_free(&r); return -1;
     }
     mkdirs(dir);

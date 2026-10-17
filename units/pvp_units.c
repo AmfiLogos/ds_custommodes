@@ -15,6 +15,7 @@
 #include "pvp_core.h"
 #include "fe/fe_save.h"
 #include "pvp_build.h"
+#include "i18n/ds_i18n.h"                                    /* this image's tables (cm_mp.c): player text in the error answers */
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -95,7 +96,7 @@ static char *cmd_bring(const char *line) {
     Buf b = { 0 };
     if (!jstr(line, "file", file, sizeof file) || !jstr(line, "guids", gl, sizeof gl)) { bput(&b, "{\"ok\":false,\"error\":\"need file and guids\"}"); return b.p; }
     dsnet_client *c = cli(); uint8_t u[16];
-    if (!c || dsnet_my_uid(c, u)) { bput(&b, "{\"ok\":false,\"error\":\"not in a multiplayer session\"}"); return b.p; }
+    if (!c || dsnet_my_uid(c, u)) { bput(&b, "{\"ok\":false,\"error\":"); bstr(&b, TR("Not in a multiplayer session.")); bput(&b, "}"); return b.p; }   /* shown in the Bring window */
     hex_of(u, me);
     jv *save = jload(file, err, sizeof err);
     if (!save) { bput(&b, "{\"ok\":false,\"error\":"); bstr(&b, err); bput(&b, "}"); return b.p; }
@@ -121,15 +122,15 @@ static char *cmd_bring(const char *line) {
    id): same path as pvp_units_bring (host: kept; guest: mailed to the host). Takes ownership of entries; a new send
    replaces this player's old one. 0 ok, -1 + err. */
 int pvp_units_send_entries(jv *entries, char *err, size_t errn) {
-    if (!entries || !jis(entries, JN_ARR)) { snprintf(err, errn, "no units to send"); jfree(entries); return -1; }
+    if (!entries || !jis(entries, JN_ARR)) { snprintf(err, errn, "%s", TR("No units to send.")); jfree(entries); return -1; }
     dsnet_client *c = cli(); uint8_t u[16]; char me[33];
-    if (!c || dsnet_my_uid(c, u)) { snprintf(err, errn, "not in a multiplayer session"); jfree(entries); return -1; }
+    if (!c || dsnet_my_uid(c, u)) { snprintf(err, errn, "%s", TR("Not in a multiplayer session.")); jfree(entries); return -1; }
     hex_of(u, me);
     int rc = 0; size_t sz = 0;
     if (dsnet_is_host(c)) host_take(me, entries);
     else { jv *m = jobj(); jset(m, "entries", jcopy(entries)); char *s = jdump(m, 0, &sz); jfree(m); rc = dsnet_mail_send(c, NULL, PVP_M_UNITS, s, sz); free(s); }
     say("Bring Units: %zu unit(s) (%s, %zu bytes)", entries->cnt, dsnet_is_host(c) ? "kept on the host" : rc ? "MAIL FAILED" : "mailed to the host", sz);
-    if (rc) snprintf(err, errn, "could not send the units to the host");
+    if (rc) snprintf(err, errn, "%s", TR("The units could not be sent to the host."));
     jfree(entries);
     return rc ? -1 : 0;
 }
@@ -141,18 +142,18 @@ static char *cmd_wiki(const char *line) {
     if (!jstr(line, "link", link, sizeof link) || !link[0]) { bput(&b, "{\"ok\":false,\"error\":\"need link\"}"); return b.p; }
     double mxv = 0; int max = jnum(line, "max", &mxv) ? (int)mxv : DSNET_PARTY_MAX; if (max < 1 || max > DSNET_PARTY_MAX) max = DSNET_PARTY_MAX;
     dsnet_client *c = cli(); uint8_t u[16];
-    if (!c || dsnet_my_uid(c, u)) { bput(&b, "{\"ok\":false,\"error\":\"not in a multiplayer session\"}"); return b.p; }
+    if (!c || dsnet_my_uid(c, u)) { bput(&b, "{\"ok\":false,\"error\":"); bstr(&b, TR("Not in a multiplayer session.")); bput(&b, "}"); return b.p; }   /* shown in the Bring window */
     hex_of(u, me);
     static wk_build wb[WK_MAX_UNITS]; int fpm = 0;
     int n = wk_decode(link, wb, WK_MAX_UNITS, &fpm, err, sizeof err);
     if (n < 1) { bput(&b, "{\"ok\":false,\"error\":"); bstr(&b, err); bput(&b, "}"); return b.p; }
-    if (fpm) { bput(&b, "{\"ok\":false,\"error\":\"this link was made with other wiki data (another game version): make it again on the wiki\"}"); return b.p; }
+    if (fpm) { bput(&b, "{\"ok\":false,\"error\":"); bstr(&b, TR("This link was made with other wiki data (another game version): make it again on the wiki.")); bput(&b, "}"); return b.p; }
     if (n > max) n = max;
     jv *entries = jarr();
     for (int i = 0; i < n; i++) {
         char nt[600] = "";
         jv *e = pb_entry(&wb[i], me, nt, sizeof nt, err, sizeof err);
-        if (!e) { jfree(entries); bput(&b, "{\"ok\":false,\"error\":"); char m2[480]; snprintf(m2, sizeof m2, "unit %d: %s", i + 1, err); bstr(&b, m2); bput(&b, "}"); return b.p; }
+        if (!e) { jfree(entries); bput(&b, "{\"ok\":false,\"error\":"); char m2[480]; snprintf(m2, sizeof m2, TR("unit %d: %s"), i + 1, err); dsi_utf8_fix_end(m2); bstr(&b, m2); bput(&b, "}"); return b.p; }
         if (nt[0] && strlen(notes) + strlen(nt) + 16 < sizeof notes) { size_t L = strlen(notes); snprintf(notes + L, sizeof notes - L, "unit %d: %s", i + 1, nt); }
         jpush(entries, e);
     }

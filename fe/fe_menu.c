@@ -7,6 +7,7 @@
  * One window at a time, 960 x 620, on the lobby's parent (Esc menu root) in a session or on the title view. Buttons are
  * registered by id in h_lwr (Esc menu clones) or h_tb (title clones); the click hooks queue the id (pending_click). */
 #include "mpmenu_kit.h"
+#include "fe/cm_mp_text.h"
 #include "mp.h"
 #include "mp_steam.h"
 #include "fe_ui_api.h"
@@ -23,7 +24,7 @@ static struct {
     int mode, esc, page, upage, sel_save, nsave, nunit, picked[64], npicked, ntarget, target, choice, applied, conflict, nres;
     uintptr_t root, view, t[FT_N], rowt[8][3], cardt[8][4];
     fe_save_info saves[64]; fe_unit_info units[64]; fe_save_info targets[16]; fe_result_info res[16];
-    char run[40], msg[400], err[300];
+    char run[40], msg[1200], err[600];
 } W;
 static Obj few_t(int k) { Obj o = u_gc_get(W.t[k]); return u_alive(o) ? o : NULL; }
 static uintptr_t *few_reg(void) { return W.esc ? h_lwr : h_tb; }
@@ -37,9 +38,13 @@ static void few_txt(const char *key, char *out, size_t cap) {             /* Tex
 }
 static void few_item_name(const char *key, char *out, size_t cap) { char k[128]; snprintf(k, sizeof k, "TEXTKEY_%s_NAME", key); few_txt(k, out, cap); }
 static void few_rules_line(const fe_mode_info *m, char *out, size_t cap) {
-    snprintf(out, cap, "%s%s hub rules:  <color=#D9BE8F>%s  \xC2\xB7  %s  \xC2\xB7  %s  \xC2\xB7  %d units each</color>", m->host[0] ? m->host : "The host", m->host[0] ? "'s" : "",
-             m->death ? "Death is permanent" : "Death is not permanent", m->xp ? "XP counts" : "XP does not count",
-             m->loot ? "Dungeon loot comes back" : "Loot stays in the hub", m->units > 0 ? m->units : 3);
+    char who[160], each[96]; int nu = m->units > 0 ? m->units : 3;
+    if (m->host[0]) snprintf(who, sizeof who, TR("%s's hub rules:"), m->host); else snprintf(who, sizeof who, "%s", TR("The host's hub rules:"));
+    snprintf(each, sizeof each, TRN("%d unit each", "%d units each", nu), nu);
+    snprintf(out, cap, "%s  <color=#D9BE8F>%s  \xC2\xB7  %s  \xC2\xB7  %s  \xC2\xB7  %s</color>", who,
+             m->death ? TR("Death is permanent") : TR("Death is not permanent"), m->xp ? TR("XP counts") : TR("XP does not count"),
+             m->loot ? TR("Dungeon loot comes back") : TR("Loot stays in the hub"), each);
+    dsi_utf8_fix_end(out);
 }
 static void few_build(Obj parent, Obj src, int esc, Obj tpl_img, Obj tpl_txt) {
     Obj root = mk_img(tpl_img, parent, S_BOX, C_WHITE, 0, 0, FEW_W, FEW_H);
@@ -99,9 +104,9 @@ static void few_build(Obj parent, Obj src, int esc, Obj tpl_img, Obj tpl_txt) {
     u_active(root, false);
     rig_log("fe: window built (%s)", esc ? "Esc menu root" : "title");
 }
-static void few_label(int id, const char *s) { Obj b = few_btn(id); if (b) tmp_set(btn_label(b, W.esc), s); }
+static void few_label(int id, const char *s) { Obj b = few_btn(id); if (b) cmt_set(btn_label(b, W.esc), s); }
 static void few_show(int id, int on) { Obj b = few_btn(id); if (b) u_active(b, on); }
-static void few_set(int k, const char *s) { Obj t = few_t(k); if (t) { u_active(t, s && s[0]); tmp_set(t, s ? s : ""); } }
+static void few_set(int k, const char *s) { Obj t = few_t(k); if (t) { u_active(t, s && s[0]); cmt_set(t, s ? s : ""); } }
 static void few_hide_all(void) {
     for (int id = MPB_FE_SAVE0; id <= MPB_FE_RES5; id++) few_show(id, 0);
     for (int k = FT_LHEAD; k < FT_N; k++) few_set(k, "");
@@ -131,119 +136,136 @@ static void few_sync(void) {
     if (W.mode == FEW_NONE) return;
     few_hide_all();
     fe_mode_info m; fe_mode_get(&m);
-    char b[1600], r[400];
+    char b[2400], r[800], dy[64];
     few_show(MPB_FE_CANCEL, 1); few_show(MPB_FE_OK, 1);
+    few_label(MPB_FE_SAVEPG, TR("More saves \xE2\x80\xBA")); few_label(MPB_FE_UNITPG, TR("More units \xE2\x80\xBA"));
+    few_label(MPB_FE_VER_EXP, TR("Expedition version")); few_label(MPB_FE_VER_HOME, TR("Home version"));
     if (W.mode == FEW_BRING) {
-        few_set(FT_TITLE, "Bring Units");
-        few_set(FT_SUB, "Pick one of your saves, then the units to bring. Copies travel: your units stay at home and keep working.");
+        few_set(FT_TITLE, TR("Bring Units"));
+        few_set(FT_SUB, TR("Pick one of your saves, then the units to bring. Copies travel: your units stay at home and keep working."));
         few_rules_line(&m, r, sizeof r); few_set(FT_RULES, r);
-        few_set(FT_LHEAD, "Your Saves");
+        few_set(FT_LHEAD, TR("Your Saves"));
         for (int i = 0; i < 6; i++) {
             int k = W.page * 6 + i; few_show(MPB_FE_SAVE0 + i, k < W.nsave);
             if (k >= W.nsave) continue;
             fe_save_info *s = &W.saves[k]; int ok = s->ok && few_version_ok(s, &m);
-            snprintf(b, sizeof b, "%s%s  <size=80%%><color=#A69085>Day %d</color></size>", k == W.sel_save ? "<color=#D9BE8F>" : "", s->clan, s->day);
-            tmp_set(u_gc_get(W.rowt[i][0]), b);
-            if (!s->ok) snprintf(b, sizeof b, "<color=#A69085>In a dungeon: load it and return to the settlement first.</color>");
-            else if (!ok) snprintf(b, sizeof b, "<color=#F16071>Made with %s. Load and save it once in this build first.</color>", s->version);
-            else snprintf(b, sizeof b, "%s \xC2\xB7 %d units", s->folder, s->units);
-            tmp_set(u_gc_get(W.rowt[i][1]), b);
+            cmt_day(dy, sizeof dy, s->day);
+            snprintf(b, sizeof b, "%s%s  <size=80%%><color=#A69085>%s</color></size>", k == W.sel_save ? "<color=#D9BE8F>" : "", s->clan, dy);
+            cmt_set(u_gc_get(W.rowt[i][0]), b);
+            if (!s->ok) snprintf(b, sizeof b, "<color=#A69085>%s</color>", TR("In a dungeon: load it and return to the settlement first."));
+            else if (!ok) { char t[300]; snprintf(t, sizeof t, TR("Made with %s. Load and save it once in this build first."), s->version); snprintf(b, sizeof b, "<color=#F16071>%s</color>", t); }
+            else snprintf(b, sizeof b, TRN("%s \xC2\xB7 %d unit", "%s \xC2\xB7 %d units", s->units), TR(s->folder), s->units);
+            cmt_set(u_gc_get(W.rowt[i][1]), b);
         }
         few_show(MPB_FE_SAVEPG, W.nsave > 6);
         if (W.sel_save >= 0) {
-            snprintf(b, sizeof b, "Units in %s", W.saves[W.sel_save].clan); few_set(FT_RHEAD, b);
+            snprintf(b, sizeof b, TR("Units in %s"), W.saves[W.sel_save].clan); few_set(FT_RHEAD, b);
             for (int i = 0; i < 8; i++) {
                 int k = W.upage * 8 + i; few_show(MPB_FE_UNIT0 + i, k < W.nunit);
                 if (k >= W.nunit) continue;
                 fe_unit_info *u = &W.units[k]; char nm[64], gear[200] = ""; size_t o = 0;
                 few_txt(u->name_key, nm, sizeof nm);
                 int on = 0; for (int p = 0; p < W.npicked; p++) if (W.picked[p] == k) on = 1;
-                snprintf(b, sizeof b, "%s  <size=80%%><color=#A69085>Level %d</color></size>", nm, u->level); tmp_set(u_gc_get(W.cardt[i][0]), b);
-                tmp_set(u_gc_get(W.cardt[i][1]), u->trees[0] ? u->trees : "No skill tree yet");
+                char lv[64]; cmt_level(lv, sizeof lv, u->level);
+                snprintf(b, sizeof b, "%s  <size=80%%><color=#A69085>%s</color></size>", nm, lv); cmt_set(u_gc_get(W.cardt[i][0]), b);
+                cmt_set(u_gc_get(W.cardt[i][1]), u->trees[0] ? u->trees : TR("No skill tree yet"));
                 for (int g = 0; g < u->ngear && o < sizeof gear - 40; g++) { char in[64]; few_item_name(u->gear_keys[g], in, sizeof in); o += (size_t)snprintf(gear + o, sizeof gear - o, "%s%s", g ? ", " : "", in); }
-                tmp_set(u_gc_get(W.cardt[i][2]), gear[0] ? gear : "No gear");
-                tmp_set(u_gc_get(W.cardt[i][3]), on ? "\xE2\x9C\x93" : "");
+                cmt_set(u_gc_get(W.cardt[i][2]), gear[0] ? gear : TR("No gear"));
+                cmt_set(u_gc_get(W.cardt[i][3]), on ? "\xE2\x9C\x93" : "");
             }
             few_show(MPB_FE_UNITPG, W.nunit > 8);
-        } else few_set(FT_RHEAD, "No save at the settlement");
+        } else few_set(FT_RHEAD, TR("No save at the settlement"));
         int cap = m.units > 0 ? m.units : 3;
-        snprintf(b, sizeof b, "%d / %d picked", W.npicked, cap); few_set(FT_COUNT, b);
-        snprintf(b, sizeof b, "<color=#CCBEB8>At home:</color> your units stay and keep working. Nothing changes until you bring the results home.   "
-                 "<color=#CCBEB8>In the hub:</color> their copies play. %s   <color=#CCBEB8>If a copy dies:</color> %s%s%s",
-                 m.xp ? "XP, levels and dungeon loot can come back." : "Experience does not count here.",
-                 m.death ? "death is permanent here: that unit and its gear are removed at home." : "it comes home as it was at the last hub save.",
+        snprintf(b, sizeof b, TR("%d / %d picked"), W.npicked, cap); few_set(FT_COUNT, b);
+        snprintf(b, sizeof b, TR("<color=#CCBEB8>At home:</color> your units stay and keep working. Nothing changes until you bring the results home.   "
+                 "<color=#CCBEB8>In the hub:</color> their copies play. %s   <color=#CCBEB8>If a copy dies:</color> %s%s%s"),
+                 m.xp ? TR("XP, levels and dungeon loot can come back.") : TR("Experience does not count here."),
+                 m.death ? TR("death is permanent here: that unit and its gear are removed at home.") : TR("it comes home as it was at the last hub save."),
                  W.err[0] ? "\n<color=#F16071>" : "", W.err[0] ? W.err : "");
         if (W.err[0]) { size_t l = strlen(b); snprintf(b + l, sizeof b - l, "</color>"); }
         few_set(FT_NOTE, b);
-        few_label(MPB_FE_CANCEL, "Cancel");
-        few_label(MPB_FE_OK, W.npicked ? "Bring these units" : "<color=#A69085>Bring these units</color>");
+        few_label(MPB_FE_CANCEL, cmt_game("TEXTKEY_CommonPopUp_Cancel", "Cancel"));
+        if (W.npicked) few_label(MPB_FE_OK, TR("Bring these units"));
+        else { snprintf(b, sizeof b, "<color=#A69085>%s</color>", TR("Bring these units")); few_label(MPB_FE_OK, b); }
     }
     if (W.mode == FEW_LIST) {
-        few_set(FT_TITLE, "Expedition Results");
-        few_set(FT_SUB, "Each result can be brought home once.");
-        if (W.msg[0]) { few_set(FT_MSG, W.msg); few_label(MPB_FE_CANCEL, "Back"); few_show(MPB_FE_OK, 0); return; }
+        few_set(FT_TITLE, TR("Expedition Results"));
+        few_set(FT_SUB, TR("Each result can be brought home once."));
+        if (W.msg[0]) { few_set(FT_MSG, W.msg); few_label(MPB_FE_CANCEL, cmt_game("TEXTKEY_Shared_Back", "Back")); few_show(MPB_FE_OK, 0); return; }
         for (int i = 0; i < 6; i++) {
             few_show(MPB_FE_RES0 + i, i < W.nres);
             if (i >= W.nres) continue;
             fe_result_info *x = &W.res[i];
-            if (x->applied) snprintf(b, sizeof b, "%s's hub  <size=80%%><color=#A69085>%s \xC2\xB7 %d units</color></size>  \xC2\xB7  <color=#A69085>Brought home %s</color>", x->host, x->date, x->units, x->applied_date);
-            else snprintf(b, sizeof b, "%s's hub  <size=80%%><color=#A69085>%s \xC2\xB7 %d units</color></size>  \xC2\xB7  <color=#8FD18F>Ready to bring home</color>", x->host, x->date, x->units);
+            char hub[160], nu[64], st[200];
+            if (strcmp(x->host, "the host")) snprintf(hub, sizeof hub, TR("%s's hub"), x->host); else snprintf(hub, sizeof hub, "%s", TR("The host's hub"));   /* fe_game.c: "the host" = no name */
+            snprintf(nu, sizeof nu, TRN("%d unit", "%d units", x->units), x->units);
+            if (x->applied) snprintf(st, sizeof st, TR("Brought home %s"), x->applied_date); else snprintf(st, sizeof st, "%s", TR("Ready to bring home"));
+            snprintf(b, sizeof b, x->applied ? "%s  <size=80%%><color=#A69085>%s \xC2\xB7 %s</color></size>  \xC2\xB7  <color=#A69085>%s</color>"
+                                             : "%s  <size=80%%><color=#A69085>%s \xC2\xB7 %s</color></size>  \xC2\xB7  <color=#8FD18F>%s</color>", hub, x->date, nu, st);
             few_label(MPB_FE_RES0 + i, b);
         }
-        few_label(MPB_FE_CANCEL, "Back"); few_show(MPB_FE_OK, 0);
+        few_label(MPB_FE_CANCEL, cmt_game("TEXTKEY_Shared_Back", "Back")); few_show(MPB_FE_OK, 0);
     }
     if (W.mode == FEW_RESULTS) {
         fe_res_row rows[8]; fe_res_item items[40]; int ni = 0; fe_mode_info rr;
         int n = fe_result_rows(W.run, rows, 8, items, 40, &ni, &rr);
-        few_set(FT_TITLE, "Back from the Expedition");
-        snprintf(b, sizeof b, "%s ended the expedition. Here is what your units bring home.", rr.host[0] ? rr.host : "The host"); few_set(FT_SUB, b);
-        snprintf(r, sizeof r, "Rules:  <color=#D9BE8F>%s  \xC2\xB7  %s  \xC2\xB7  %s</color>", rr.death ? "death is permanent" : "death is not permanent",
-                 rr.xp ? "XP counts" : "XP does not count", rr.loot ? "dungeon loot comes back" : "loot stays in the hub");
+        few_set(FT_TITLE, TR("Back from the Expedition"));
+        if (rr.host[0]) snprintf(b, sizeof b, TR("%s ended the expedition. Here is what your units bring home."), rr.host);
+        else snprintf(b, sizeof b, "%s", TR("The host ended the expedition. Here is what your units bring home."));
+        few_set(FT_SUB, b);
+        snprintf(r, sizeof r, "%s  <color=#D9BE8F>%s  \xC2\xB7  %s  \xC2\xB7  %s</color>", TR("Rules:"), rr.death ? TR("death is permanent") : TR("death is not permanent"),
+                 rr.xp ? TR("XP counts") : TR("XP does not count"), rr.loot ? TR("dungeon loot comes back") : TR("loot stays in the hub"));
         few_set(FT_RULES, r);
         if (W.applied) {
-            snprintf(b, sizeof b, "<size=130%%>Brought home</size>\n\nSaved as \"%s\". Load it from Load campaign.\nYour old save is not changed, and a backup copy was made first.", W.msg);
-            few_set(FT_MSG, b); few_show(MPB_FE_CANCEL, 0); few_label(MPB_FE_OK, "OK"); return;
+            char t[1400]; snprintf(t, sizeof t, TR("Saved as \"%s\". Load it from Load campaign.\nYour old save is not changed, and a backup copy was made first."), W.msg);
+            snprintf(b, sizeof b, "<size=130%%>%s</size>\n\n%s", TR("Brought home"), t);
+            few_set(FT_MSG, b); few_show(MPB_FE_CANCEL, 0); few_label(MPB_FE_OK, TR("OK")); return;
         }
-        size_t o = (size_t)snprintf(b, sizeof b, "<color=#A69085>Unit<pos=30%%>Level<pos=52%%>XP<pos=70%%>Status</color>");
-        char ap[900] = ""; size_t ao = 0;
+        size_t o = (size_t)snprintf(b, sizeof b, "<color=#A69085>%s<pos=30%%>%s<pos=52%%>%s<pos=70%%>%s</color>", TR("Unit"), cmt_game("TEXTKEY_STATUS_Level_NAME", "Level"), TR("XP"), TR("Status"));
+        char ap[1600] = ""; size_t ao = 0;
         for (int i = 0; i < n && o < sizeof b - 200; i++) {
             char nm[64]; few_txt(rows[i].name_key, nm, sizeof nm);
-            char lv[40], xp[40], stt[120];
+            char lv[80], xp[120], stt[300];
             if (rows[i].lv1 != rows[i].lv0) snprintf(lv, sizeof lv, "%.0f \xE2\x86\x92 <color=#D9BE8F>%.0f</color>", rows[i].lv0, rows[i].lv1); else snprintf(lv, sizeof lv, "%.0f", rows[i].lv0);
-            if (!rr.xp) snprintf(xp, sizeof xp, "<color=#A69085>does not count</color>");
-            else if (rows[i].lv1 == rows[i].lv0 && rows[i].exp1 > rows[i].exp0) snprintf(xp, sizeof xp, "+%.0f XP", rows[i].exp1 - rows[i].exp0);
-            else if (rows[i].lv1 > rows[i].lv0) snprintf(xp, sizeof xp, "+%.0f levels", rows[i].lv1 - rows[i].lv0);
-            else snprintf(xp, sizeof xp, "<color=#A69085>none</color>");
-            if (!rows[i].dead) snprintf(stt, sizeof stt, "<color=#8FD18F>Alive</color>");
-            else if (rows[i].removed) snprintf(stt, sizeof stt, "<color=#F16071>Died \xC2\xB7 removed at home, with its gear</color>");
-            else snprintf(stt, sizeof stt, "<color=#EA9F3D>Died \xC2\xB7 home as at the last hub save</color>");
+            if (!rr.xp) snprintf(xp, sizeof xp, "<color=#A69085>%s</color>", TR("does not count"));
+            else if (rows[i].lv1 == rows[i].lv0 && rows[i].exp1 > rows[i].exp0) snprintf(xp, sizeof xp, TR("+%.0f XP"), rows[i].exp1 - rows[i].exp0);
+            else if (rows[i].lv1 > rows[i].lv0) snprintf(xp, sizeof xp, TR("+%.0f levels"), rows[i].lv1 - rows[i].lv0);
+            else snprintf(xp, sizeof xp, "<color=#A69085>%s</color>", TR("none"));
+            if (!rows[i].dead) snprintf(stt, sizeof stt, "<color=#8FD18F>%s</color>", TR("Alive"));
+            else if (rows[i].removed) snprintf(stt, sizeof stt, "<color=#F16071>%s</color>", TR("Died \xC2\xB7 removed at home, with its gear"));
+            else snprintf(stt, sizeof stt, "<color=#EA9F3D>%s</color>", TR("Died \xC2\xB7 home as at the last hub save"));
             o += (size_t)snprintf(b + o, sizeof b - o, "\n%s<pos=30%%>%s<pos=52%%>%s<pos=70%%>%s", nm, lv, xp, stt);
             if (ao < sizeof ap - 160) {
-                if (rows[i].removed) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s: removed from your save, with its gear.  ", nm);
-                else if (rows[i].dead && !rows[i].lv1) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s: comes home as before.  ", nm);
-                else if (rr.xp && rows[i].lv1 != rows[i].lv0) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s: level %.0f \xE2\x86\x92 %.0f.  ", nm, rows[i].lv0, rows[i].lv1);
-                else if (rr.xp && rows[i].exp1 > rows[i].exp0) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s: +%.0f XP.  ", nm, rows[i].exp1 - rows[i].exp0);
-                else ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s: unchanged.  ", nm);
+                char one[400];
+                if (rows[i].removed) snprintf(one, sizeof one, TR("%s: removed from your save, with its gear."), nm);
+                else if (rows[i].dead && !rows[i].lv1) snprintf(one, sizeof one, TR("%s: comes home as before."), nm);
+                else if (rr.xp && rows[i].lv1 != rows[i].lv0) snprintf(one, sizeof one, TR("%s: level %.0f \xE2\x86\x92 %.0f."), nm, rows[i].lv0, rows[i].lv1);
+                else if (rr.xp && rows[i].exp1 > rows[i].exp0) snprintf(one, sizeof one, TR("%s: +%.0f XP."), nm, rows[i].exp1 - rows[i].exp0);
+                else snprintf(one, sizeof one, TR("%s: unchanged."), nm);
+                ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%s  ", one);
             }
         }
         few_set(FT_TABLE, b);
-        o = (size_t)snprintf(b, sizeof b, "<color=#D9BE8F>Dungeon loot \xC2\xB7 %d item%s</color>  ", ni, ni == 1 ? "" : "s");
+        { char t[160]; snprintf(t, sizeof t, TRN("Dungeon loot \xC2\xB7 %d item", "Dungeon loot \xC2\xB7 %d items", ni), ni);
+          o = (size_t)snprintf(b, sizeof b, "<color=#D9BE8F>%s</color>  ", t); }
         for (int i = 0; i < ni && o < sizeof b - 80; i++) { char in[64]; few_item_name(items[i].key, in, sizeof in); o += (size_t)snprintf(b + o, sizeof b - o, "%s%s%s", i ? ", " : "", in, items[i].amount > 1 ? "" : ""); if (items[i].amount > 1) o += (size_t)snprintf(b + o, sizeof b - o, " \xC3\x97%d", items[i].amount); }
-        if (!ni) o += (size_t)snprintf(b + o, sizeof b - o, "none");
-        snprintf(b + o, sizeof b - o, "\n<color=#A69085>Items made from hub stock stay in the hub.</color>");
+        if (!ni) o += (size_t)snprintf(b + o, sizeof b - o, "%s", TR("none"));
+        if (o < sizeof b) snprintf(b + o, sizeof b - o, "\n<color=#A69085>%s</color>", TR("Items made from hub stock stay in the hub."));
         few_set(FT_LOOT, b);
-        if (ni && ao < sizeof ap - 80) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, "%d dungeon item%s: storage first, then backpacks.", ni, ni == 1 ? "" : "s");
-        snprintf(b, sizeof b, "<color=#D9BE8F>What will be applied</color>\n%s", ap); few_set(FT_APPLY, b);
+        if (ni && ao < sizeof ap - 160) ao += (size_t)snprintf(ap + ao, sizeof ap - ao, TRN("%d dungeon item: storage first, then backpacks.", "%d dungeon items: storage first, then backpacks.", ni), ni);
+        dsi_utf8_fix_end(ap);
+        snprintf(b, sizeof b, "<color=#D9BE8F>%s</color>\n%s", TR("What will be applied"), ap); few_set(FT_APPLY, b);
         if (W.ntarget) {
             fe_save_info *t = &W.targets[W.target];
-            snprintf(b, sizeof b, "<color=#A69085>Bring home to</color>   %s  <size=80%%><color=#A69085>Day %d \xC2\xB7 %s</color></size>", t->clan, t->day, t->folder); few_set(FT_TARGET, b);
+            cmt_day(dy, sizeof dy, t->day);
+            snprintf(b, sizeof b, "<color=#A69085>%s</color>   %s  <size=80%%><color=#A69085>%s \xC2\xB7 %s</color></size>", TR("Bring home to"), t->clan, dy, TR(t->folder)); few_set(FT_TARGET, b);
             few_show(MPB_FE_TGT_PREV, W.ntarget > 1); few_show(MPB_FE_TGT_NEXT, W.ntarget > 1);
-        } else few_set(FT_TARGET, "<color=#F16071>The home save is not on this computer.</color>");
-        if (W.conflict) { few_set(FT_CONFLICT, "Units changed at home since they left. Bring home:"); few_show(MPB_FE_VER_EXP, 1); few_show(MPB_FE_VER_HOME, 1); }
-        else if (W.err[0]) { snprintf(b, sizeof b, "%s", W.err); few_set(FT_CONFLICT, b); }
+        } else { snprintf(b, sizeof b, "<color=#F16071>%s</color>", TR("The home save is not on this computer.")); few_set(FT_TARGET, b); }
+        if (W.conflict) { few_set(FT_CONFLICT, TR("Units changed at home since they left. Bring home:")); few_show(MPB_FE_VER_EXP, 1); few_show(MPB_FE_VER_HOME, 1); }
+        else if (W.err[0]) { cmt_msg(W.err, b, sizeof b); few_set(FT_CONFLICT, b); }   /* fe_save.c English: shown translated */
         few_set(FT_NOTE, "");
-        few_label(MPB_FE_CANCEL, "Later");
-        few_label(MPB_FE_OK, "Apply to a new save");
+        few_label(MPB_FE_CANCEL, TR("Later"));
+        few_label(MPB_FE_OK, TR("Apply to a new save"));
     }
 }
 static int few_open_now;                                                    /* frames since opened (tests) */
@@ -264,7 +286,7 @@ static int few_click(int c) {
             for (int p = 0; p < W.npicked; p++) if (W.picked[p] == k) at = p;
             if (at >= 0) { W.picked[at] = W.picked[--W.npicked]; W.err[0] = 0; }
             else if (W.npicked < cap) { W.picked[W.npicked++] = k; W.err[0] = 0; }
-            else snprintf(W.err, sizeof W.err, "Up to %d units each in this hub.", cap);
+            else snprintf(W.err, sizeof W.err, TRN("Up to %d unit each in this hub.", "Up to %d units each in this hub.", cap), cap);
             return 1;
         }
         if (c == MPB_FE_OK && W.npicked && W.sel_save >= 0) {
@@ -282,7 +304,9 @@ static int few_click(int c) {
         if (x->applied) {
             const char *f = strrchr(x->applied_file, '/'); char stem[300]; snprintf(stem, sizeof stem, "%s", f ? f + 1 : x->applied_file);
             char *dot = strstr(stem, ".json"); if (dot) *dot = 0;
-            snprintf(W.msg, sizeof W.msg, "<size=130%%>Already Brought Home</size>\n\nThese results were brought home on %s.\nSaved as \"%s\". Load it from Load campaign.\n\n<color=#A69085>Results apply once, so units cannot come home twice.</color>", x->applied_date, stem);
+            char t[800]; snprintf(t, sizeof t, TR("These results were brought home on %s.\nSaved as \"%s\". Load it from Load campaign."), x->applied_date, stem);
+            snprintf(W.msg, sizeof W.msg, "<size=130%%>%s</size>\n\n%s\n\n<color=#A69085>%s</color>", TR("Already Brought Home"), t, TR("Results apply once, so units cannot come home twice."));
+            dsi_utf8_fix_end(W.msg);
         } else few_open(FEW_RESULTS, x->run);
         return 1;
     }
@@ -340,20 +364,20 @@ static void few_tips(void) {
     #define TIPW(id, t, b) tip_try(few_btn(id), (t), (b))
     if (W.mode == FEW_NONE) return;
     if (W.mode == FEW_BRING) {
-        for (int i = 0; i < 6; i++) TIPW(MPB_FE_SAVE0 + i, "Your save", "Units come from this save. It is only read: nothing in it changes until you bring the results home.");
-        for (int i = 0; i < 8; i++) TIPW(MPB_FE_UNIT0 + i, "Bring this unit", "Click to add or remove it. A copy travels with its gear and backpack; the unit itself stays at home and keeps working.");
-        TIPW(MPB_FE_OK, "Bring these units", "Sends copies of the picked units to the host. You can bring other units instead until the host presses Start.");
-        TIPW(MPB_FE_CANCEL, "Cancel", "Closes this window. Nothing is sent.");
+        for (int i = 0; i < 6; i++) TIPW(MPB_FE_SAVE0 + i, TR("Your save"), TR("Units come from this save. It is only read: nothing in it changes until you bring the results home."));
+        for (int i = 0; i < 8; i++) TIPW(MPB_FE_UNIT0 + i, TR("Bring this unit"), TR("Click to add or remove it. A copy travels with its gear and backpack; the unit itself stays at home and keeps working."));
+        TIPW(MPB_FE_OK, TR("Bring these units"), TR("Sends copies of the picked units to the host. You can bring other units instead until the host presses Start."));
+        TIPW(MPB_FE_CANCEL, cmt_game("TEXTKEY_CommonPopUp_Cancel", "Cancel"), TR("Closes this window. Nothing is sent."));
     }
     if (W.mode == FEW_RESULTS) {
-        TIPW(MPB_FE_OK, "Apply to a new save", "Writes the results into a NEW save next to your home save. Your old save is not changed, and the whole save folder is copied to a backup first. Results apply once.");
-        TIPW(MPB_FE_CANCEL, "Later", "Keeps the results. Bring them home later from Multiplayer > Expedition results.");
-        TIPW(MPB_FE_TGT_PREV, "Bring home to", "The save that gets the results: the units' home campaign, newest first.");
-        TIPW(MPB_FE_TGT_NEXT, "Bring home to", "The save that gets the results: the units' home campaign, newest first.");
-        TIPW(MPB_FE_VER_EXP, "Expedition version", "Units that changed at home since they left come back as they ended the expedition.");
-        TIPW(MPB_FE_VER_HOME, "Home version", "Units that changed at home since they left keep their home progress; the expedition's is dropped.");
+        TIPW(MPB_FE_OK, TR("Apply to a new save"), TR("Writes the results into a NEW save next to your home save. Your old save is not changed, and the whole save folder is copied to a backup first. Results apply once."));
+        TIPW(MPB_FE_CANCEL, TR("Later"), TR("Keeps the results. Bring them home later from Multiplayer > Expedition results."));
+        TIPW(MPB_FE_TGT_PREV, TR("Bring home to"), TR("The save that gets the results: the units' home campaign, newest first."));
+        TIPW(MPB_FE_TGT_NEXT, TR("Bring home to"), TR("The save that gets the results: the units' home campaign, newest first."));
+        TIPW(MPB_FE_VER_EXP, TR("Expedition version"), TR("Units that changed at home since they left come back as they ended the expedition."));
+        TIPW(MPB_FE_VER_HOME, TR("Home version"), TR("Units that changed at home since they left keep their home progress; the expedition's is dropped."));
     }
-    if (W.mode == FEW_LIST) for (int i = 0; i < 6; i++) TIPW(MPB_FE_RES0 + i, "Expedition results", "Open to see what your units bring home. Each result can be brought home once.");
+    if (W.mode == FEW_LIST) for (int i = 0; i < 6; i++) TIPW(MPB_FE_RES0 + i, TR("Expedition results"), TR("Open to see what your units bring home. Each result can be brought home once."));
     #undef TIPW
 }
 #undef WX
@@ -390,7 +414,7 @@ static int fe_bring_saves(mu_save_ref *out, int max, void *ud) {   /* this playe
     for (int i = 0; i < n && k < max; i++) {
         if (!si[i].ok || (m.version[0] && strcmp(si[i].version, m.version))) continue;
         snprintf(out[k].path, sizeof out[k].path, "%s", si[i].path); snprintf(out[k].name, sizeof out[k].name, "%s", si[i].clan);
-        snprintf(out[k].when, sizeof out[k].when, "Day %d", si[i].day); k++;
+        cmt_day(out[k].when, sizeof out[k].when, si[i].day); k++;
     }
     return k;
 }
@@ -403,7 +427,7 @@ static void fe_bring_done(const mu_pick *picks, int n, void *ud) {
 }
 static int fe_bring_open(void) {
     fe_mode_info m; fe_mode_get(&m); char sub[400]; few_rules_line(&m, sub, sizeof sub);
-    mu_bring_req r = { .title = "Bring Units", .subtitle = sub, .max_units = m.units > 0 ? m.units : 3, .sources = MU_SRC_SAVE | MU_SRC_LIBRARY,
+    mu_bring_req r = { .title = TR("Bring Units"), .subtitle = sub, .max_units = m.units > 0 ? m.units : 3, .sources = MU_SRC_SAVE | MU_SRC_LIBRARY,
                        .ticked = fe_last_picks, .nticked = fe_nlast, .list_saves = fe_bring_saves, .done = fe_bring_done };
     return mu_bring_open(&r);
 }
@@ -419,8 +443,11 @@ static int few_lobby_bring(void) { fe_mode_info fm; return fe_mode_get(&fm) && W
 static int few_lobby_name(int id, const char *nmn, char *t2, size_t cap) {   /* "2 units brought" / "Choosing units..." */
     fe_mode_info fm; if (!fe_mode_get(&fm)) return 0;
     int nb = fe_brought_of(id);
-    if (nb > 0) snprintf(t2, cap, "%s  <size=78%%><color=#8FD18F>%d unit%s brought</color></size>", nmn, nb, nb == 1 ? "" : "s");
-    else snprintf(t2, cap, "%s  <size=78%%><color=#A69085>Choosing units...</color></size>", nmn);
+    char t[160];
+    if (nb > 0) snprintf(t, sizeof t, TRN("%d unit brought", "%d units brought", nb), nb);
+    else snprintf(t, sizeof t, "%s", TR("Choosing units..."));
+    snprintf(t2, cap, nb > 0 ? "%s  <size=78%%><color=#8FD18F>%s</color></size>" : "%s  <size=78%%><color=#A69085>%s</color></size>", nmn, t);
+    dsi_utf8_fix_end(t2);
     return 1;
 }
 static char *few_exec(const char *cmd, const char *line) { (void)line; return !strcmp(cmd, "mpm_fewin") ? few_status() : NULL; }   /* Foreign Expedition window read-back */
