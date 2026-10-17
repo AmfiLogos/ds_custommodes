@@ -293,8 +293,8 @@ int main(void) {
 
     /* mod sets: session file / report parse, the host's check per rule */
     { const char *sess_none = "{\"world\":\"w\",\"modset\":\"e3b0\",\"modset_lines\":[],\"rule\":\"vanilla\",\"offer\":null,\"client_mods\":[{\"id\":\"notch-fix\",\"version\":\"1.0.0\"}],\"worlds\":{}}";
-      const char *sess_hell = "{\"modset\":\"aa11\",\"modset_lines\":[\"hell-difficulty@2.0.0:abc\",\"hell-difficulty-data@2.0.0:def\"],\"rule\":\"mods\",\"client_mods\":[]}";
-      const char *sess_hell2 = "{\"modset\":\"bb22\",\"modset_lines\":[\"hell-difficulty@2.0.0:abc\",\"hell-difficulty-data@2.0.0:XXX\"],\"rule\":\"mods\",\"client_mods\":[]}";
+      const char *sess_hell = "{\"modset\":\"aa11\",\"modset_lines\":[\"hell-difficulty@2.0.0:abc\",\"custom-modes@0.1.3:def\"],\"rule\":\"mods\",\"client_mods\":[]}";
+      const char *sess_hell2 = "{\"modset\":\"bb22\",\"modset_lines\":[\"hell-difficulty@2.0.0:abc\",\"custom-modes@0.1.3:XXX\"],\"rule\":\"mods\",\"client_mods\":[]}";
       const char *sess_gcd = "{\"modset\":\"cc33\",\"modset_lines\":[\"gcd-cdr@1.0.0:111\"],\"rule\":\"mods\",\"client_mods\":[]}";
       pvp_modset none, hell, hell2, gcd, unk, rt; char why[700];
       CHECK(pvp_modset_parse(sess_none, strlen(sess_none), &none) == 0 && none.known && none.rule == 1 && none.ngame == 0 && none.nclient == 1 && !strcmp(none.client[0], "notch-fix 1.0.0"));
@@ -314,10 +314,10 @@ int main(void) {
       /* Off: the host's set is required */
       CHECK(pvp_modset_check(0, &hell, &hell, "Ben", 0, why, sizeof why) == 0);
       CHECK(pvp_modset_check(0, &hell, &hell, "The owner", 1, why, sizeof why) == 0);
-      CHECK(pvp_modset_check(0, &hell, &none, "Ben", 0, why, sizeof why) == 1 && strstr(why, "Missing: hell-difficulty 2.0.0, hell-difficulty-data 2.0.0"));
+      CHECK(pvp_modset_check(0, &hell, &none, "Ben", 0, why, sizeof why) == 1 && strstr(why, "Missing: hell-difficulty 2.0.0, custom-modes 0.1.3"));
       CHECK(pvp_modset_check(0, &none, &gcd, "Ben", 0, why, sizeof why) == 1 && strstr(why, "Not allowed: gcd-cdr 1.0.0") && !strstr(why, "Missing"));
       CHECK(pvp_modset_check(0, &hell, &gcd, "Ben", 0, why, sizeof why) == 1 && strstr(why, "Missing") && strstr(why, "Not allowed: gcd-cdr"));
-      CHECK(pvp_modset_check(0, &hell, &hell2, "Ben", 0, why, sizeof why) == 1 && strstr(why, "hell-difficulty-data 2.0.0") && strstr(why, "other files"));
+      CHECK(pvp_modset_check(0, &hell, &hell2, "Ben", 0, why, sizeof why) == 1 && strstr(why, "custom-modes 0.1.3") && strstr(why, "other files"));
       CHECK(pvp_modset_check(0, &hell, &unk, "Ben", 0, why, sizeof why) == 1 && strstr(why, "did not start the game from the launcher"));
       CHECK(pvp_modset_check(0, &none, &unk, "Ben", 0, why, sizeof why) == 0);
       CHECK(pvp_modset_check(0, &unk, &unk, "Ben", 0, why, sizeof why) == 0); }
