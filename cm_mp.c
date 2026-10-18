@@ -27,7 +27,7 @@ static DSLPlugin *ME __attribute__((unused));
 /* hooks of this module go through the loader's engine as Custom Modes' own (the rig host maps them to rig_hook).
    CM_SAME_IMAGE (Windows: one DLL with multiplayer): multiplayer's own rig_hook is used. */
 int rig_hook(uintptr_t rva, void *repl, void **orig, const char *who) {
-    int r = H && H->hook_rva ? H->hook_rva(ME, rva, repl, orig, who) : -1;
+    int r = H && H->hook_rva ? H->hook_rva(ME, rv(rva), repl, orig, who) : -1;   /* rv: rig.h, the running game version */
     if (r) rig_log("%s: hook %#lx refused (custom-modes)", who, (unsigned long)rva);
     return r;
 }
