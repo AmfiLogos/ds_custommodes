@@ -64,7 +64,7 @@ DSL_EXPORT int dsl_module_early(const DSLHost *host, DSLPlugin *self) {
     }
     void *mp = cm_loaded(CM_MP_IMAGE);
     mp_api_get_fn get = mp ? (mp_api_get_fn)cm_sym(mp, "mp_api_get") : NULL;
-    const mp_api_table *api = get ? get(MP_API_VERSION) : NULL;
+    const mp_api_table *api = get ? get(1) : NULL;                  /* v1 is all Custom Modes uses: also a newer multiplayer (MP_API_VERSION 2+) answers it */
     if (!api) { host->log(self, "multiplayer API not found (%s): Foreign Expedition and PvP are hidden", mp ? "no mp_api_get" : "no multiplayer image"); return 0; }
     if (api->register_rig_cmd) api->register_rig_cmd("mu_", mu_rig_exec);
     char p[1200];
