@@ -1,7 +1,6 @@
 // mu_init.c - My Units' entry point in custom-modes.dylib (cm_units_init, PLAN_V13 section 4) and its test hooks.
 #include "mu_ui.h"
 #include "mu_link.h"
-#include "mu_bring.h"
 #include "cm_home.h"
 #include "cm_il.h"
 #include "mu_save.h"
@@ -17,11 +16,8 @@
 void mu_window_open(void);
 DSLObj mu_window_test_find(const char *n);
 size_t mu_window_test_state(char *out, size_t cap);
-DSLObj mu_bring_test_find(const char *n);
-size_t mu_bring_test_state(char *out, size_t cap);
 void mu_window_relang(void);
-void mu_bring_relang(void);
-static void units_relang(void) { mu_window_relang(); mu_bring_relang(); }
+static void units_relang(void) { mu_window_relang(); }
 void mu_warm_start(void);
 
 void cm_units_init(const DSLHost *host, DSLPlugin *self) {
@@ -32,7 +28,6 @@ void cm_units_init(const DSLHost *host, DSLPlugin *self) {
     cm_home_on_open = mu_warm_start;                                     /* the icons load ahead while the page shows */
     cm_i18n_on_change(units_relang);
     cm_test_register("mu", mu_window_test_find, mu_window_test_state);
-    cm_test_register("bring", mu_bring_test_find, mu_bring_test_state);
 }
 
 /* ------------------------------------------------------------------ test calls (driver "call": int fn(s, out, cap)) */
@@ -81,60 +76,13 @@ TEST_API int mu_test_overflow(const char *s, char *out, size_t cap) {
     if (o + 100 < cap) o += (size_t)snprintf(out + o, cap - o, "] texts %d icons %d ellipsis %d outside %d", texts, icons, cut, bad);
     return bad;
 }
-/* Bring Units opened from a test (driver call): s = "max,sources" e.g. "4,3"; the picks land in mu_test_bring_result */
-static char bring_res[4096];
-static void bring_done(const mu_pick *p, int n, void *ud) {
-    (void)ud; size_t o = 0;
-    o += (size_t)snprintf(bring_res + o, sizeof bring_res - o, "%d:", n);
-    for (int i = 0; i < n && o + 200 < sizeof bring_res; i++)
-        o += (size_t)snprintf(bring_res + o, sizeof bring_res - o, "%s%d|%s|%s|%s|%d", i ? ";" : "", p[i].source,
-                              p[i].source == MU_SRC_SAVE ? p[i].unit_guid : p[i].lib_id, p[i].name,
-                              p[i].source == MU_SRC_SAVE ? strrchr(p[i].save_file, '/') ? strrchr(p[i].save_file, '/') + 1 : p[i].save_file : "", p[i].level);
-    mu_log("bring units (test): %s", bring_res);
-}
-/* "max,sources[,dir]": dir = the saves to offer (the caller's list_saves path, a test's own clean folder) */
-static char test_dir[1024];
-static int test_list_saves(mu_save_ref *out, int max, void *ud) {
-    (void)ud; static char f[64][1024]; int n = mu_save_files(test_dir, f, max < 64 ? max : 64);
-    for (int i = 0; i < n; i++) {
-        snprintf(out[i].path, sizeof out[i].path, "%s", f[i]);
-        out[i].name[0] = out[i].when[0] = 0;                               /* name from the file, as the default list */
-    }
-    return n;
-}
-TEST_API int mu_test_bring_open(const char *s, char *out, size_t cap) {
-    int mx = 4, src = MU_SRC_SAVE | MU_SRC_LIBRARY; test_dir[0] = 0;
-    if (s && *s) { int k = 0; sscanf(s, "%d,%d%n", &mx, &src, &k); if (k > 0 && s[k] == ',') snprintf(test_dir, sizeof test_dir, "%s", s + k + 1); }
-    bring_res[0] = 0;
-    mu_bring_req r = { .title = TR("Bring Units"), .subtitle = "Test: pick your units", .max_units = mx, .sources = src, .done = bring_done,
-                       .list_saves = test_dir[0] ? test_list_saves : NULL };
-    int rc = mu_bring_open(&r);
-    snprintf(out, cap, "%d", rc);
-    return rc;
-}
-TEST_API int mu_test_bring_result(const char *s, char *out, size_t cap) { (void)s; snprintf(out, cap, "%s", bring_res); return bring_res[0] ? 0 : 1; }
 
 /* ------------------------------------------------------------------ rig commands (multiplayer's test socket, "mu_" prefix;
-   registered by cm_module.c when multiplayer runs): mu_bring_open {"max":N,"sources":S}, mu_bring_result, mu_bring_state,
-   mu_bring_close, mu_open (My Units), mu_state, mu_overflow. Returns malloc'd JSON. */
-static int jint(const char *line, const char *k, int d) {
-    char pat[40]; snprintf(pat, sizeof pat, "\"%s\":", k);
-    const char *p = line ? strstr(line, pat) : NULL; return p ? atoi(p + strlen(pat)) : d;
-}
+   registered by cm_module.c when multiplayer runs; test control only): mu_open (My Units), mu_state, mu_overflow.
+   Returns malloc'd JSON. */
 static char *dupf(const char *fmt, const char *a) { size_t n = strlen(fmt) + (a ? strlen(a) : 0) + 1; char *s = malloc(n); if (s) snprintf(s, n, fmt, a ? a : ""); return s; }
 char *mu_rig_exec(const char *cmd, const char *line) {
     static char out[8192];
-    if (!strcmp(cmd, "mu_bring_open")) {
-        char a[1100], dir[1024] = ""; const char *d = line ? strstr(line, "\"dir\":") : NULL;
-        if (d) { d += 6; while (*d == ' ') d++; if (*d == '"') d++; else d = ""; }
-        if (d) { size_t k = 0; while (d[k] && d[k] != '"' && k + 1 < sizeof dir) { dir[k] = d[k]; k++; } dir[k] = 0; }
-        snprintf(a, sizeof a, "%d,%d%s%s", jint(line, "max", 4), jint(line, "sources", MU_SRC_SAVE | MU_SRC_LIBRARY), dir[0] ? "," : "", dir);
-        int rc = mu_test_bring_open(a, out, sizeof out);
-        return dupf(rc ? "{\"ok\":false,\"rc\":%s}" : "{\"ok\":true,\"rc\":%s}", out);
-    }
-    if (!strcmp(cmd, "mu_bring_result")) { int rc = mu_test_bring_result("", out, sizeof out); return dupf(rc ? "{\"done\":false}%s" : "{\"done\":true,\"picks\":\"%s\"}", out); }
-    if (!strcmp(cmd, "mu_bring_state")) { mu_bring_test_state(out, sizeof out); return dupf("%s", out); }
-    if (!strcmp(cmd, "mu_bring_close")) { mu_bring_close(); return dupf("{\"ok\":true}%s", ""); }
     if (!strcmp(cmd, "mu_open")) { void mu_window_open(void); mu_window_open(); mu_window_test_state(out, sizeof out); return dupf("%s", out); }
     if (!strcmp(cmd, "mu_state")) { mu_window_test_state(out, sizeof out); return dupf("%s", out); }
     if (!strcmp(cmd, "mu_overflow")) {

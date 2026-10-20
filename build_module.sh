@@ -1,41 +1,33 @@
 #!/bin/zsh
-# Build Custom Modes (MASTER_PLAN 2.1 / M4 split; PLAN_V13 section 4 "fixed interfaces"). Output in $OUT (default ../build):
-#   custom-modes.dylib      the SOLO module: cm_module.c + every custom/<folder>/sources.txt; no link to multiplayer
-#                           (title home, My Units, Gallery, Test Fights, Unit Builder work without it)
-#   custom-modes-mp.dylib   cm_mp.c + every custom/<folder>/sources_mp.txt; two-level link to @rpath/multiplayer.dylib AND
-#                           to @rpath/custom-modes.dylib (FE / PvP call My Units); loaded by cm_module.c only with multiplayer
+# Build Units Laboratory (mod id custom-modes; PLAN_V13 section 4 "fixed interfaces"). Output in $OUT (default ../build):
+#   custom-modes.dylib      the module: cm_module.c + every custom/<folder>/sources.txt; no link to multiplayer
+#                           (title home, My Units, Gallery, Test Fights, Unit Builder). Foreign Expedition and PvP are in
+#                           the multiplayer mod since the split (owner 2026-10-20): there is no custom-modes-mp.dylib.
 #   mod.json                (with OUT given by the loader build: its mods/custom-modes folder)
 # Folder lists: one .c path per line, relative to custom/ ("#" lines and blank lines skipped). Each folder that has a list
 # is also an include folder. Lane units owns this script; other lanes edit only their own lists (XM reads the same lists).
-# Env: MP_DYLIB = the multiplayer dylib to link against (default $OUT/dsrig.dylib, else $OUT/../multiplayer/multiplayer.dylib),
-#      SDK = folder with dsl_sdk.h (default ../sdk), MP_SRC = multiplayer headers (default ../src).
+# Env: SDK = folder with dsl_sdk.h (default ../sdk), MP_SRC = multiplayer headers (default ../src; mp_api.h for the test
+#      commands). MP_DYLIB is not used any more (nothing links multiplayer).
 # Called by src/build.sh (rig: next to dsrig.dylib) and by ~/ds_launcher/loader/build.sh (OUT=build/mods/custom-modes).
 set -e; H="${0:A:h}"; cd "$H"
 OUT=${OUT:-../build}; OUT=${OUT:A}; mkdir -p $OUT
 SDK=${SDK:-../sdk}; SDK=${SDK:A}; MP_SRC=${MP_SRC:-../src}; MP_SRC=${MP_SRC:A}
-if [[ -z "$MP_DYLIB" ]]; then
-  if [[ -f $OUT/dsrig.dylib ]]; then MP_DYLIB=$OUT/dsrig.dylib; else MP_DYLIB=$OUT/../multiplayer/multiplayer.dylib; fi
-fi
-[[ -f $MP_DYLIB ]] || { echo "custom-modes: no multiplayer dylib to link against ($MP_DYLIB)" >&2; exit 1; }
-SOLO=(); MPS=(); INC=()
+SOLO=(); INC=()
 for d in */(N/); do
   d=${d%/}
-  [[ -f $d/sources.txt || -f $d/sources_mp.txt ]] && INC+=(-I$d)
+  [[ -f $d/sources.txt ]] && INC+=(-I$d)
   [[ -f $d/sources.txt ]] && SOLO+=(${(f)"$(grep -v '^[[:space:]]*\(#\|$\)' $d/sources.txt || true)"})
-  [[ -f $d/sources_mp.txt ]] && MPS+=(${(f)"$(grep -v '^[[:space:]]*\(#\|$\)' $d/sources_mp.txt || true)"})
+  [[ -f $d/sources_mp.txt ]] && { echo "custom-modes: $d/sources_mp.txt: the multiplayer part moved to the multiplayer mod" >&2; exit 1; }
 done
-# a file listed by two folders is built once; a file in the solo dylib is never built again into the mp one (it links it)
-SOLO=(${(u)SOLO}); MPS=(${(u)MPS}); MPS=(${MPS:|SOLO})
-for f in $SOLO $MPS; do [[ -f $f ]] || { echo "custom-modes: listed source $f not found" >&2; exit 1; }; done
-CF=(-arch arm64 -mmacosx-version-min=12.0 -O2 -fwrapv -Wall -Wno-unused-function -D_DARWIN_C_SOURCE -I$SDK -I$MP_SRC -I. $INC)
+SOLO=(${(u)SOLO})                                       # a file listed by two folders is built once
+for f in $SOLO; do [[ -f $f ]] || { echo "custom-modes: listed source $f not found" >&2; exit 1; }; done
+CF=(-arch arm64 -mmacosx-version-min=12.0 -O2 -fwrapv -Wall -Wno-unused-function -D_DARWIN_C_SOURCE -I$SDK -I. $INC -I$MP_SRC)   # its own headers before multiplayer's (same names: fe_json.h ...)
 # -fwrapv: QuickJS (custom/fights) needs wrapping signed overflow; harmless for the rest
 # solo: AppKit / CoreFoundation for the clipboard (units/mu_clip.c), CFNetwork + zlib for wiki short links
 nice -n 19 clang $CF -dynamiclib -install_name @rpath/custom-modes.dylib -o $OUT/custom-modes.dylib.tmp cm_module.c $SOLO \
   -framework CoreFoundation -framework CFNetwork -lobjc -lz -Wl,-U,_cm_builder_open -Wl,-U,_cm_gallery_pick
 codesign -f -s - $OUT/custom-modes.dylib.tmp 2>/dev/null; mv -f $OUT/custom-modes.dylib.tmp $OUT/custom-modes.dylib
-nice -n 19 clang $CF -dynamiclib -install_name @rpath/custom-modes-mp.dylib -Wl,-rpath,@loader_path -o $OUT/custom-modes-mp.dylib.tmp \
-  cm_mp.c $MPS $MP_DYLIB $OUT/custom-modes.dylib -lz
-codesign -f -s - $OUT/custom-modes-mp.dylib.tmp 2>/dev/null; mv -f $OUT/custom-modes-mp.dylib.tmp $OUT/custom-modes-mp.dylib
+if [[ -e $OUT/custom-modes-mp.dylib ]]; then T=$HOME/ToDelete_$(date +%F); mkdir -p $T; mv -f $OUT/custom-modes-mp.dylib $T/custom-modes-mp.dylib.$(date +%H%M%S); fi   # gone since the split (a stale copy would be shipped)
 if [[ ${OUT:t} == custom-modes ]]; then
   cp mod.json $OUT/mod.json
   # the language files (lang/<code>.json, read by home/cm_i18n.c): a subfolder, never in mod.json "files" (not hashed)
@@ -47,4 +39,4 @@ if [[ ${OUT:t} == custom-modes ]]; then
   if [[ -f $W/assets/img/tour/sg-dps-map.png ]]; then mkdir -p $OUT/art; cp $W/assets/img/tour/sg-dps-map.png $OUT/art/dps_check.png
   else echo "custom-modes: no DPS check picture (DS_WIKI_SITE/assets/img/tour/sg-dps-map.png): the card shows without it" >&2; fi
 fi
-echo "built $OUT/custom-modes.dylib (${#SOLO} sources) + custom-modes-mp.dylib (${#MPS} sources; linked to ${MP_DYLIB:t} + custom-modes.dylib)"
+echo "built $OUT/custom-modes.dylib (${#SOLO} sources)"
