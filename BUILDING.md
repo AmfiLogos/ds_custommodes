@@ -33,7 +33,6 @@ Never commit these.
 | ds_multiplayer clone | https://github.com/AmfiLogos/ds_multiplayer. Gives the headers (`src/`), `sdk/dsl_sdk.h` and the Windows build. `build.sh` clones it into `build/ds_multiplayer` when missing. | `MP_REPO` |
 | DS wiki site source (optional) | The DPS check picture of Test Fights (`assets/img/tour/sg-dps-map.png`, game art: never in git) is copied into the mod as `art/dps_check.png`. Missing = the card shows without it. | `DS_WIKI_SITE` (default `dungeonsettlersdb/site` in your home folder) |
 | Multiplayer pin | The ds_multiplayer commit to build against: first line of `mp_pin.txt`. `build.sh` exports it read only into `build/mp/<sha>/`. | `MP_PIN` |
-| `multiplayer.dylib` (Mac only, required) | The Mac multiplayer module to link `custom-modes-mp.dylib` against. Only its exported names are used. Take `mods/multiplayer/multiplayer.dylib` from a ds_multiplayer release or a mod loader build, or `build/dsrig.dylib` of a ds_multiplayer build. | `MP_DYLIB` |
 | Loader SDK | Folder with `dsl_sdk.h`. Default: `sdk/` of the pinned tree. | `SDK` |
 | Windows game folder (Windows only) | `win/25846389` of ds_multiplayer: copies of the Windows game files of Steam build 25846389 and the Il2CppDumper dump. ds_multiplayer `BUILDING.md` says how to make it. | `MP_GAME` (default `$MP_REPO/win/25846389`) |
 | Mac dump (Windows only) | ds_multiplayer `win/win_map.py` also reads the Mac dump and the Mac GameAssembly arm64 slice. See ds_multiplayer `BUILDING.md`. | none (fixed paths in those scripts) |
@@ -44,28 +43,28 @@ The supported game is Dungeon Settlers, Steam build 25846389 (`mod.json`).
 
 Run each command from the repo root.
 
-- Both platforms: `MP_DYLIB=<multiplayer.dylib> zsh build.sh`
-- Mac only: `MP_DYLIB=<multiplayer.dylib> zsh build.sh mac`
+- Both platforms: `zsh build.sh`
+- Mac only: `zsh build.sh mac`
 - Windows only: `zsh build.sh win`
 
 Outputs:
-- `build/mac/custom-modes/`: `custom-modes.dylib` (solo part), `custom-modes-mp.dylib` (multiplayer part), `mod.json`.
-- `build/win/custom-modes/`: `custom-modes.dll`, `custom-modes-mp.dll`, `mod.json`.
+- `build/mac/custom-modes/`: `custom-modes.dylib`, `mod.json`.
+- `build/win/custom-modes/`: `custom-modes.dll`, `mod.json`.
 
 `build.sh` prints the sha256 of each built file. The Mac files are the same bytes as the mod loader build.
 The Windows DLLs differ by the build time stamp and the build folder in QuickJS `__FILE__` strings.
 
 `build_module.sh` is the Mac step alone. ds_multiplayer `src/build.sh` and the mod loader `loader/build.sh` call it with
-`OUT`, `SDK`, `MP_SRC` (multiplayer headers) and `MP_DYLIB` set.
+`OUT`, `SDK` and `MP_SRC` (multiplayer headers) set.
 
-Each folder with a `sources.txt` (solo part) or `sources_mp.txt` (multiplayer part) adds its `.c` files to the build.
+Each folder with a `sources.txt` adds its `.c` files to the build. (`sources_mp.txt`, the old multiplayer part, is refused:
+Foreign Expedition and PvP moved to ds_multiplayer `src/`.)
 
 ## 4. Tests
 
 The test scripts look for a ds_multiplayer checkout. Set `MP_ROOT=<your ds_multiplayer checkout>`.
 They write into that checkout (`build_bld/`, `build_c4/`, `build/units/`).
 
-- PvP core: `make -C pvp/pvp_test test`
 - My Units, links and card: `MP_ROOT=<checkout> make -C units/test test` (`NET=1` adds the live short links on dungeonsettlers.wiki).
 - Unit Builder filters (several choices at once): `cc -I builder -I fe builder/test/filter_test.c builder/bld_filter.c fe/fe_json.c -o /tmp/filter_test && /tmp/filter_test`
 - Unit Builder vs the wiki builder (Node.js): `MP_ROOT=<checkout> zsh builder/build.sh`, then
