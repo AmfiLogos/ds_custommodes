@@ -22,12 +22,14 @@ size_t mu_bring_test_state(char *out, size_t cap);
 void mu_window_relang(void);
 void mu_bring_relang(void);
 static void units_relang(void) { mu_window_relang(); mu_bring_relang(); }
+void mu_warm_start(void);
 
 void cm_units_init(const DSLHost *host, DSLPlugin *self) {
     mu_ui_init(host, self);
     fe_log_hook = mu_log;                                                /* the detail behind short save / link / My Units messages */
     if (!mu_kit()) { host->log(self, "My Units: no widget kit (loader older than API 3)"); return; }
     cm_home_add("my-units", TR_NOOP("My Units"), NULL, 10, mu_window_open);
+    cm_home_on_open = mu_warm_start;                                     /* the icons load ahead while the page shows */
     cm_i18n_on_change(units_relang);
     cm_test_register("mu", mu_window_test_find, mu_window_test_state);
     cm_test_register("bring", mu_bring_test_find, mu_bring_test_state);

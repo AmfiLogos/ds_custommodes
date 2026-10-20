@@ -54,3 +54,5 @@ void cm_game_text(const char *textkey, const char *en, char *out, size_t cap);
 const char *cm_gw(const char *textkey, const char *en);
 enum { CM_ICON_ITEM = 1, CM_ICON_SKILL, CM_ICON_TREE, CM_ICON_AFFECTER, CM_ICON_PORTRAIT };
 Obj  cm_icon(int kind, const char *key);                 /* Sprite, or NULL (the game's default icon counts as NULL) */
+int  cm_icon_ready(void);                                /* 1 = item / skill / tree / affecter icons can load now */
+int  cm_icon_cached(int kind, const char *key);          /* 1 = cm_icon answers from its cache (no load) */
