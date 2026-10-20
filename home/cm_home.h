@@ -32,6 +32,8 @@ typedef size_t (*cm_test_state_fn)(char *out, size_t cap);
 int cm_test_register(const char *prefix, cm_test_find_fn find, cm_test_state_fn state);
 DSLObj cm_test_target(const char *name);
 size_t cm_test_state(char *out, size_t cap);
+/* called each time the page opens (main thread); NULL = nothing. My Units sets it: the icons start to preload (mu_warm.c) */
+extern void (*cm_home_on_open)(void);
 /* open / close the page without a click (test drivers) */
 void cm_home_open(void);
 void cm_home_close(void);

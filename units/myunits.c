@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
+#include <windows.h>
 #else
 #include <pwd.h>
 #include <unistd.h>
@@ -23,6 +24,14 @@ void mu_lib_path(char *out, size_t n) {
     if (e && *e) { snprintf(out, n, "%s", e); return; }
 #ifdef _WIN32
     if (data_dir[0]) { snprintf(out, n, "%s\\Mods\\units\\library.json", data_dir); return; }
+    /* not set yet (only the My Units, Bring Units and Unit Builder windows set it when they open; the Gallery's "Save to
+       My Units" and Test Fights did not): the modded game's save folder from the starter (DSML_DATA = the folder
+       Application.persistentDataPath points to), so every part reads and writes the SAME file. Foctopus 2026-10-20: a
+       Gallery save before My Units was opened went to LocalLow\CanOpener\Dungeon Settlers\Mods\units, and My Units
+       (persistentDataPath = <profile>\data) never showed it. */
+    { wchar_t w[1024]; DWORD k = GetEnvironmentVariableW(L"DSML_DATA", w, 1024); char u[3100];
+      if (k && k < 1024 && WideCharToMultiByte(CP_UTF8, 0, w, -1, u, sizeof u, NULL, NULL)) {
+          snprintf(out, n, "%s\\Mods\\units\\library.json", u); return; } }
     const char *up = getenv("USERPROFILE");
     snprintf(out, n, "%s\\AppData\\LocalLow\\CanOpener\\Dungeon Settlers\\Mods\\units\\library.json", up ? up : ".");
 #else
