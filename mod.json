@@ -23,7 +23,7 @@
  ],
  "conflicts": [],
  "description": "Adds My Units, Unit Builder, Wiki Build Gallery and Test Fights to the title screen. With Multiplayer on, you can also host Foreign Expedition and PvP.",
- "scope": "gameplay",
+ "scope": "client",
  "i18n": {
   "ko": {
    "name": "유닛 연구소",

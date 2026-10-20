@@ -32,8 +32,22 @@
 
 mp_session *mp_game_session(void) __attribute__((weak_import));
 static mp_session *sess(void) { return mp_game_session ? mp_game_session() : NULL; }
-
 static pvp_state g;
+/* Units Laboratory is a launcher feature (owner 2026-10-20): never in the multiplayer mod set, so a peer of a normal world
+   may run without it. Nothing of it may then reach that world's shared state: with PvP off and its state as at start
+   (pvp_init), the fingerprint mix is 0 (= no mix) and no join-point block is written (= the save of a peer without it). */
+static int pvp_untouched(void) {
+    static pvp_state z; static uint8_t zb[2048], b[2048]; static size_t zn;
+    if (!zn) { pvp_init(&z); zn = pvp_save(&z, zb, sizeof zb); }
+    size_t n = pvp_save(&g, b, sizeof b);
+    return n == zn && !memcmp(b, zb, n);
+}
+int pvp_v1_world(void);                                  /* fe/fe_hub.c */
+int fe_world_is_hub(void);                               /* fe/fe_game.c */
+/* 1 = this world may run Units Laboratory's own sim rules: not in a multiplayer session (solo), a world it made (Foreign
+   Expedition hub, PvP v1 world) or a PvP match set up. A normal multiplayer world: 0 (a peer may not have it). */
+static int ul_world(void) { return !sess() || pvp_v1_world() || fe_world_is_hub() || !pvp_untouched(); }
+
 static uint32_t n_rel_hostile, n_ishostile, n_add, n_refresh, n_remove, n_aggro, n_rejected;
 static int last_rc = 1;
 
@@ -338,7 +352,7 @@ static void h_preg(Obj self, Obj ent, Obj key, bool init, void *mi) {
     char k[96] = "", st[64];
     int len = key ? AT(key, 0x10, int32_t) : 0;
     for (int i = 0; i < len && i < 95; i++) k[i] = (char)AT(key, 0x14 + 2 * i, uint16_t);
-    if (ent && k[0] && pb_folded_skill(k, st, sizeof st)) {
+    if (ent && k[0] && ul_world() && pb_folded_skill(k, st, sizeof st)) {   /* a normal multiplayer world: stock (a peer may not have Units Laboratory) */
         int id = rig_stat_id(st);
         if (id > 0 && perm_has(ent, id)) {
             n_passive_skipped++;
@@ -749,8 +763,8 @@ void pvp_sim_tick(void) {
                        g.last_winner, g.score[1], g.score[2], g.draws, pm[1], pm[2], e == PVP_RESET_MATCH ? ": MATCH OVER" : "");
     }
 }
-uint64_t pvp_fp_mix(void) { return pvp_hash(&g); }
-size_t pvp_block_size(void) { return pvp_save_size(&g); }
+uint64_t pvp_fp_mix(void) { return pvp_untouched() ? 0 : pvp_hash(&g); }            /* 0 = the world fingerprint unchanged */
+size_t pvp_block_size(void) { return pvp_untouched() ? 0 : pvp_save_size(&g); }    /* 0 = no PVPB block (pvp_block_set(NULL) = pvp_init) */
 size_t pvp_block_get(uint8_t *out, size_t cap) { return pvp_save(&g, out, cap); }
 void pvp_block_set(const uint8_t *p, size_t n) {
     session_check();
