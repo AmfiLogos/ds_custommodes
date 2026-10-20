@@ -231,12 +231,48 @@ const char *cm_gw(const char *key, const char *en) {
     cm_game_text(key, en, o, sizeof ring[0]);
     return o;
 }
-#define ICACHE 512
-static struct { int kind; char key[96]; uintptr_t h; } ic[ICACHE]; static int nic;
+/* Icon cache: kind + key -> strong GC handle of the sprite, or a "missing" mark (the game's default icon). Every icon is
+   a synchronous ResourceLoader load the first time (Foctopus 2026-10-20: each click in the Unit Builder / Gallery froze
+   the game a moment), so the cache holds every icon the windows show (the wiki data has ~470 keys, plus portraits) and
+   cm_icon_ready + mu_warm.c fill it a few per tick before the windows need them. Open addressing on a string hash. */
+#define ICACHE 4096
+static struct { int kind; char key[96]; uintptr_t h; int miss; } ic[ICACHE]; static int nic;
 static uintptr_t h_rl;
+static unsigned ic_slot(int kind, const char *key) {
+    unsigned h = 2166136261u ^ (unsigned)kind;
+    for (const unsigned char *p = (const unsigned char *)key; *p; p++) h = (h ^ *p) * 16777619u;
+    unsigned i = h & (ICACHE - 1);
+    while (ic[i].kind && !(ic[i].kind == kind && !strcmp(ic[i].key, key))) i = (i + 1) & (ICACHE - 1);
+    return i;
+}
+static void ic_put(int kind, const char *key, Obj sp, int miss) {
+    if (nic >= ICACHE * 3 / 4 || strlen(key) >= sizeof ic[0].key) return;
+    unsigned i = ic_slot(kind, key);
+    if (!ic[i].kind) { ic[i].kind = kind; snprintf(ic[i].key, sizeof ic[i].key, "%s", key); nic++; }
+    if (ic[i].h) cm_il_hfree(ic[i].h);
+    ic[i].h = sp ? cm_il_hnew(sp) : 0; ic[i].miss = miss;
+}
+int cm_icon_cached(int kind, const char *key) {
+    if (!key || !*key || strlen(key) >= sizeof ic[0].key) return 0;
+    unsigned i = ic_slot(kind, key);
+    return ic[i].kind && (ic[i].miss || ic[i].h);
+}
+/* 1 = the game's ResourceLoader answers icon loads now (item / skill / tree / affecter icons) */
+int cm_icon_ready(void) {
+    if (ok != 1) return 0;
+    Obj rl = cm_il_hget(h_rl);
+    if (!cm_alive(rl)) { rl = cm_find(k_rl, true); cm_il_hset(&h_rl, rl); }
+    return rl && (!m_rl_ready.fn || CM_CALL(m_rl_ready, bool, Obj, const void *)(rl, m_rl_ready.mi));
+}
 Obj cm_icon(int kind, const char *key) {
     if (ok != 1 || !key || !*key) return NULL;
-    for (int i = 0; i < nic; i++) if (ic[i].kind == kind && !strcmp(ic[i].key, key)) { Obj o = cm_il_hget(ic[i].h); if (cm_alive(o)) return o; ic[i].h = 0; }
+    if (strlen(key) < sizeof ic[0].key) {
+        unsigned i = ic_slot(kind, key);
+        if (ic[i].kind) {
+            if (ic[i].miss) return NULL;
+            Obj o = cm_il_hget(ic[i].h); if (cm_alive(o)) return o;
+        }
+    }
     Obj sp = NULL;
     if (kind == CM_ICON_PORTRAIT) {
         /* the portrait table (UnitVisualDatabase, a ScriptableObject): through the world's UnitVisualDataManager, else
@@ -272,7 +308,10 @@ Obj cm_icon(int kind, const char *key) {
     if (!cm_alive(sp)) return NULL;
     char nm[96] = ""; if (m_spr_name.fn) cm_il_utf8(CM_CALL(m_spr_name, Obj, Obj, const void *)(sp, m_spr_name.mi), nm, sizeof nm);
     if (nic < 40) H->log(ME, "icon %d %s -> sprite \"%s\"", kind, key, nm);
-    if (!strncmp(nm, "DefaultIcon", 11) || !strncmp(nm, "Default", 7)) return NULL;   /* a missing key: the game's default */
-    if (nic < ICACHE) { ic[nic].kind = kind; snprintf(ic[nic].key, sizeof ic[nic].key, "%s", key); ic[nic].h = cm_il_hnew(sp); nic++; }
+    if (!strncmp(nm, "DefaultIcon", 11) || !strncmp(nm, "Default", 7)) {   /* a missing key: the game's default, kept as missing */
+        if (kind != CM_ICON_PORTRAIT) ic_put(kind, key, NULL, 1);
+        return NULL;
+    }
+    ic_put(kind, key, sp, 0);
     return sp;
 }

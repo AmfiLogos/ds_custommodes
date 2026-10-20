@@ -99,6 +99,7 @@ static int build_page(Obj view) {
     H->log(ME, "home: page built (%d entries + Back)", nents);
     return 0;
 }
+void (*cm_home_on_open)(void);
 void cm_home_open(void) {
     if (!U || !il_init()) { if (H) H->log(ME, "home: cannot open (kit %s, il2cpp %d)", U ? "ok" : "missing", il_ok); return; }
     Obj v = title_view(); if (!v) { H->log(ME, "home: no title screen"); return; }
@@ -110,6 +111,7 @@ void cm_home_open(void) {
     set_active(go_of(hget(h_page)), true);
     page_on = 1;
     H->log(ME, "home: page open");
+    if (cm_home_on_open) cm_home_on_open();
 }
 void cm_home_close(void) {
     if (!page_on) return;
