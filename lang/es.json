@@ -392,5 +392,8 @@
  "trait": "rasgo",
  "tree %s has no pool": "el árbol %s no tiene lista",
  "two-handed": "a dos manos",
- "worst": "peor"
+ "worst": "peor",
+ "Discard your changes?": "¿Descartar los cambios?",
+ "Discard": "Descartar",
+ "Keep editing": "Seguir editando"
 }

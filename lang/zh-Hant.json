@@ -381,5 +381,8 @@
  "trait": "特質",
  "tree %s has no pool": "技能樹 %s 沒有池",
  "two-handed": "雙手",
- "worst": "最差"
+ "worst": "最差",
+ "Discard your changes?": "放棄變更？",
+ "Discard": "放棄",
+ "Keep editing": "繼續編輯"
 }

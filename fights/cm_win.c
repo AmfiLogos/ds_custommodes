@@ -5,6 +5,7 @@
 #include "cm_home.h"
 #include "cm_gtip.h"
 #include "cm_il.h"
+#include "mu_ui.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -243,6 +244,15 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     v->win = U->panel(NULL, 0, 0, w, h, 0);
     if (!v->win) { U->destroy(v->back); memset(v, 0, sizeof *v); return NULL; }
     centre(v->win);
+    /* the game's UI scale, as My Units and the Unit Builder (mu_window): drawn at w x h x scale, smaller when that would
+       not fit the screen layer (never cut) */
+    { float lw = 0, lh = 0, sc = mu_ui_scale(); typedef struct { float x, y, z; } V3;
+      if (!cm_rect_size(cm_parent(v->win), &lw, &lh) && lw >= 100 && lh >= 100) {
+          if (sc * w > lw - 40) sc = (lw - 40) / w;
+          if (sc * h > lh - 40) sc = (lh - 40) / h;
+      }
+      static cm_m ls; if (!ls.fn) ls = cm_il_method("UnityEngine", "Transform", "set_localScale", 1, NULL);
+      if (ls.fn && sc > 0.1f) CM_CALL(ls, void, Obj, V3, const void *)(v->win, (V3){ sc, sc, 1 }, ls.mi); }
     cmw_flat(U->panel(v->win, 4, 4, w - 8, h - 8, 0), 0x222025FF);
     cmw_flat(U->panel(v->win, 4, 4, w - 8, CMW_BAND - 4, 0), 0x2D2A31FF);
     cmw_flat(U->panel(v->win, 4, CMW_BAND, w - 8, 1, 0), 0xB6835AFF);

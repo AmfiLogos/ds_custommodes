@@ -381,5 +381,8 @@
  "trait": "特性",
  "tree %s has no pool": "ツリー %s に候補がありません",
  "two-handed": "両手",
- "worst": "最低"
+ "worst": "最低",
+ "Discard your changes?": "変更を破棄しますか？",
+ "Discard": "破棄",
+ "Keep editing": "編集を続ける"
 }

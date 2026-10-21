@@ -392,5 +392,8 @@
  "trait": "trait",
  "tree %s has no pool": "l'arbre %s n'a pas de liste",
  "two-handed": "à deux mains",
- "worst": "pire"
+ "worst": "pire",
+ "Discard your changes?": "Abandonner les modifications ?",
+ "Discard": "Abandonner",
+ "Keep editing": "Continuer"
 }

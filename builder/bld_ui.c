@@ -106,6 +106,7 @@ static struct {
     jv *st;                                /* the model's last state */
     char msg[800]; uint32_t msg_col;
     int saving, take_name;                 /* take_name: the next load names the unit (a gallery build) */
+    int dirty; char name0[96];             /* a change since the window opened (Cancel asks); the name field as loaded */
     struct { char name[120]; DSLObj o; } reg[REGMAX]; int nreg;
 } W = { .open_slot = -1 };
 
@@ -153,11 +154,18 @@ static void close_win(void) {
     if (W.st) { jfree(W.st); W.st = NULL; }
     W.saved = NULL; W.ud = NULL;
 }
-static void on_cancel(void *ud, DSLObj w) { (void)ud; (void)w; mu_log("builder: closed without saving"); close_win(); }
+static void discard_ok(void *ud, DSLObj w) { (void)ud; (void)w; if (W.open) { mu_log("builder: closed without saving (changes discarded)"); close_win(); } }
+static void on_cancel(void *ud, DSLObj w) {      /* unsaved changes: the game's notice asks first (owner 2026-10-21) */
+    (void)ud; (void)w;
+    char nm[96] = ""; if (W.f_name) U->field_get(W.f_name, nm, sizeof nm);
+    if (W.dirty || strcmp(nm, W.name0)) { U->notice(TR("Discard your changes?"), TR("Discard"), TR("Keep editing"), discard_ok, NULL, NULL); return; }
+    mu_log("builder: closed without saving"); close_win();
+}
 
 /* a click: the action JSON goes to the model, the answer redraws */
 static void act(const char *json) {
     if (!W.open || eng != ENG_READY || W.saving) return;
+    W.dirty = 1;
     post(J_ACT, json);
 }
 static void act_k(const char *t, const char *key) {
@@ -230,7 +238,8 @@ static void job_done(bld_job *j) {
             if (s) { if (W.st) jfree(W.st); W.st = s; }
             if (b->kind == J_SAVE) finish_save(b);
             else if (!bld_work_busy()) {                 /* more clicks queued: draw the last answer only */
-                if (b->kind == J_LOAD && W.f_name) { char nm[96]; sraw(jget(W.st, "name"), nm, sizeof nm); if (!W.lib_name[0] || W.take_name) U->field_set(W.f_name, nm); W.take_name = 0; }
+                if (b->kind == J_LOAD && W.f_name) { char nm[96]; sraw(jget(W.st, "name"), nm, sizeof nm); if (!W.lib_name[0] || W.take_name) U->field_set(W.f_name, nm); W.take_name = 0;
+                                                     U->field_get(W.f_name, W.name0, sizeof W.name0); }
                 refresh();
             }
         }
@@ -495,7 +504,7 @@ extern void cm_gallery_pick(void (*picked)(const char *build_json, void *ud), vo
 static void gal_picked(const char *build_json, void *ud) {
     (void)ud;
     if (!W.open || !build_json || !*build_json) return;
-    W.take_name = 1; W.open_slot = -1;
+    W.take_name = 1; W.open_slot = -1; W.dirty = 1;
     set_msg(TR("Loaded from the Wiki Build Gallery. Change anything, then Save."), MU_C_SUB);
     post(J_LOAD, build_json);
 }
@@ -1234,7 +1243,7 @@ void cm_builder_open(const char *unit_id_or_null, void (*saved)(const char *unit
     if (W.open) close_win();
     if (bld_work_start()) { mu_log("builder: worker thread did not start"); return; }
     { static int polling; if (!polling) polling = !mu_tick_add(win_poll); }
-    W.section = SEC_RACE; W.open_slot = -1; W.msg[0] = 0; W.saving = 0;
+    W.section = SEC_RACE; W.open_slot = -1; W.msg[0] = 0; W.saving = 0; W.dirty = 0; W.name0[0] = 0;
     W.unit_id[0] = 0; W.lib_name[0] = 0; W.saved = saved; W.ud = ud;
     fl_reset();
     { char p[1200] = ""; cm_m m = cm_il_method("UnityEngine", "Application", "get_persistentDataPath", 0, NULL);
@@ -1251,7 +1260,7 @@ void cm_builder_open(const char *unit_id_or_null, void (*saved)(const char *unit
         } else set_msg(lib ? TR("That unit is not in My Units any more: a new unit starts here.") : e, MU_C_BAD);
         if (lib) jfree(lib);
     }
-    W.saved = saved; W.ud = ud;
+    W.saved = saved; W.ud = ud; snprintf(W.name0, sizeof W.name0, "%s", W.lib_name);   /* the field's first text */
     if (build_ui()) { free(bj); return; }
     W.open = 1;
     if (eng == ENG_FAILED) eng = ENG_NONE;              /* try again (the wiki may answer now) */

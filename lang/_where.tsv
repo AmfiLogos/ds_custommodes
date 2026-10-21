@@ -1,16 +1,16 @@
-"%d SP"	builder/bld_ui.c:898
-"%d main SP"	builder/bld_ui.c:899
+"%d SP"	builder/bld_ui.c:907
+"%d main SP"	builder/bld_ui.c:908
 "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made."	fights/tf_ui.c:293
 "%d selected||%d selected"	units/mu_window.c:289
 "%d slot and %g weight per character.||%d slots and %g weight per character."	fights/tf_ui.c:819
-"%d sub SP"	builder/bld_ui.c:899
+"%d sub SP"	builder/bld_ui.c:908
 "%d unit||%d units"	gallery/gal_ui.c:446
 "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)"	fights/tf_ui.c:794
-"%s  (+%d %s per use)"	builder/bld_ui.c:843
-"%s  -  auxiliary tree, Sub SP"	builder/bld_ui.c:881
-"%s  -  auxiliary tree, Sub SP, from an inscription"	builder/bld_ui.c:881
-"%s  -  weapon tree, Main SP"	builder/bld_ui.c:880
-"%s  -  weapon tree, Main SP, from an inscription"	builder/bld_ui.c:880
+"%s  (+%d %s per use)"	builder/bld_ui.c:852
+"%s  -  auxiliary tree, Sub SP"	builder/bld_ui.c:890
+"%s  -  auxiliary tree, Sub SP, from an inscription"	builder/bld_ui.c:890
+"%s  -  weapon tree, Main SP"	builder/bld_ui.c:889
+"%s  -  weapon tree, Main SP, from an inscription"	builder/bld_ui.c:889
 "%s  Lv %d"	gallery/gal_ui.c:267 gallery/gal_ui.c:553 fights/tf_ui.c:552 fights/tf_ui.c:564
 "%s %.*s is not in this game version"	units/pvp_wiki.c:278
 "%s cannot go in the %s slot"	units/pvp_build.c:207
@@ -20,20 +20,20 @@
 "%s/s"	fights/tf_ui.c:656
 "%s: %s %.2f is outside %.2f..%.2f"	units/pvp_build.c:211
 "%s: bonus %d is not in its pool"	units/pvp_build.c:209
-"%s: stats x%s, mana stones x%s"	builder/bld_ui.c:786
-"(empty)"	builder/bld_ui.c:934 builder/bld_ui.c:954
-"(none)"	builder/bld_ui.c:942
-"+%d to +%d per level"	builder/bld_ui.c:824
-"A bigger offering multiplies the stats each level-up gives and the mana stones it costs."	builder/bld_ui.c:791
+"%s: stats x%s, mana stones x%s"	builder/bld_ui.c:795
+"(empty)"	builder/bld_ui.c:943 builder/bld_ui.c:963
+"(none)"	builder/bld_ui.c:951
+"+%d to +%d per level"	builder/bld_ui.c:833
+"A bigger offering multiplies the stats each level-up gives and the mana stones it costs."	builder/bld_ui.c:800
 "A fully built base with all research done. Your squad walks in ready to play."	fights/tf_ui.c:726
 "A picked unit is no longer in My Units."	fights/tf_ui.c:328
 "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does."	fights/tf_ui.c:723
 "A team holds %d unit at most.||A team holds %d units at most."	units/mu_window.c:154
-"A unit holds one soul stone: picking another replaces it."	builder/bld_ui.c:760
-"Acquired traits"	builder/bld_ui.c:755
-"Active"	builder/bld_ui.c:625
+"A unit holds one soul stone: picking another replaces it."	builder/bld_ui.c:769
+"Acquired traits"	builder/bld_ui.c:764
+"Active"	builder/bld_ui.c:634
 "Add"	units/mu_window.c:318
-"Add a shield (one-handed weapons)"	builder/bld_ui.c:1004
+"Add a shield (one-handed weapons)"	builder/bld_ui.c:1013
 "Add at least one monster to the room."	fights/tf_ui.c:342
 "Add from wiki link"	units/mu_window.c:308 units/mu_window.c:309
 "Added %d unit to My Units as the team %s||Added %d units to My Units as the team %s"	units/mu_link.c:109
@@ -41,14 +41,14 @@
 "Added by default so every unit has enough carry weight for the battle kits."	fights/tf_ui.c:831
 "Added to the room: %s x%d."	fights/tf_ui.c:599
 "Aid Kit"	fights/tf_ui.c:177
-"All"	builder/bld_ui.c:555
-"All %s"	builder/bld_ui.c:811 builder/bld_ui.c:811 builder/bld_ui.c:811
+"All"	builder/bld_ui.c:564
+"All %s"	builder/bld_ui.c:820 builder/bld_ui.c:820 builder/bld_ui.c:820
 "All units (%zu)"	units/mu_window.c:221
 "An expedition holds %d unit: untick one first.||An expedition holds %d units: untick one first."	fights/tf_ui.c:399
-"Any"	gallery/gal_ui.c:725 gallery/gal_ui.c:725 builder/bld_ui.c:527
+"Any"	gallery/gal_ui.c:725 gallery/gal_ui.c:725 builder/bld_ui.c:536
 "Arrow"	units/mu_ui.c:105
-"Attack"	builder/bld_ui.c:648
-"Auxiliary trees"	builder/bld_ui.c:603 builder/bld_ui.c:982
+"Attack"	builder/bld_ui.c:657
+"Auxiliary trees"	builder/bld_ui.c:612 builder/bld_ui.c:991
 "Axe"	units/mu_ui.c:106
 "Back"	home/cm_home.c:96 gallery/gal_ui.c:676 gallery/gal_ui.c:676
 "Background"	builder/bld_ui.c:32
@@ -57,19 +57,19 @@
 "Battle kits"	fights/tf_ui.c:790
 "Blunt"	units/mu_ui.c:99
 "Body Armor"	units/mu_ui.c:104
-"Bonus"	builder/bld_ui.c:604
+"Bonus"	builder/bld_ui.c:613
 "Boss"	fights/tf_ui.c:733
 "Boss fight"	fights/tf_ui.c:720
 "Bow"	units/mu_ui.c:100
 "Building your save file..."	fights/tf_ui.c:356
 "Builds by %s"	gallery/gal_ui.c:185
-"Can learn"	builder/bld_ui.c:625
-"Cancel"	units/mu_window.c:193 units/mu_window.c:202 units/mu_window.c:319 units/mu_window.c:347 builder/bld_ui.c:1188
-"Choose a build, open its Details, then press \"Use this unit\"."	gallery/gal_ui.c:93 gallery/gal_ui.c:811 gallery/gal_ui.c:813
+"Can learn"	builder/bld_ui.c:634
+"Cancel"	units/mu_window.c:193 units/mu_window.c:202 units/mu_window.c:319 units/mu_window.c:347 builder/bld_ui.c:1197
+"Choose a build, open its Details, then press \"Use this unit\"."	gallery/gal_ui.c:93 gallery/gal_ui.c:812 gallery/gal_ui.c:814
 "Choose management difficulty separately"	fights/tf_ui.c:784 fights/tf_ui.c:784
-"Clear"	gallery/gal_ui.c:804 gallery/gal_ui.c:804
+"Clear"	gallery/gal_ui.c:805 gallery/gal_ui.c:805
 "Close"	units/mu_window.c:312
-"Close (Esc)"	fights/cm_win.c:255
+"Close (Esc)"	fights/cm_win.c:265
 "Combat"	fights/tf_ui.c:778
 "Compact Plus"	gallery/gal_ui.c:715
 "Complete only"	gallery/gal_ui.c:732 gallery/gal_ui.c:732
@@ -79,8 +79,8 @@
 "Could not add to My Units: %s"	units/mu_link.c:103
 "Could not load the gallery. Try again later."	gallery/gal_ui.c:107
 "Could not load this team. Try again later."	gallery/gal_ui.c:231 gallery/gal_ui.c:256
-"Could not read My Units: %s"	builder/bld_ui.c:177
-"Could not save My Units: %s"	units/mu_window.c:58 builder/bld_ui.c:192
+"Could not read My Units: %s"	builder/bld_ui.c:185
+"Could not save My Units: %s"	units/mu_window.c:58 builder/bld_ui.c:200
 "Custom fight"	fights/tf_ui.c:720
 "DPS Check"	fights/tf_ui.c:720
 "Dagger"	units/mu_ui.c:101
@@ -92,19 +92,21 @@
 "Deleted %d unit.||Deleted %d units."	units/mu_window.c:186
 "Details"	gallery/gal_ui.c:592
 "Difficulty"	fights/tf_ui.c:774
-"Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken."	builder/bld_ui.c:836
-"Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest."	builder/bld_ui.c:805
+"Discard"	builder/bld_ui.c:161
+"Discard your changes?"	builder/bld_ui.c:161
+"Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken."	builder/bld_ui.c:845
+"Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest."	builder/bld_ui.c:814
 "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."	fights/tf_ui.c:791
 "Edit"	units/mu_window.c:335
 "Every character gains %s so the load is carryable."	fights/tf_ui.c:832
-"Extra skill trees"	builder/bld_ui.c:981
-"Female"	builder/bld_ui.c:720
+"Extra skill trees"	builder/bld_ui.c:990
+"Female"	builder/bld_ui.c:729
 "Finished base"	fights/tf_ui.c:720
 "Fire Staff"	units/mu_ui.c:101
 "Focus: %s"	gallery/gal_ui.c:448
 "From Lv %d"	gallery/gal_ui.c:447
 "Gear"	builder/bld_ui.c:32
-"Gear quick sets"	builder/bld_ui.c:992
+"Gear quick sets"	builder/bld_ui.c:1001
 "Getting the wiki's Test Fights files..."	fights/tf_ui.c:708
 "Grant %s on custom saves"	fights/tf_ui.c:822
 "Greatsword"	units/mu_ui.c:98
@@ -114,109 +116,110 @@
 "In the squad: %s"	fights/tf_ui.c:524
 "Incomplete"	gallery/gal_ui.c:450
 "Inscription off. Units may be overweight if you keep the kits packed."	fights/tf_ui.c:833
-"Inscriptions"	gallery/gal_ui.c:655 builder/bld_ui.c:32 builder/bld_ui.c:986
-"Inscriptions free"	builder/bld_ui.c:1096
-"Kind"	builder/bld_ui.c:653
-"Learned"	builder/bld_ui.c:625 builder/bld_ui.c:907
+"Inscriptions"	gallery/gal_ui.c:655 builder/bld_ui.c:32 builder/bld_ui.c:995
+"Inscriptions free"	builder/bld_ui.c:1105
+"Keep editing"	builder/bld_ui.c:161
+"Kind"	builder/bld_ui.c:662
+"Learned"	builder/bld_ui.c:634 builder/bld_ui.c:916
 "Left off, the economy matches the combat difficulty (%s)."	fights/tf_ui.c:786
 "Left out of the kits: %s (%s)."	fights/tf_ui.c:133
-"Level"	builder/bld_ui.c:1151 builder/bld_ui.c:1186
+"Level"	builder/bld_ui.c:1160 builder/bld_ui.c:1195
 "Level-ups"	builder/bld_ui.c:33
 "Likes"	gallery/gal_ui.c:440
 "List"	gallery/gal_ui.c:715
-"Loaded from the Wiki Build Gallery. Change anything, then Save."	builder/bld_ui.c:499
+"Loaded from the Wiki Build Gallery. Change anything, then Save."	builder/bld_ui.c:508
 "Loading builds..."	gallery/gal_ui.c:120
-"Loading the wiki's Unit Builder..."	builder/bld_ui.c:1110
+"Loading the wiki's Unit Builder..."	builder/bld_ui.c:1119
 "Loading..."	fights/tf_ui.c:308
-"Locked: %s"	builder/bld_ui.c:906
-"Lv %d"	gallery/gal_ui.c:488 units/mu_ui.c:142 builder/bld_ui.c:895
+"Locked: %s"	builder/bld_ui.c:915
+"Lv %d"	gallery/gal_ui.c:488 units/mu_ui.c:142 builder/bld_ui.c:904
 "Magic Saturation"	fights/tf_ui.c:739
 "Main Accessory"	units/mu_ui.c:103
-"Main SP left"	builder/bld_ui.c:1094
-"Main SP left %d of %d    Sub SP left %d of %d"	builder/bld_ui.c:627
-"Male"	builder/bld_ui.c:720
-"Mana stones spent to reach it: %s"	builder/bld_ui.c:775
+"Main SP left"	builder/bld_ui.c:1103
+"Main SP left %d of %d    Sub SP left %d of %d"	builder/bld_ui.c:636
+"Male"	builder/bld_ui.c:729
+"Mana stones spent to reach it: %s"	builder/bld_ui.c:784
 "Management"	fights/tf_ui.c:781
 "Most popular"	gallery/gal_ui.c:715
 "My Units"	units/mu_init.c:27 units/mu_window.c:302 fights/tf_ui.c:502
 "My Units could not be read."	fights/tf_ui.c:511
 "My Units could not be written."	gallery/gal_ui.c:295
 "My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."	fights/tf_ui.c:514
-"Name"	units/mu_window.c:344 builder/bld_ui.c:1184
+"Name"	units/mu_window.c:344 builder/bld_ui.c:1193
 "Nature Staff"	units/mu_ui.c:102
 "New unit"	units/mu_window.c:311
 "Newest"	gallery/gal_ui.c:715
 "No kit ticked: the squad walks in with only its gear."	fights/tf_ui.c:818
 "No link. Copy a team or unit link on the wiki builder first."	units/wk_link.c:150
 "No monster matches."	fights/tf_ui.c:761
-"No portraits for this race in the wiki's data yet."	builder/bld_ui.c:714
+"No portraits for this race in the wiki's data yet."	builder/bld_ui.c:723
 "No public builds match these filters yet."	gallery/gal_ui.c:105
 "No public builds match this search."	gallery/gal_ui.c:106 gallery/gal_ui.c:127
 "No units of your clan are stored in this save."	units/mu_save.c:361
 "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\"."	units/mu_window.c:257
 "No wiki link on the clipboard. Paste one below."	units/mu_window.c:123
-"None"	builder/bld_ui.c:725
-"Nothing matches the search and filters."	builder/bld_ui.c:704 builder/bld_ui.c:917 builder/bld_ui.c:971
+"None"	builder/bld_ui.c:734
+"Nothing matches the search and filters."	builder/bld_ui.c:713 builder/bld_ui.c:926 builder/bld_ui.c:980
 "Off"	fights/tf_ui.c:738
-"Offering at each level-up"	builder/bld_ui.c:778
-"One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free."	builder/bld_ui.c:636
-"One-handed."	builder/bld_ui.c:1000
+"Offering at each level-up"	builder/bld_ui.c:787
+"One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free."	builder/bld_ui.c:645
+"One-handed."	builder/bld_ui.c:1009
 "Open the Wiki Build Gallery"	fights/tf_ui.c:577 fights/tf_ui.c:577
 "Opening the build..."	gallery/gal_ui.c:304 gallery/gal_ui.c:315
 "Opens"	gallery/gal_ui.c:440
-"Opens the Wiki Build Gallery. The unit you choose there fills this window."	builder/bld_ui.c:1026
-"Or save a gallery build to My Units, then press Edit there."	builder/bld_ui.c:1027
+"Opens the Wiki Build Gallery. The unit you choose there fills this window."	builder/bld_ui.c:1035
+"Or save a gallery build to My Units, then press Edit there."	builder/bld_ui.c:1036
 "Page %d / %d"	gallery/gal_ui.c:756
 "Page %d / %d+"	gallery/gal_ui.c:756
-"Passive"	builder/bld_ui.c:625
+"Passive"	builder/bld_ui.c:634
 "Paste a wiki builder link"	units/mu_window.c:317
-"Pick a background first. It decides which skill trees this unit has."	builder/bld_ui.c:869
+"Pick a background first. It decides which skill trees this unit has."	builder/bld_ui.c:878
 "Pick a build in the Wiki Build Gallery first."	fights/tf_ui.c:320
 "Pick a team or a unit in the Wiki Build Gallery, then press Test Fight there."	fights/tf_ui.c:576
-"Pick a weapon type, then a material set: the set brings that weapon and the armour of its tier. Change any slot in Gear after."	builder/bld_ui.c:993
+"Pick a weapon type, then a material set: the set brings that weapon and the armour of its tier. Change any slot in Gear after."	builder/bld_ui.c:1002
 "Pick at least one unit."	fights/tf_ui.c:323
-"Points left"	builder/bld_ui.c:1093
-"Portrait"	builder/bld_ui.c:713
+"Points left"	builder/bld_ui.c:1102
+"Portrait"	builder/bld_ui.c:722
 "Potion Buff Kit"	fights/tf_ui.c:177
 "Presets"	builder/bld_ui.c:33
 "Race"	builder/bld_ui.c:32
 "Races"	gallery/gal_ui.c:729
-"Randomize"	builder/bld_ui.c:810
+"Randomize"	builder/bld_ui.c:819
 "Reading the link..."	units/mu_window.c:121
 "Remove"	fights/tf_ui.c:767 fights/tf_ui.c:767
 "Rename"	units/mu_window.c:333
 "Renamed."	units/mu_window.c:178
-"Roll %zu"	builder/bld_ui.c:945
-"Save"	units/mu_window.c:346 builder/bld_ui.c:1187 builder/bld_ui.c:1191
+"Roll %zu"	builder/bld_ui.c:954
+"Save"	units/mu_window.c:346 builder/bld_ui.c:1196 builder/bld_ui.c:1200
 "Save as team"	units/mu_window.c:332
 "Save to My Units"	gallery/gal_ui.c:592 gallery/gal_ui.c:680 gallery/gal_ui.c:680
 "Saved %d unit as %s.||Saved %d units as %s."	units/mu_window.c:159
 "Saved to My Units."	units/mu_window.c:139
 "Saved to My Units: %s"	gallery/gal_ui.c:294
-"Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1191
-"Saving..."	gallery/gal_ui.c:304 builder/bld_ui.c:208
-"Search"	gallery/gal_ui.c:803 gallery/gal_ui.c:803
+"Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1200
+"Saving..."	gallery/gal_ui.c:304 builder/bld_ui.c:216
+"Search"	gallery/gal_ui.c:804 gallery/gal_ui.c:804
 "Search monsters by name..."	fights/tf_ui.c:745
-"Search: name, author, race, background or weapon"	gallery/gal_ui.c:801
+"Search: name, author, race, background or weapon"	gallery/gal_ui.c:802
 "Searching..."	gallery/gal_ui.c:216
 "Shared %.10s"	gallery/gal_ui.c:449
 "Shield"	units/mu_ui.c:100
 "Skill Trees"	gallery/gal_ui.c:653
-"Skill trees: %s"	builder/bld_ui.c:698
+"Skill trees: %s"	builder/bld_ui.c:707
 "Skills"	builder/bld_ui.c:32
 "Spear"	units/mu_ui.c:99
-"Special"	builder/bld_ui.c:648
+"Special"	builder/bld_ui.c:657
 "Squad"	fights/tf_ui.c:501
 "Squad: %d / %d"	fights/tf_ui.c:845
 "Start"	fights/tf_ui.c:862 fights/tf_ui.c:886 fights/tf_ui.c:886
-"Start from a gallery build"	builder/bld_ui.c:1024 builder/bld_ui.c:1026
-"Stat elixirs"	builder/bld_ui.c:835
-"Stat gain per level"	builder/bld_ui.c:793
+"Start from a gallery build"	builder/bld_ui.c:1033 builder/bld_ui.c:1035
+"Stat elixirs"	builder/bld_ui.c:844
+"Stat gain per level"	builder/bld_ui.c:802
 "Sub Accessory"	units/mu_ui.c:103
-"Sub SP left"	builder/bld_ui.c:1095
-"Survival"	builder/bld_ui.c:648
+"Sub SP left"	builder/bld_ui.c:1104
+"Survival"	builder/bld_ui.c:657
 "Sword"	units/mu_ui.c:98
-"Talent sum: %d. A recruit rolls a sum from %d to %d."	builder/bld_ui.c:830
+"Talent sum: %d. A recruit rolls a sum from %d to %d."	builder/bld_ui.c:839
 "Team %zu"	units/mu_window.c:156
 "Team deleted. Its units stay in My Units."	units/mu_window.c:197
 "Teams"	gallery/gal_ui.c:715
@@ -227,12 +230,12 @@
 "Test Fights needs the wiki's files once (dungeonsettlers.wiki), and they could not be downloaded: %s"	fights/tf_ui.c:240
 "That is not a wiki builder link. Copy a team or unit link on the wiki builder, or paste it here."	units/mu_link.c:59
 "That is not a wiki builder link. Copy the link from the wiki's Unit Builder."	units/mu_window.c:131
-"That unit is not in My Units any more: a new unit starts here."	builder/bld_ui.c:1251
+"That unit is not in My Units any more: a new unit starts here."	builder/bld_ui.c:1260
 "The My Units file comes from a newer version of this mod. Update the mod."	units/myunits.c:86
 "The My Units file is damaged and could not be read: %s"	units/myunits.c:84
 "The My Units file is not in the right format: %s"	units/myunits.c:85
 "The Unit Builder needs the wiki's builder files once (dungeonsettlers.wiki), and they could not be downloaded: %s"	builder/bld_ui.c:55
-"The background decides the unit's skill trees."	builder/bld_ui.c:743
+"The background decides the unit's skill trees."	builder/bld_ui.c:752
 "The boss is removed from that room and your monsters take its place."	fights/tf_ui.c:744
 "The game did not take the load. Try again from the title screen."	fights/tf_ui.c:306
 "The game's data folder is not known."	fights/tf_ui.c:235
@@ -251,9 +254,9 @@
 "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match."	fights/tf_ui.c:263
 "The wiki's Unit Builder could not start. Try again later."	builder/bld_ui.c:60
 "The wiki's Unit Builder files are for game build %s, and this game is build %s. The Unit Builder opens again when both match."	builder/bld_ui.c:64
-"The wiki's Unit Builder gave no answer."	builder/bld_ui.c:221
+"The wiki's Unit Builder gave no answer."	builder/bld_ui.c:229
 "The wiki's save generator gave no answer."	fights/tf_ui.c:270
-"This build could not be read."	builder/bld_ui.c:178
+"This build could not be read."	builder/bld_ui.c:186
 "This build was removed on the wiki."	units/wk_link.c:171
 "This file is not a Dungeon Settlers save."	units/mu_save.c:66
 "This is not a wiki builder link. Copy a team or unit link on the wiki builder first."	units/wk_link.c:136
@@ -264,48 +267,48 @@
 "This short link needs the internet. Or open it on the wiki and copy the long link."	units/wk_link.c:153
 "This short link was removed on the wiki."	units/wk_link.c:169
 "This team has no units."	units/mu_window.c:258
-"This unit cannot be saved: %s"	builder/bld_ui.c:182 builder/bld_ui.c:190
+"This unit cannot be saved: %s"	builder/bld_ui.c:190 builder/bld_ui.c:198
 "This unit could not be read: %s"	units/mu_save.c:326
 "This unit is not in the save."	units/mu_save.c:169
 "This unit is not one of your clan's units in this save."	units/mu_save.c:372
 "Tick the units to send in. A team's tick adds or removes all its units."	fights/tf_ui.c:525
 "Torch"	units/mu_ui.c:104
 "Traits"	builder/bld_ui.c:32
-"Traits (%d of %d)"	builder/bld_ui.c:750
-"Traits a unit gains in play by using an item. Add the ones this unit has taken: the stats include them."	builder/bld_ui.c:756
+"Traits (%d of %d)"	builder/bld_ui.c:759
+"Traits a unit gains in play by using an item. Add the ones this unit has taken: the stats include them."	builder/bld_ui.c:765
 "Try again"	fights/tf_ui.c:888 fights/tf_ui.c:888
-"Two-handed: no shield."	builder/bld_ui.c:1000
-"Type"	builder/bld_ui.c:618
+"Two-handed: no shield."	builder/bld_ui.c:1009
+"Type"	builder/bld_ui.c:627
 "Type a name first."	units/mu_window.c:177
 "Unit"	units/mu_ui.c:154
-"Unit Builder"	builder/bld_init.c:12 builder/bld_ui.c:1172
-"Unit Builder - Edit"	builder/bld_ui.c:1172
-"Unit name"	units/mu_window.c:345 builder/bld_ui.c:1185
+"Unit Builder"	builder/bld_init.c:12 builder/bld_ui.c:1181
+"Unit Builder - Edit"	builder/bld_ui.c:1181
+"Unit name"	units/mu_window.c:345 builder/bld_ui.c:1194
 "Units"	gallery/gal_ui.c:715
 "Units Laboratory"	home/cm_home.c:196 home/cm_home.c:203
 "Units not in a team"	fights/tf_ui.c:562
 "Use this unit"	gallery/gal_ui.c:619 gallery/gal_ui.c:619
 "Water Staff"	units/mu_ui.c:102
-"Weapon trees"	gallery/gal_ui.c:730 builder/bld_ui.c:602 builder/bld_ui.c:982
+"Weapon trees"	gallery/gal_ui.c:730 builder/bld_ui.c:611 builder/bld_ui.c:991
 "What do you want"	fights/tf_ui.c:717
 "Which fight"	fights/tf_ui.c:731
 "Which room"	fights/tf_ui.c:731
-"Whole units"	builder/bld_ui.c:1023
-"Wiki Build Gallery"	gallery/gal_ui.c:794 gallery/gal_ui.c:865 fights/tf_ui.c:502
+"Whole units"	builder/bld_ui.c:1032
+"Wiki Build Gallery"	gallery/gal_ui.c:795 gallery/gal_ui.c:866 fights/tf_ui.c:502
 "Working..."	fights/tf_ui.c:862
-"XP to reach level %d: %d"	builder/bld_ui.c:767
+"XP to reach level %d: %d"	builder/bld_ui.c:776
 "Your squad standing at a boss door, boss alive and never beaten."	fights/tf_ui.c:724
 "a file from the wiki arrived incomplete"	fights/sg_cache.c:190
 "a team holds 1 to %d units"	units/myunits.c:157 units/myunits.c:219
 "acquired trait"	units/pvp_wiki.c:351
-"average"	builder/bld_ui.c:795
+"average"	builder/bld_ui.c:804
 "background %.*s is not in this game version"	units/pvp_wiki.c:292
 "bad gallery id"	gallery/gallery.c:227
 "bad url"	units/wk_http.c:26 units/wk_http.c:135 fights/cm_http.c:58
-"best"	builder/bld_ui.c:795
+"best"	builder/bld_ui.c:804
 "by %s"	gallery/gal_ui.c:575 gallery/gal_ui.c:684 units/mu_window.c:239 fights/tf_ui.c:543
-"choose below"	builder/bld_ui.c:935
-"click to change"	builder/bld_ui.c:935
+"choose below"	builder/bld_ui.c:944
+"click to change"	builder/bld_ui.c:944
 "connection error"	fights/cm_http.c:134
 "connection error %lu"	units/wk_http.c:39 fights/cm_http.c:78
 "connection failed (error %ld)"	units/wk_http.c:159
@@ -316,7 +319,7 @@
 "could not save the wiki's files on this computer (%s)"	fights/sg_cache.c:120
 "could not write %s"	units/myunits.c:99
 "could not write %s: %s"	units/myunits.c:97 units/myunits.c:107
-"from %s"	builder/bld_ui.c:688
+"from %s"	builder/bld_ui.c:697
 "https only"	units/wk_http.c:22
 "inscription"	units/pvp_wiki.c:303
 "item %.*s is not in this game version"	units/pvp_wiki.c:308
@@ -327,10 +330,10 @@
 "no units picked"	units/myunits.c:285
 "not a My Units library"	units/myunits.c:159 units/myunits.c:185 units/myunits.c:218
 "not a unit build"	units/pvp_wiki.c:288
-"not obtainable"	builder/bld_ui.c:963
+"not obtainable"	builder/bld_ui.c:972
 "only %s is allowed"	fights/cm_http.c:147
 "out of memory"	gallery/gallery.c:186
-"passive"	builder/bld_ui.c:900
+"passive"	builder/bld_ui.c:909
 "race %.*s is not in this game version"	units/pvp_wiki.c:290
 "race %s has no look (portraits) in this game build"	units/pvp_build.c:198
 "skill"	units/pvp_wiki.c:302
@@ -357,5 +360,5 @@
 "too many filters"	gallery/gallery.c:169 gallery/gallery.c:220
 "trait"	units/pvp_wiki.c:300
 "tree %s has no pool"	units/pvp_build.c:220
-"two-handed"	builder/bld_ui.c:962
-"worst"	builder/bld_ui.c:795
+"two-handed"	builder/bld_ui.c:971
+"worst"	builder/bld_ui.c:804

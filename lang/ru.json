@@ -403,5 +403,8 @@
  "trait": "черта",
  "tree %s has no pool": "у дерева %s нет пула",
  "two-handed": "двуручное",
- "worst": "худший"
+ "worst": "худший",
+ "Discard your changes?": "Отменить изменения?",
+ "Discard": "Отменить",
+ "Keep editing": "Продолжить"
 }

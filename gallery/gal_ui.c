@@ -776,10 +776,11 @@ static void closed(void *ud) {
     if (pick_cb) { void (*cb)(const char *, void *) = pick_cb; pick_cb = NULL; cb(NULL, pick_ud); }   /* closed with no pick */
     ntrk = 0; pv = -1; cmw_forget("gallery:");
 }
-/* the window: as large as the screen allows, up to 1200 x 820 */
+/* the window: as large as the screen allows at the game's UI scale (cmw_open draws it at that scale), up to 1200 x 820 */
 static void win_size(void) {
-    float lw = 0, lh = 0; DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);
+    float lw = 0, lh = 0, sc = mu_ui_scale(); DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);
     if (p) { if (cm_rect_size(cm_parent(p), &lw, &lh)) lw = lh = 0; U->destroy(p); }
+    lw /= sc; lh /= sc;
     WW = lw >= 1000 ? (lw - 60 < 1200 ? lw - 60 : 1200) : 1040;
     WH = lh >= 700 ? (lh - 60 < 820 ? lh - 60 : 820) : 720;
     BH = WH - CMW_BAND - 1;

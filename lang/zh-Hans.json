@@ -381,5 +381,8 @@
  "trait": "特质",
  "tree %s has no pool": "技能树 %s 没有奖励池",
  "two-handed": "双手",
- "worst": "最差"
+ "worst": "最差",
+ "Discard your changes?": "放弃更改？",
+ "Discard": "放弃",
+ "Keep editing": "继续编辑"
 }

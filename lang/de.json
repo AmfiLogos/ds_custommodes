@@ -392,5 +392,8 @@
  "trait": "Trait",
  "tree %s has no pool": "Baum %s hat keinen Pool",
  "two-handed": "zweihändig",
- "worst": "Schlechtester"
+ "worst": "Schlechtester",
+ "Discard your changes?": "Änderungen verwerfen?",
+ "Discard": "Verwerfen",
+ "Keep editing": "Weiter bearbeiten"
 }
