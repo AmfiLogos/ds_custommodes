@@ -515,11 +515,20 @@ static void paint_left(void) {
     left = cmw_flat(U->panel(body, LX, 16, LW, PANEL_H, 0), 0x00000000);
     float y = head(left, 0, 0, LW, TR("Squad"));
     const char *src_l[2] = { TR("My Units"), TR("Wiki Build Gallery") };
+    DSLObj sb[2]; float sx[2] = { 0, LW / 2 + 4 }, sw[2] = { LW / 2 - 4, LW / 2 - 4 }, need[2];
     for (int s = 0; s < 2; s++) {
         char nm[40]; snprintf(nm, sizeof nm, "fights:l.src%d", s);
-        cmw_named(U->button(left, s * (LW / 2 + 4), y, LW / 2 - 4, 38, src_l[s], src_click, (void *)(intptr_t)s), CMW_BUTTON, nm, src_click, (void *)(intptr_t)s, src_l[s]);
+        sb[s] = cmw_named(U->button(left, sx[s], y, sw[s], 38, src_l[s], src_click, (void *)(intptr_t)s), CMW_BUTTON, nm, src_click, (void *)(intptr_t)s, src_l[s]);
+        float pw = sb[s] ? cm_text_preferred_w(sb[s]) : -1; need[s] = pw > 0 ? pw + 28 : sw[s];   /* the label measured + the frame */
     }
-    cmw_flat(U->panel(left, st.src * (LW / 2 + 4), y + 40, LW / 2 - 4, 3, 0), GOLD);
+    /* a label too long for half the row (JA "Wikiビルドギャラリー" touched the frame): each tab as wide as its label, the
+       rest shared */
+    if ((need[0] > sw[0] || need[1] > sw[1]) && need[0] + need[1] <= LW - 8) {
+        float extra = (LW - 8 - need[0] - need[1]) / 2;
+        sw[0] = need[0] + extra; sw[1] = need[1] + extra; sx[1] = sw[0] + 8;
+        for (int s = 0; s < 2; s++) if (sb[s]) U->place(sb[s], sx[s], y, sw[s], 38);
+    }
+    cmw_flat(U->panel(left, sx[st.src], y + 40, sw[st.src], 3, 0), GOLD);
     y += 52;
     float lh = PANEL_H - y;
     if (st.src == 0) {
@@ -556,8 +565,10 @@ static void paint_left(void) {
                label it wrapped to two smaller lines with "(0/4)" on the border */
             DSLObj tg = cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
             if (tg) { char c[24]; snprintf(c, sizeof c, "%d/%d", nin, n);
-                      ellipsis_fit(mu_text(tg, 12, 6, uw - 46 - 12 - 48 - 52, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN), name, uw - 46 - 12 - 48 - 52);
-                      mu_text(tg, uw - 46 - 48 - 50, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB); }
+                      /* the count measured, right-aligned 9 before the tick box; the name gets the row up to 10 before it */
+                      float ce = uw - 46 - 44; DSLObj ct = mu_text(tg, ce - 46, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB);
+                      float cw = ct ? cm_text_preferred_w(ct) : -1; if (cw <= 0 || cw > 46) cw = 46;
+                      ellipsis_fit(mu_text(tg, 12, 6, ce - cw - 10 - 12, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN), name, ce - cw - 10 - 12); }
             sy += 48;
             if (team_author(i, au, sizeof au)) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);

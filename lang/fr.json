@@ -223,7 +223,7 @@
  "Roll %zu": "Jet %zu",
  "Save": "Sauvegarder",
  "Save as team": "Sauvegarder comme équipe",
- "Save to My Units": "Sauvegarder dans Mes unités",
+ "Save to My Units": "Sauvegarder",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "%d unité sauvegardée sous le nom %s.",
   "%d unités sauvegardées sous le nom %s."

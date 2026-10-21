@@ -264,8 +264,9 @@ static void draw_cards(void) {
         float y = 8 + k * (MU_CARD_H + 8);
         wk_build b; mu_card c; char e[300];
         memcpy(W.card_id[W.ncard], W.ids[i], 17);
-        mu_plate(W.right, 4, y + (MU_CARD_H - 44) / 2, 44, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
-        W.tick[W.ncard] = U->toggle(W.right, 8, y + (MU_CARD_H - 36) / 2, 36, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
+        mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
+        /* the kit's check box sits 24 from the toggle's right edge (centre): 48 wide puts it in the slot's middle */
+        W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
         if (!mu_build_of(W.lib, W.ids[i], &b, e, sizeof e) && !mu_card_of(&b, &c)) {
             char nm[64]; name_of(W.ids[i], nm, sizeof nm);
             W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, nm, 0, NULL, NULL, 0);

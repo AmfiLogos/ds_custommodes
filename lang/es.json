@@ -223,7 +223,7 @@
  "Roll %zu": "Tirada %zu",
  "Save": "Guardar",
  "Save as team": "Guardar como equipo",
- "Save to My Units": "Guardar en Mis unidades",
+ "Save to My Units": "Guardar",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "Se guardó %d unidad como %s.",
   "Se guardaron %d unidades como %s."

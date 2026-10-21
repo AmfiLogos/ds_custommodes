@@ -233,7 +233,7 @@
  "Roll %zu": "Бросок %zu",
  "Save": "Сохранить",
  "Save as team": "Сохранить как команду",
- "Save to My Units": "Сохранить в «Мои юниты»",
+ "Save to My Units": "Сохранить",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "Сохранён %d юнит как %s.",
   "Сохранено %d юнита как %s.",

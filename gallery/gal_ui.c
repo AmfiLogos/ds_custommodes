@@ -616,9 +616,17 @@ static float card(DSLObj p, int i, float x, float y) {
     const char *lb[3] = { TR("Details"), TR("Save to My Units"), TR("Test Fight") };
     dsl_ui_cb cb[3] = { view_open, save_click, card_test_click };
     const char *sfx[3] = { "view", "save", "test" };
+    DSLObj bt[3] = { 0 }; float need[3], sum = 0; int over = 0;
     for (int b = 0; b < nb; b++) {
         snprintf(nm, sizeof nm, "gallery:c%d.%s", i, sfx[b]);
-        cmw_named(K(mu_button(c, pad + b * (bw + 8), yy, bw, 38, lb[b], cb[b], (void *)(intptr_t)i)), CMW_BUTTON, nm, cb[b], (void *)(intptr_t)i, lb[b]);
+        bt[b] = cmw_named(K(mu_button(c, pad + b * (bw + 8), yy, bw, 38, lb[b], cb[b], (void *)(intptr_t)i)), CMW_BUTTON, nm, cb[b], (void *)(intptr_t)i, lb[b]);
+        float pw = bt[b] ? cm_text_preferred_w(bt[b]) : -1;            /* the label measured + the frame */
+        need[b] = pw > 0 ? pw + 28 : bw; sum += need[b]; over |= need[b] > bw;
+    }
+    /* a label longer than an equal third (a long translation): each button as wide as its label, the rest shared */
+    if (over && sum <= iw - 8 * (nb - 1)) {
+        float extra = (iw - 8 * (nb - 1) - sum) / nb, bx = pad;
+        for (int b = 0; b < nb; b++) { if (bt[b]) U->place(bt[b], bx, yy, need[b] + extra, 38); bx += need[b] + extra + 8; }
     }
     yy += 38 + 6;
     flat(c, pad, yy + 2, iw, 1, 0x633D33FF); yy += 10;
