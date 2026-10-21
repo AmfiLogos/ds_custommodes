@@ -113,10 +113,10 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
     jfree(s);
     char g[33]; norm(guid, g); free(guid);
     if (!name || !name[0] || strlen(g) != 32 || strpbrk(name, "/\\:") || strstr(name, "..")) {
-        snprintf(err, errn, "%s", TR("the generated save has no usable name")); free(name); free(fixed); return -1;
+        snprintf(err, errn, "%s", TR("The save that was made has no usable name.")); free(name); free(fixed); return -1;
     }
     char saves[1100], p[1400], t[1420];
-    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("the game's save folder is not known")); free(name); free(fixed); return -1; }
+    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("The game's save folder is not known.")); free(name); free(fixed); return -1; }
     mkdir_(saves);
     /* older test worlds go first (only the newest one is kept) */
     for (int i = 0; i < nw; i++) remove_world_files(saves, W[i]);
@@ -124,12 +124,12 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
     snprintf(W[nw++], 33, "%s", g); reg_save();                        /* listed BEFORE the file exists: never visible */
     snprintf(p, sizeof p, "%s/%s.json", saves, name); snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "wb");
-    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
+    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
     fclose(f);
 #ifdef _WIN32
-    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
+    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
 #else
-    if (rename(t, p)) { snprintf(err, errn, "%s", TR("could not write the test world into the Saves folder")); free(name); free(fixed); return -1; }
+    if (rename(t, p)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
 #endif
     snprintf(name_out, name_n, "%s", name); free(name); free(fixed);
     cmw_log("tf: test world %s written (%zu bytes)", name_out, n);

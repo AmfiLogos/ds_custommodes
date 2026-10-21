@@ -25,6 +25,7 @@
 #define WIN_W 1040.0f
 #define WIN_H 720.0f
 #define BODY_H (WIN_H - CMW_BAND - 1)
+#define PANEL_H (BODY_H - 110 - foot_x)     /* the two lists: shorter while a long status message needs more lines */
 #define LX 24.0f
 #define LW 360.0f
 #define RX 408.0f
@@ -221,6 +222,8 @@ static int is_fight(void) { return !strcmp(mode_id(), "boss") || !strcmp(mode_id
 /* ------------------------------------------------------------------ the engine on the worker thread */
 static sg_engine *E; static sgc C; static int engine_state;       /* 0 none, 1 opening, 2 ready, 3 failed */
 static char eng_msg[600], status[1200]; static int status_warn, busy;
+static int eng_mism;                                               /* the failure is the game build: Try again cannot help */
+static float foot_x;                                               /* the status box's height over its 70 (paint_status) */
 static char eng_why[600];                                           /* the engine error behind eng_msg: log only */
 typedef struct { cm_job j; char *in, *out, *file; size_t file_n; char err[600]; int problems; char status[200]; } Job;
 
@@ -254,16 +257,16 @@ static void paint_all(void);
 static void job_open_done(cm_job *j) {
     Job *b = (Job *)j;
     if (b->out && !panel_parse(b->out)) {
-        engine_state = 2; eng_msg[0] = 0;
+        engine_state = 2; eng_msg[0] = 0; eng_mism = 0;
         const char *gb = cmw_host()->game_build;
         if (gb && P.tag[0] && strcmp(gb, P.tag)) {
             snprintf(eng_msg, sizeof eng_msg, TR("The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match."), P.tag, gb);
-            engine_state = 3;
+            engine_state = 3; eng_mism = 1;
         }
         seed_choices();
         cmw_log("tf: engine ready (%s), wiki data %s, %d modes", b->status, P.tag, P.nmodes);
     } else {
-        engine_state = 3;
+        engine_state = 3; eng_mism = 0;
         snprintf(eng_msg, sizeof eng_msg, "%s", b->err[0] ? b->err : TR("The wiki's save generator gave no answer."));
         cmw_log("tf: engine failed: %s%s%s", eng_msg, eng_why[0] ? " | " : "", eng_why); eng_why[0] = 0;
     }
@@ -358,7 +361,7 @@ static void start_click(void *ud, DSLObj w) {
 
 /* ------------------------------------------------------------------ drawing */
 static const DSLUi *U;
-static DSLObj body, left, right_sc, right, w_status, w_start;
+static DSLObj body, left, right_sc, right, w_status, w_start, w_retry, w_div;
 static float lines_h(const char *s, float w, float size) {           /* height of a wrapped text (rough: 0.5 em per char) */
     float per = w / (size * 0.5f); int n = 1; float c = 0;
     for (const unsigned char *p = (const unsigned char *)s; *p; p++) { if ((*p & 0xC0) == 0x80) continue; if (*p == '\n' || ++c > per) { n++; c = 0; } }
@@ -384,12 +387,13 @@ static float txt(DSLObj parent, const char *name, float x, float y, float w, con
     return h;
 }
 static float head(DSLObj parent, float x, float y, float w, const char *s) {
-    U->text(parent, x, y, w, 28, s, 19, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
+    U->text(parent, x, y, w, 31, s, 19, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);   /* a one-line box >= 1.6 x the size */
     return 32;
 }
 
 /* left: the squad */
-static void src_click(void *ud, DSLObj w) { (void)w; st.src = (int)(intptr_t)ud; paint_all(); }
+static uintptr_t h_keep[2];
+static void src_click(void *ud, DSLObj w) { (void)w; st.src = (int)(intptr_t)ud; cm_il_hset(&h_keep[0], NULL); paint_all(); }
 static int picked_at(const char *id) { for (int k = 0; k < st.nids; k++) if (!strcmp(st.ids[k], id)) return k; return -1; }
 static void unpick(int at) { memmove(st.ids[at], st.ids[at + 1], (size_t)(st.nids - at - 1) * 17); st.nids--; }
 static void squad_full_warn(void) { snprintf(status, sizeof status, TRN("An expedition holds %d unit: untick one first.", "An expedition holds %d units: untick one first.", P.max_squad), P.max_squad); status_warn = 1; }
@@ -472,10 +476,28 @@ static void thumb_tick(void *ud) {
         U->place(bar, th[i].x, th[i].y + (1 - np) * (th[i].vh - bh), 4, bh);
     }
 }
+/* every click draws the lists again: they keep their place (it was back at the top after each tick). The content's
+   offset (anchored position, top-left) is read before the old list goes and given to the new one, within its length. */
+typedef struct { float x, y; } V2k;
+static cm_m m_apos_get, m_apos_set;
+static float keep_get(int k) {
+    static int tried;
+    if (!tried) { tried = 1; m_apos_get = cm_il_method("UnityEngine", "RectTransform", "get_anchoredPosition", 0, NULL); m_apos_set = cm_il_method("UnityEngine", "RectTransform", "set_anchoredPosition", 1, NULL); }
+    Obj c = cm_il_hget(h_keep[k]);
+    if (!cm_alive(c) || !m_apos_get.fn) return 0;
+    V2k p = CM_CALL(m_apos_get, V2k, Obj, const void *)(c, m_apos_get.mi);
+    return p.y > 0 ? p.y : 0;
+}
+static void keep_set(int k, DSLObj content, float y, float max) {   /* max: content height - view height */
+    cm_il_hset(&h_keep[k], content);
+    if (y > max) y = max;
+    if (y > 0 && content && m_apos_set.fn) CM_CALL(m_apos_set, void, Obj, V2k, const void *)(content, (V2k){ 0, y }, m_apos_set.mi);
+}
 static void paint_left(void) {
     cmw_forget("fights:l.");
+    float ky = keep_get(0); cm_il_hset(&h_keep[0], NULL);
     if (left) U->destroy(left);
-    left = cmw_flat(U->panel(body, LX, 16, LW, BODY_H - 110, 0), 0x00000000);
+    left = cmw_flat(U->panel(body, LX, 16, LW, PANEL_H, 0), 0x00000000);
     float y = head(left, 0, 0, LW, TR("Squad"));
     const char *src_l[2] = { TR("My Units"), TR("Wiki Build Gallery") };
     for (int s = 0; s < 2; s++) {
@@ -484,7 +506,7 @@ static void paint_left(void) {
     }
     cmw_flat(U->panel(left, st.src * (LW / 2 + 4), y + 40, LW / 2 - 4, 3, 0), GOLD);
     y += 52;
-    float lh = BODY_H - 110 - y;
+    float lh = PANEL_H - y;
     if (st.src == 0) {
         if (!lib) { txt(left, "fights:l.note", 0, y, LW, TR("My Units could not be read."), 15, WARN); return; }
         DSLObj sc = U->scroll(left, 0, y, LW, lh); float sy = 0;
@@ -508,7 +530,7 @@ static void paint_left(void) {
             int n = mu_team_at(lib, i, name, sizeof name, ids), nin = 0;
             for (int k = 0; k < n; k++) nin += picked_at(ids[k]) >= 0;
             mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
-            DSLObj ib = U->panel(sc, 0, sy + 2, 40, 40, 0x1E1C21FFu);   /* the team icon: its first unit's portrait (as My Units) */
+            DSLObj ib = U->panel(sc, 0, sy, 40, 40, 0x1E1C21FFu);   /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
             Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
             if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
             if (ib && sp) cm_set_sprite(ib, sp, 0xFFFFFFFFu);
@@ -544,6 +566,7 @@ static void paint_left(void) {
             sy += 40;
         }
         U->scroll_height(sc, sy + 8);
+        keep_set(0, sc, ky, sy + 8 - lh);
         thumb_add(0, left, sc, LW - 5, y, lh, sy + 8);
     } else {
         if (st.gal_builds) {
@@ -566,10 +589,16 @@ static void kit_change(void *ud, DSLObj w) { st.kit[(int)(intptr_t)ud] = U->togg
 static void insc_change(void *ud, DSLObj w) { (void)ud; st.kit_insc = U->toggle_get(w); paint_all(); }
 static void monq_submit(void *ud, DSLObj w) { (void)ud; U->field_get(w, st.monq, sizeof st.monq); paint_all(); }
 static void moncount_change(void *ud, DSLObj w) { (void)ud; st.mon_count = U->value_get(w) + 1; }
+static const char *mon_name(const char *k);
 static void mon_add(void *ud, DSLObj w) {
     (void)w; Mon *m = &P.mons[(int)(intptr_t)ud]; int n = st.mon_count < 1 ? 1 : st.mon_count > 30 ? 30 : st.mon_count;
-    for (int i = 0; i < st.nmon; i++) if (!strcmp(st.mon[i].k, m->k)) { st.mon[i].n = st.mon[i].n + n > 30 ? 30 : st.mon[i].n + n; paint_all(); return; }
-    if (st.nmon < MAXMON) { snprintf(st.mon[st.nmon].k, sizeof st.mon[0].k, "%s", m->k); st.mon[st.nmon++].n = n; }
+    /* the room list is below the search results, often out of sight: the status line says what the click did */
+    int at = -1; for (int i = 0; i < st.nmon; i++) if (!strcmp(st.mon[i].k, m->k)) at = i;
+    if (at >= 0) st.mon[at].n = st.mon[at].n + n > 30 ? 30 : st.mon[at].n + n;
+    else if (st.nmon < MAXMON) { at = st.nmon++; snprintf(st.mon[at].k, sizeof st.mon[0].k, "%s", m->k); st.mon[at].n = n; }
+    if (at >= 0) { snprintf(status, sizeof status, TR("Added to the room: %s x%d."), mon_name(m->k), st.mon[at].n); status_warn = 0; }
+    else { snprintf(status, sizeof status, "%s", TR("The room is full. Remove a monster first.")); status_warn = 1; }
+    dsi_utf8_fix_end(status);
     paint_all();
 }
 static void mon_del(void *ud, DSLObj w) {
@@ -618,7 +647,7 @@ static float dps_card(DSLObj parent, float y, float w) {
     else cmw_log("tf: DPS check card: no picture at %s", png);
     float x = 12 + A + 16, cw = w - x - 12;
     const char *nm = P.dummy_tn[0] ? P.dummy_tn : P.dummy_n;
-    DSLObj nmt = U->text(card, x, 10, cw, 30, nm, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
+    DSLObj nmt = U->text(card, x, 10, cw, 32, nm, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
     if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.dpsname", NULL, NULL, nm); }
     char lab[2][96], val[2][48]; int n = 0;
     snprintf(lab[n], sizeof lab[n], "%s", cm_gw("TEXTKEY_STATUS_MaxDurability_NAME", "Max Durability")); fmt_n(P.dummy_dur, val[n], sizeof val[n]); n++;
@@ -629,9 +658,9 @@ static float dps_card(DSLObj parent, float y, float w) {
     char stats[400]; size_t k = 0;
     for (int i = 0; i < n; i++) {                                      /* the boss card's rows: label left, value right */
         float cy = 46 + (float)i * 24;
-        DSLObj l = U->text(card, x, cy, cw - 130, 22, lab[i], 14, DSL_TXT_LEFT, SUB);
+        DSLObj l = U->text(card, x, cy, cw - 130, 24, lab[i], 14, DSL_TXT_LEFT, SUB);
         if (l) cm_text_ellipsis(l);
-        U->text(card, x + cw - 130, cy, 120, 22, val[i], 15, DSL_TXT_RIGHT, MAIN);
+        U->text(card, x + cw - 130, cy, 120, 24, val[i], 15, DSL_TXT_RIGHT, MAIN);
         k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", lab[i], val[i]);
     }
     cmw_named(card, CMW_TEXT, "fights:r.dpscard", NULL, NULL, stats);
@@ -648,7 +677,7 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
     DSLObj art = sp && box ? U->panel(box, 4, 4, A - 8, A - 8, 0xFFFFFFFFu) : NULL;
     if (art) { cm_set_sprite(art, sp, 0xFFFFFFFFu); cm_raycast(art, false); }
     float x = 12 + A + 16, cw = w - x - 12;
-    DSLObj nmt = U->text(card, x, 10, cw, 30, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
+    DSLObj nmt = U->text(card, x, 10, cw, 32, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
     if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.bossname", NULL, NULL, b->tn[0] ? b->tn : b->n); }
     float v[TFC_N];
     if (tfc_unit_stats(b->key, v)) { txt(card, "fights:r.bossstats", x, 46, cw, TR("The game's data for this boss is not loaded yet."), 14, SUB); return H; }
@@ -660,9 +689,9 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
         const char *lab = cm_gw(key, tfc_field[i]);
         fmt_stat(i, v[i], val, sizeof val);
         float cx = x + (i % 2) * colw, cy = ry + (float)(i / 2) * 24;
-        DSLObj l = U->text(card, cx, cy, colw - 70, 22, lab, 14, DSL_TXT_LEFT, SUB);
+        DSLObj l = U->text(card, cx, cy, colw - 76, 24, lab, 14, DSL_TXT_LEFT, SUB);   /* clear of the value's box */
         if (l) cm_text_ellipsis(l);
-        U->text(card, cx + colw - 74, cy, 64, 22, val, 15, DSL_TXT_RIGHT, MAIN);
+        U->text(card, cx + colw - 74, cy, 64, 24, val, 15, DSL_TXT_RIGHT, MAIN);
         if (k + 100 < sizeof stats) k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", tfc_field[i], val);
     }
     cmw_named(card, CMW_TEXT, "fights:r.bosscard", NULL, NULL, stats);
@@ -670,18 +699,19 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
 }
 static void paint_right(void) {
     cmw_forget("fights:r.");
+    float ky = keep_get(1); cm_il_hset(&h_keep[1], NULL);
     if (right_sc) U->destroy(right_sc);
     right_sc = NULL; right = NULL;
     float y = 0, w = RW - 16;
     if (engine_state != 2) {
-        right_sc = cmw_flat(U->panel(body, RX, 16, RW, BODY_H - 110, 0), 0x00000000); right = right_sc;
+        right_sc = cmw_flat(U->panel(body, RX, 16, RW, PANEL_H, 0), 0x00000000); right = right_sc;
         const char *m = engine_state == 3 ? eng_msg : TR("Getting the wiki's Test Fights files...");
         txt(right, "fights:r.engine", 0, 0, w, m, 16, engine_state == 3 ? WARN : SUB);
         return;
     }
     names_refresh();
-    right_sc = cmw_flat(U->panel(body, RX, 16, RW, BODY_H - 110, 0), 0x00000000);   /* holder: one destroy removes it all */
-    DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, BODY_H - 110);
+    right_sc = cmw_flat(U->panel(body, RX, 16, RW, PANEL_H, 0), 0x00000000);   /* holder: one destroy removes it all */
+    DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, PANEL_H);
     right = vp;
     /* What do you want */
     y += head(right, 0, y, w, TR("What do you want"));
@@ -768,7 +798,7 @@ static void paint_right(void) {
             float ix = 0; int ni = P.kits[i].nit < 4 ? P.kits[i].nit : 4;
             for (int j = 0; j < ni; j++) {
                 Obj sp = cm_icon(CM_ICON_ITEM, P.kits[i].ik[j]);
-                DSLObj ic = U->panel(right, ix, y + 6, 28, 28, sp ? 0xFFFFFFFFu : 0x1E1C21FFu);
+                DSLObj ic = U->panel(right, ix, y + 4, 28, 28, sp ? 0xFFFFFFFFu : 0x1E1C21FFu);   /* centred on the 36-high row */
                 if (ic && sp) cm_set_sprite(ic, sp, 0xFFFFFFFFu);
                 if (ic) cm_raycast(ic, false);
                 ix += 30;
@@ -793,7 +823,7 @@ static void paint_right(void) {
             /* owner v0.1.11 #5 (and the wiki's own rule, builder.js paintSup): the inscription's icon first; hovering it shows
                the game's own hover card for that inscription */
             Obj sp = P.insc_k[0] ? cm_icon(CM_ICON_AFFECTER, P.insc_k) : NULL;
-            DSLObj ic = cmw_named(U->panel(right, 0, y + 3, 34, 34, sp ? 0xFFFFFFFFu : 0x1E1C21FFu), CMW_TEXT, "fights:r.inscicon", NULL, NULL, P.insc_k);
+            DSLObj ic = cmw_named(U->panel(right, 0, y + 1, 34, 34, sp ? 0xFFFFFFFFu : 0x1E1C21FFu), CMW_TEXT, "fights:r.inscicon", NULL, NULL, P.insc_k);
             if (ic && sp) cm_set_sprite(ic, sp, 0xFFFFFFFFu);
             if (ic && P.insc_k[0]) cm_gtip_add(ic, CM_GTIP_AFFECTER, P.insc_k);
             cmw_named(U->toggle(right, 40, y, w - 40, lab, st.kit_insc, insc_change, NULL), CMW_TOGGLE, "fights:r.insc", insc_change, NULL, lab);
@@ -806,24 +836,38 @@ static void paint_right(void) {
         for (int i = 0; i < P.nmiss; i++) y += txt(right, NULL, 12, y, w - 12, P.miss[i], 14, WARN);
     }
     U->scroll_height(vp, y + 16);
-    thumb_add(1, right_sc, vp, RW - 5, 0, BODY_H - 110, y + 16);
+    keep_set(1, vp, ky, y + 16 - PANEL_H);
+    thumb_add(1, right_sc, vp, RW - 5, 0, PANEL_H, y + 16);
 }
 static void paint_status(void) {
     char sq[400]; int n = st.src == 1 ? (st.gal_builds ? st.gal_n : 0) : st.nids;
     if (n > P.max_squad && P.max_squad) n = P.max_squad;
     snprintf(sq, sizeof sq, TR("Squad: %d / %d"), n, P.max_squad ? P.max_squad : 4);
-    char all[1700]; snprintf(all, sizeof all, "%s%s%s", sq, status[0] ? "\n" : "", status);
-    if (w_status) U->destroy(w_status);                               /* the kit has no colour setter: a problem shows orange */
-    w_status = cmw_named(U->text(body, 24, BODY_H - 76, WIN_W - 300, 70, all, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, status_warn ? WARN : MAIN), CMW_TEXT, "fights:status", NULL, NULL, all);
+    char all[1700], shown[1740]; snprintf(all, sizeof all, "%s%s%s", sq, status[0] ? "\n" : "", status);
+    snprintf(shown, sizeof shown, "%s%s%s%s%s", sq, status[0] ? "\n" : "", status_warn ? "<color=#EA9F3D>" : "", status, status_warn ? "</color>" : "");
+    if (w_status) U->destroy(w_status);                               /* only the problem shows orange, not the squad count */
+    /* Try again only while the files failed and a new try can help (not for a game build that differs); the status box
+       stops before it (they overlapped). A long message (problems found) grows the box upward, the lists get shorter:
+       it never runs past the window's bottom. */
+    int retry = engine_state == 3 && !eng_mism;
+    float sw = (retry ? WIN_W - 24 - 220 - 180 : WIN_W - 24 - 220) - 12 - 24;
+    w_status = cmw_named(U->text(body, 24, BODY_H - 76, sw, 70, shown, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, MAIN), CMW_TEXT, "fights:status", NULL, NULL, all);
+    float ph = pref_h(w_status, sw), sh = ph + 4 > 70 ? ph + 4 : 70;
+    if (sh > 230) sh = 230;                                           /* past that the kit sizes the text down */
+    foot_x = sh - 70;
+    if (foot_x > 0) U->place(w_status, 24, BODY_H - 76 - foot_x, sw, sh);
+    if (w_div) U->place(w_div, 24, BODY_H - 84 - foot_x, WIN_W - 48, 1);
+    if (w_retry) U->set_active(w_retry, retry);
     U->set_enabled(w_start, engine_state == 2 && !busy);
     cmw_set_text(w_start, busy ? TR("Working...") : TR("Start"));
 }
 static void paint_all(void) {
     if (!cmw_is_open("fights") || !body) return;
-    paint_left(); paint_right(); paint_status();
+    paint_status(); paint_left(); paint_right();                     /* the status first: its height sets the lists' */
 }
 static void closed(void *ud) {
-    (void)ud; body = left = right = right_sc = w_status = w_start = NULL;
+    (void)ud; body = left = right = right_sc = w_status = w_start = w_retry = w_div = NULL;
+    cm_il_hset(&h_keep[0], NULL); cm_il_hset(&h_keep[1], NULL); foot_x = 0;
     if (lib) { jfree(lib); lib = NULL; }
     cmw_forget("fights:");
 }
@@ -836,10 +880,12 @@ static void build_window(void) {
     char e[300]; if (lib) jfree(lib);
     lib = mu_load(e, sizeof e);
     if (!lib) cmw_log("tf: My Units: %s", e);
-    cmw_flat(U->panel(body, 24, BODY_H - 84, WIN_W - 48, 1, 0), 0x633D33FF);
+    cm_il_hset(&h_keep[0], NULL); cm_il_hset(&h_keep[1], NULL); foot_x = 0;
+    w_div = cmw_flat(U->panel(body, 24, BODY_H - 84, WIN_W - 48, 1, 0), 0x633D33FF);
     w_status = NULL;
     w_start = cmw_named(U->button(body, WIN_W - 24 - 220, BODY_H - 72, 220, 52, TR("Start"), start_click, NULL), CMW_BUTTON, "fights:start", start_click, NULL, TR("Start"));
-    if (engine_state == 3) cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try again"));
+    /* always made, shown by paint_status: the files often fail after the window opened (it was missing then) */
+    w_retry = cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try again"));
     engine_open();
     paint_all();
 }

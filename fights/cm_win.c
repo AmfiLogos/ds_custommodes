@@ -218,11 +218,12 @@ static void h_disp_update(Obj self, const void *mi) {
 }
 
 /* ---------------------------------------------------------------- windows */
-typedef struct { char id[24]; DSLObj back, win, body; void (*closed)(void *); void *ud; } Win;
+typedef struct { char id[24]; DSLObj back, win, body; void (*closed)(void *); void *ud; unsigned seq; } Win;
 #define NWIN 4
-static Win wins[NWIN];
+static Win wins[NWIN]; static unsigned win_seq;
 static Win *win_of(const char *id) { for (int i = 0; i < NWIN; i++) if (wins[i].win && !strcmp(wins[i].id, id)) return &wins[i]; return NULL; }
-static Win *top_win(void) { Win *t = NULL; for (int i = 0; i < NWIN; i++) if (wins[i].win) t = &wins[i]; return t; }
+/* the newest window (drawn on top): Esc closes it. A window opened again reuses a lower slot, so not the last slot */
+static Win *top_win(void) { Win *t = NULL; for (int i = 0; i < NWIN; i++) if (wins[i].win && (!t || wins[i].seq > t->seq)) t = &wins[i]; return t; }
 static void win_destroy(Win *w) {
     if (!w || !w->win) return;
     void (*closed)(void *) = w->closed; void *ud = w->ud;
@@ -253,7 +254,7 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     DSLObj x = cmw_named(U->button(v->win, w - 62, 12, 42, 42, "X", x_click, v), CMW_BUTTON, nm, x_click, v, "X");
     U->tooltip(x, NULL, TR("Close (Esc)"));
     v->body = cmw_flat(U->panel(v->win, 0, CMW_BAND + 1, w, h - CMW_BAND - 1, 0), 0x00000000);
-    v->closed = closed; v->ud = ud;
+    v->closed = closed; v->ud = ud; v->seq = ++win_seq;
     return v->body;
 }
 void cmw_close(const char *id) { win_destroy(win_of(id)); }
