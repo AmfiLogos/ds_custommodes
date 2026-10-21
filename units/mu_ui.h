@@ -39,6 +39,8 @@ DSLObj mu_plate(DSLObj parent, float x, float y, float w, float h, uint32_t rgba
 /* a single-line text that ends in "..." when it does not fit (never spills); flags DSL_TXT_*; WRAP = a wrapping box
    (no ellipsis, the caller sizes it) */
 DSLObj mu_text(DSLObj parent, float x, float y, float w, float h, const char *s, float size, int flags, uint32_t rgba);
+/* the size mu_text draws at: Japanese / Korean / Chinese never below 14 (smaller kanji became blobs at 960x540) */
+float mu_text_size(float size);
 /* a kit button whose label ends in "..." when it does not fit */
 DSLObj mu_button(DSLObj parent, float x, float y, float w, float h, const char *label, dsl_ui_cb cb, void *ud);
 /* a game icon (cm_il.h CM_ICON_*), square s; tip = hover title (NULL none). dim = drawn faded (not invested).

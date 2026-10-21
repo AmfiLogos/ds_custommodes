@@ -33,8 +33,15 @@ DSLObj mu_button(DSLObj parent, float x, float y, float w, float h, const char *
 }
 
 /* ------------------------------------------------------------------ texts, icons, names */
+float mu_text_size(float size) {
+    const char *c = dsi_code();
+    return size < 14 && (!strcmp(c, "ja") || !strcmp(c, "ko") || !strncmp(c, "zh", 2)) ? 14 : size;
+}
 DSLObj mu_text(DSLObj parent, float x, float y, float w, float h, const char *s, float size, int flags, uint32_t rgba) {
     if (!U) return NULL;
+    float fs = mu_text_size(size);
+    if (fs != size && !(flags & DSL_TXT_WRAP) && h < fs * 1.6f) { y -= (fs * 1.6f - h) / 2; h = fs * 1.6f; }   /* a line taller than its box is cut */
+    size = fs;
     DSLObj t = U->text(parent, x, y, w, h, s ? s : "", size, flags, rgba);
     if (t && !(flags & DSL_TXT_WRAP)) cm_text_ellipsis(t);
     if (t) cm_raycast(t, false);
@@ -167,7 +174,7 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     /* one size on every card: a line too long for 13 drops its weapon word (the weapon is the first worn-item icon below)
        instead of the kit shrinking each card to its own size and cutting the weapon with "..." (RU) */
     if (c->weapon) {
-        DSLObj m = U->text(card, x0, 31, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
+        DSLObj m = U->text(card, x0, 31, tw, 22, line, mu_text_size(13), DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
         if (m) U->destroy(m);
         if (pw > tw) { snprintf(line, sizeof line, "%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg); dsi_utf8_fix_end(line); }
     }

@@ -38,7 +38,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "捧げ物が大きいほど、レベルアップごとの能力値の上昇と必要なマナストーンが増えます。",
  "A fully built base with all research done. Your squad walks in ready to play.": "研究をすべて終えた、完成済みの拠点。部隊はすぐにプレイできる状態で入ります。",
  "A picked unit is no longer in My Units.": "選択したユニットはもうマイユニットにありません。",
- "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "練習用の%s（耐久力%s）。ユニットを挑発します。攻撃して、部隊がどれだけダメージを与えられるか確認してください。",
+ "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "練習用の%s（耐久度%s）。ユニットを挑発します。攻撃して、部隊がどれだけダメージを与えられるか確認してください。",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "1つのチームには最大%d体のユニットを入れられます。"
  ],
@@ -124,7 +124,7 @@
  "Female": "女性",
  "Finished base": "完成した拠点",
  "Fire Staff": "炎の杖",
- "Focus: %s": "フォーカス: %s",
+ "Focus: %s": "フォーカス：%s",
  "From Lv %d": "Lv %d から",
  "Gear": "装備",
  "Gear quick sets": "装備クイックセット",
@@ -294,7 +294,7 @@
  "This unit could not be read: %s": "このユニットを読み込めませんでした：%s",
  "This unit is not in the save.": "このユニットはセーブにありません。",
  "This unit is not one of your clan's units in this save.": "このユニットは、このセーブにあるあなたのクランのユニットではありません。",
- "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れてください。チームのチェックはそのユニットをまとめて追加・解除します。",
+ "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れます。\nチームのチェックで全員を追加・解除します。",
  "Torch": "たいまつ",
  "Traits": "特性",
  "Traits (%d of %d)": "特性（%d / %d）",
