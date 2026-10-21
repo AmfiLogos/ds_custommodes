@@ -85,10 +85,16 @@ static void close_win(void) {
     if (W.lib) { jfree(W.lib); W.lib = NULL; }
 }
 static void on_close(void *ud, DSLObj w) { (void)ud; (void)w; close_win(); }
-static void show_box(int on) {
-    W.box_on = on; if (!W.box) return;
+/* the paste box takes the top of the lists while it shows: they move down under it (it hid the empty-list hint, the
+   first card's name and "All units"). 1 = the lists were drawn again */
+#define BOX_DY (W.box_on ? 54.f : 0.f)
+static int show_box(int on) {
+    int ch = W.box_on != on;
+    W.box_on = on; if (!W.box) return 0;
     U->set_active(W.box, on);
     if (on) cm_set_sibling(W.box, cm_child_count(cm_parent(W.box)) - 1);
+    if (ch && W.open && W.right) { refresh(); return 1; }
+    return 0;
 }
 static void win_poll(void) {
     if (!W.open) return;
@@ -108,7 +114,7 @@ static void win_poll(void) {
         set_msg(r.msg, st == MUL_DONE ? MU_C_GOLD : MU_C_BAD);
         mu_log("my units: link %s: %s", st == MUL_DONE ? "added" : "failed", r.msg);
         mul_reset();
-        if (st == MUL_DONE) { load_lib(); W.sel_team = W.lib ? (int)mu_team_count(W.lib) - 1 : -1; W.page = 0; show_box(0); refresh(); }
+        if (st == MUL_DONE) { load_lib(); W.sel_team = W.lib ? (int)mu_team_count(W.lib) - 1 : -1; W.page = 0; if (!show_box(0)) refresh(); }
     }
 }
 static void after_click(int st) {
@@ -208,7 +214,7 @@ static void on_page(void *ud, DSLObj w) {
 #define TEAM_H 64.f
 static void draw_left(void) {
     if (W.left) U->destroy(W.left);
-    W.left = U->scroll(W.win, 20, W.ry, LEFT_W, W.rh);
+    W.left = U->scroll(W.win, 20, W.ry + BOX_DY, LEFT_W, W.rh - BOX_DY);
     W.nteam_btn = 0;
     if (!W.left) return;
     float y = 0, bw = LEFT_W - 8; char t[200], all[160];
@@ -240,7 +246,7 @@ static void draw_cards(void) {
     if (W.right) U->destroy(W.right);
     /* the game's own panel sprite, a little darker than the window so the cards (the same sprite) and the tick boxes stand
        out; the old dark tint drew it pure black (owner 2026-10-17) */
-    W.right = U->panel(W.win, W.rx, W.ry, W.rw, W.rh, 0x9A9A9AFFu);
+    W.right = U->panel(W.win, W.rx, W.ry + BOX_DY, W.rw, W.rh - BOX_DY, 0x9A9A9AFFu);
     W.ncard = 0;
     if (!W.right) return;
     cm_raycast(W.right, false);
@@ -252,7 +258,7 @@ static void draw_cards(void) {
             : TR("This team has no units."), 16, DSL_TXT_WRAP, MU_C_SUB);
         return;
     }
-    W.per_page = (int)((W.rh - 8) / (MU_CARD_H + 8)); if (W.per_page < 1) W.per_page = 1; if (W.per_page > 16) W.per_page = 16;
+    W.per_page = (int)((W.rh - BOX_DY - 8) / (MU_CARD_H + 8)); if (W.per_page < 1) W.per_page = 1; if (W.per_page > 16) W.per_page = 16;
     int pages = (W.nids + W.per_page - 1) / W.per_page; if (W.page >= pages) W.page = pages - 1;
     for (int k = 0; k < W.per_page; k++) {
         int i = W.page * W.per_page + k; if (i >= W.nids) break;
@@ -305,7 +311,7 @@ static int build_ui(void) {
     if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL); x += 160; }
     W.b_close = mu_button(W.win, w - 130, y, 110, 40, TR("Close"), on_close, NULL);
     W.status = mu_text(W.win, x, y, w - 140 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
-    /* paste box (only when the clipboard holds no link): over the top of the lists, so the lists keep the room */
+    /* paste box (only when the clipboard holds no link): at the top of the lists, which move down while it shows */
     W.box = U->panel(W.win, 20, y + 46, w - 40, 52, MU_C_BAND);
     if (W.box) {
         W.box_field = U->field(W.box, 8, 6, w - 40 - 16 - 250, 40, TR("Paste a wiki builder link"), "", on_box_add, NULL);

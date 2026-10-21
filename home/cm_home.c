@@ -87,14 +87,14 @@ static int build_page(Obj view) {
         set_active(g, false); cm_destroy(g);
     }
     memcpy(ord, ents, sizeof ents); qsort(ord, (size_t)nents, sizeof *ord, ent_cmp);
-    nbt = 0;
+    nbt = 0;                                                      /* 52 high: the stock title buttons' height (44 looked thin) */
     for (int i = 0; i < nents; i++) {
-        bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 44, TR(ord[i].label), on_entry, (void *)(intptr_t)i);
+        bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 52, TR(ord[i].label), on_entry, (void *)(intptr_t)i);
         if (bt[nbt] && ord[i].tip[0]) U->tooltip(bt[nbt], TR(ord[i].label), TR(ord[i].tip));
         nbt++;
     }
     char back[300]; snprintf(back, sizeof back, "<color=#A69085>%s</color>", cm_gw("TEXTKEY_Common_Back", TR_NOOP("Back")));
-    bt[nbt++] = U->button((DSLObj)pt, 0, 0, 262, 44, back, on_back, NULL);
+    bt[nbt++] = U->button((DSLObj)pt, 0, 0, 262, 52, back, on_back, NULL);
     hset(&h_view, view); hset(&h_col, col); hset(&h_page, pt);
     H->log(ME, "home: page built (%d entries + Back)", nents);
     return 0;
