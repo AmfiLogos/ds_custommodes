@@ -50,6 +50,8 @@ static gal_words *words; static int words_tried; static char words_lang[12];   /
 static struct { int chars, recent, race, tree, complete; } q = { 0, 0, 0, 0, 1 };
 static gal_item *items; static int nitems, page, more, loading, gen;   /* gen: a filter change makes older answers stale */
 static char status[600]; static int status_warn;
+/* the picker door (cm_gallery_pick): the gallery opened for the Unit Builder; NULL = a normal window */
+static void (*pick_cb)(const char *build_json, void *ud); static void *pick_ud;
 static const char *race_keys[16], *tree_keys[40]; static int nrace, ntree;
 /* search (owner 2026-10-17: "add a search bar (search by name, author, and if cheap by class/weapon)"). A race or weapon
    tree word in the text sets the Races / Weapon trees filter (the server filters); the rest is an author (the wiki's
@@ -87,7 +89,8 @@ static void page_done(cm_job *j) {
             for (int i = 0; i < b->pg.n && nitems < MAXIT; i++) items[nitems++] = b->pg.items[i];
             if (pv >= 0) { pv = -1; for (int i = 0; i < nitems; i++) if (!strcmp(items[i].id, pv_id)) { pv = i; break; } }
             more = b->pg.more && page < GAL_MAX_PAGE; page = b->page;
-            status[0] = 0;
+            status[0] = 0;                                                 /* picking: the hint stays until a state replaces it */
+            if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
             int shown = 0; for (int i = 0; i < nitems; i++) shown += visible(&items[i]);
             if (s_name[0] && shown < SEARCH_MIN && more) {                /* a name search: look further down the list */
                 gal_page_free(&b->pg); free(b);
@@ -118,7 +121,12 @@ static void fetch(int pg) {
     cm_work_post(&b->j);
 }
 void fetch_more_search(void) {
-    if (page + 1 > GAL_MAX_PAGE || nitems + GAL_PAGE_SIZE > MAXIT) { more = 0; loading = 0; status[0] = 0; return; }
+    if (page + 1 > GAL_MAX_PAGE || nitems + GAL_PAGE_SIZE > MAXIT) {                 /* all loaded: say when none matched */
+        more = 0; loading = 0; status[0] = 0;
+        int shown = 0; for (int i = 0; i < nitems; i++) shown += visible(&items[i]);
+        if (!shown) { snprintf(status, sizeof status, "%s", TR("No public builds match this search.")); status_warn = 0; }
+        return;
+    }
     fetch(page + 1);
 }
 
@@ -215,8 +223,6 @@ static void clear_click(void *ud, DSLObj w) {
 }
 
 /* a card's action: fetch the full item (its stored build), then save it or test it */
-/* the picker door (cm_gallery_pick): the gallery opened for the Unit Builder; NULL = a normal window */
-static void (*pick_cb)(const char *build_json, void *ud); static void *pick_ud;
 typedef struct { cm_job j; char id[32]; int test, unit; gal_item it; char *blob, *builds; char err[400]; int ok; } ItemJob;
 static void title_of(const gal_item *it, char *o, size_t n) { gal_item_title(it, words, o, n); }
 extern sg_engine *tf_engine_for_gallery(char *err, size_t errn);        /* tf_ui.c: the engine, opened on this thread */
@@ -683,7 +689,7 @@ static void preview(DSLObj p, const gal_item *it) {
     DSLObj sc = K(U->scroll(p, 24, y, WW - 36, BH - 70 - y - 8));
     if (!sc) return;
     float yy = 0;
-    for (int u = 0; u < it->nunits; u++) yy += unit_full(sc, 0, yy, WW - 36 - 24, it, u) + 10;
+    for (int u = 0; u < it->nunits; u++) yy += unit_full(sc, 0, yy, WW - 48, it, u) + 10;   /* right edge = the buttons' */
     U->scroll_height(sc, yy);
 }
 
@@ -730,7 +736,9 @@ static void grid(DSLObj p) {
     int pages; pages_of(&pages); if (vpage >= pages) vpage = pages - 1; if (vpage < 0) vpage = 0;
     DSLObj sc = K(U->scroll(p, 24, GRID_Y, WW - 36, BH - 70 - GRID_Y - 8));
     if (!sc) return;
-    CW = (WW - 36 - 24 - 12) / 2;
+    if (!nvis && status[0])                                            /* empty / loading / error: in the empty grid, not at the bottom */
+        cmw_named(K(mu_text(sc, 0, 0, WW - 48, 160, status, 18, DSL_TXT_CENTER | DSL_TXT_WRAP, status_warn ? WARN : SUB)), CMW_TEXT, "gallery:empty", NULL, NULL, status);
+    CW = (WW - 48 - 12) / 2;                                           /* the right column ends under the filters' right edge */
     float col[2] = { 0, 0 };                                           /* two columns, each card under the shorter one */
     for (int k = vpage * per_page(); k < nvis && k < (vpage + 1) * per_page(); k++) {
         int c = col[1] < col[0];
@@ -742,7 +750,8 @@ static void grid(DSLObj p) {
 static void paint_status(void) {
     if (!cmw_is_open("gallery") || !body) return;
     if (w_status) U->destroy(w_status);                               /* the kit has no colour setter: a problem shows orange */
-    w_status = cmw_named(mu_text(body, 24, BH - 58, WW - 24 - 24 - 290, 52, status, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, status_warn ? WARN : MAIN), CMW_TEXT, "gallery:status", NULL, NULL, status);
+    const char *st = pv < 0 && !nvis ? "" : status;                   /* an empty grid shows it in its middle (grid) */
+    w_status = cmw_named(mu_text(body, 24, BH - 58, WW - 24 - 24 - 290, 52, st, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, status_warn ? WARN : MAIN), CMW_TEXT, "gallery:status", NULL, NULL, st);
     int pages; pages_of(&pages);
     char t[64]; snprintf(t, sizeof t, more ? TR("Page %d / %d+") : TR("Page %d / %d"), vpage + 1, pages); dsi_utf8_fix_end(t);
     cmw_set_text(w_page, pv < 0 ? t : "");
