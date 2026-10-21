@@ -278,6 +278,12 @@ static void draw_cards(void) {
         W.ncard++;
     }
 }
+/* a button as wide as its label on one line (the label measured at its size + the frame), at least w0. The kit wraps a
+   label that does not fit a 40-high button to two lines (DE "Als Team speichern") */
+static float fit_w(DSLObj b, float w0) {
+    float p = b ? cm_text_preferred_w(b) : -1, w = p > 0 ? p + 28 : w0;
+    return w > w0 ? w : w0;
+}
 static void refresh(void) {
     if (!W.open) return;
     list_ids();
@@ -304,10 +310,12 @@ static int build_ui(void) {
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* top bar */
     float x = 20, y = 56;
-    W.b_add = mu_button(W.win, x, y, 220, 40, TR("Add from wiki link"), on_add, NULL); x += 230;
+    W.b_add = mu_button(W.win, x, y, 220, 40, TR("Add from wiki link"), on_add, NULL);
+    { float bw = fit_w(W.b_add, 220); if (bw > 340) bw = 340; U->place(W.b_add, x, y, bw, 40); x += bw + 10; }
     U->tooltip(W.b_add, TR("Add from wiki link"), TR("Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."));
     W.b_new = NULL;
-    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL); x += 160; }
+    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL);
+                                float bw = fit_w(W.b_new, 150); if (bw > 220) bw = 220; U->place(W.b_new, x, y, bw, 40); x += bw + 10; }
     W.b_close = mu_button(W.win, w - 130, y, 110, 40, TR("Close"), on_close, NULL);
     W.status = mu_text(W.win, x, y, w - 140 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
     /* paste box (only when the clipboard holds no link): at the top of the lists, which move down while it shows */
@@ -325,14 +333,22 @@ static int build_ui(void) {
     W.bottom = mu_plate(W.win, 20, by, w - 40, 44, 0);              /* a holder only: a Box panel drew frame lines out of line */
     if (W.bottom) {
         int nb = mu_builder_present() ? 5 : 4;                      /* Edit only with the Unit Builder */
-        float bx = 8, bw = (w - 40 - 200 - 140 - 8) / nb;
+        float bx = 8, room = w - 40 - 200 - 140 - 8;
         W.t_sel = mu_text(W.bottom, bx + 4, 0, 124, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;   /* 12 from the left, off the edge */
-        W.b_team = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Save as team"), on_save_team, NULL); bx += bw;
-        W.b_rename = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Rename"), on_rename, NULL); bx += bw;
-        W.b_edit = NULL;
-        if (nb == 5) { W.b_edit = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Edit"), on_edit, NULL); bx += bw; }
-        W.b_delete = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Delete"), on_delete, NULL); bx += bw;
-        W.b_delteam = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Delete team"), on_delteam, NULL); bx += bw;
+        W.b_team = mu_button(W.bottom, bx, 2, 100, 40, TR("Save as team"), on_save_team, NULL);
+        W.b_rename = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename"), on_rename, NULL);
+        W.b_edit = nb == 5 ? mu_button(W.bottom, bx, 2, 100, 40, TR("Edit"), on_edit, NULL) : NULL;
+        W.b_delete = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete"), on_delete, NULL);
+        W.b_delteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete team"), on_delteam, NULL);
+        /* each button as wide as its label on one line; the room left is shared out evenly; too little room: all shrink
+           by the same factor (the kit then sizes the labels down) */
+        DSLObj bb[5] = { W.b_team, W.b_rename, W.b_delete, W.b_delteam, NULL }; float bw[5], sum = 0;
+        if (W.b_edit) { bb[2] = W.b_edit; bb[3] = W.b_delete; bb[4] = W.b_delteam; }
+        for (int i = 0; i < nb; i++) sum += bw[i] = fit_w(bb[i], 90) + 6;
+        for (int i = 0; i < nb; i++) {
+            float b = sum > room ? bw[i] * room / sum : bw[i] + (room - sum) / nb;
+            U->place(bb[i], bx, 2, b - 6, 40); bx += b;
+        }
         W.b_prev = mu_button(W.bottom, w - 40 - 200, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
         W.t_page = mu_text(W.bottom, w - 40 - 152, 0, 104, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         W.b_next = mu_button(W.bottom, w - 40 - 44, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
