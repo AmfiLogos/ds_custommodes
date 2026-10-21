@@ -13,6 +13,8 @@
 #define MU_C_ROW2   0x2B2830FFu
 #define MU_C_BAND   0x2D2A31FFu
 #define MU_C_BAD    0xE06A5AFFu
+#define MU_C_BODY   0x222025FFu                 /* window body (the multiplayer lobby's #222025) */
+#define MU_C_WELL   0x161419FFu                 /* the card list's background */
 
 /* the Unit Builder's door (lane builder, PLAN_V13 section 4): NULL until that lane is in the build */
 #ifdef _WIN32
@@ -32,6 +34,8 @@ void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
    Returns the panel (NULL = kit not ready); *w / *h get the size used. */
 float mu_ui_scale(void);
 DSLObj mu_window(const char *title, float want_w, float want_h, float *w, float *h);
+/* a plain colour rect, no sprite, clicks through (rgba 0: invisible, a holder for other widgets) */
+DSLObj mu_plate(DSLObj parent, float x, float y, float w, float h, uint32_t rgba);
 /* a single-line text that ends in "..." when it does not fit (never spills); flags DSL_TXT_*; WRAP = a wrapping box
    (no ellipsis, the caller sizes it) */
 DSLObj mu_text(DSLObj parent, float x, float y, float w, float h, const char *s, float size, int flags, uint32_t rgba);

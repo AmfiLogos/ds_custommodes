@@ -244,12 +244,11 @@ static void draw_left(void) {
 }
 static void draw_cards(void) {
     if (W.right) U->destroy(W.right);
-    /* the game's own panel sprite, a little darker than the window so the cards (the same sprite) and the tick boxes stand
-       out; the old dark tint drew it pure black (owner 2026-10-17) */
-    W.right = U->panel(W.win, W.rx, W.ry + BOX_DY, W.rw, W.rh - BOX_DY, 0x9A9A9AFFu);
+    /* one plain colour under the cards (the game's panel sprite), as the multiplayer copy (the tinted Box sprite had a darker
+       lower band) */
+    W.right = mu_plate(W.win, W.rx, W.ry + BOX_DY, W.rw, W.rh - BOX_DY, MU_C_WELL);
     W.ncard = 0;
     if (!W.right) return;
-    cm_raycast(W.right, false);
     mu_drawn_reset();
     if (!W.lib) { mu_text(W.right, 16, 16, W.rw - 32, 60, W.err, 15, DSL_TXT_WRAP, MU_C_BAD); return; }
     if (!W.nids) {
@@ -323,12 +322,11 @@ static int build_ui(void) {
     W.ry = y + 48; W.rh = h - W.ry - 64; W.rx = 20 + LEFT_W + 12; W.rw = w - W.rx - 20;
     /* bottom bar */
     float by = h - 54;
-    W.bottom = U->panel(W.win, 20, by, w - 40, 44, 0x00000000u);
+    W.bottom = mu_plate(W.win, 20, by, w - 40, 44, 0);              /* a holder only: a Box panel drew frame lines out of line */
     if (W.bottom) {
-        cm_raycast(W.bottom, false);
         int nb = mu_builder_present() ? 5 : 4;                      /* Edit only with the Unit Builder */
         float bx = 8, bw = (w - 40 - 200 - 140 - 8) / nb;
-        W.t_sel = mu_text(W.bottom, bx, 0, 128, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;
+        W.t_sel = mu_text(W.bottom, bx + 4, 0, 124, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;   /* 12 from the left, off the edge */
         W.b_team = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Save as team"), on_save_team, NULL); bx += bw;
         W.b_rename = mu_button(W.bottom, bx, 2, bw - 6, 40, TR("Rename"), on_rename, NULL); bx += bw;
         W.b_edit = NULL;
