@@ -113,6 +113,8 @@
  ],
  "Details": "详情",
  "Difficulty": "难度",
+ "Discard": "放弃",
+ "Discard your changes?": "放弃更改？",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "单位每喝一瓶药剂，会永久提升一项属性。请计入这个单位喝过的数量。",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "每次升级，各项属性会在其天赋等级的范围内随机提升（%s：每级 %s 至 %s）。最差每级取最低值，平均取中间值，最好取最高值。",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "每个被勾选的套装都会装入每位入场角色的个人背包，因此小队会携带着它入场。",
@@ -137,6 +139,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "铭文已关闭。如果保留已打包的套装，单位可能超重。",
  "Inscriptions": "铭文",
  "Inscriptions free": "可用铭文",
+ "Keep editing": "继续编辑",
  "Kind": "类别",
  "Learned": "已学习",
  "Left off, the economy matches the combat difficulty (%s).": "关闭时，经济与战斗难度（%s）一致。",
@@ -310,7 +313,7 @@
  "Use this unit": "使用此单位",
  "Water Staff": "水法杖",
  "Weapon trees": "武器技能树",
- "What do you want": "你想测试什么",
+ "What to test": "测试什么",
  "Which fight": "哪场战斗",
  "Which room": "哪个房间",
  "Whole units": "完整单位",
@@ -381,8 +384,5 @@
  "trait": "特质",
  "tree %s has no pool": "技能树 %s 没有奖励池",
  "two-handed": "双手",
- "worst": "最差",
- "Discard your changes?": "放弃更改？",
- "Discard": "放弃",
- "Keep editing": "继续编辑"
+ "worst": "最差"
 }

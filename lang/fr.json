@@ -123,6 +123,8 @@
  ],
  "Details": "Détails",
  "Difficulty": "Difficulté",
+ "Discard": "Abandonner",
+ "Discard your changes?": "Abandonner les modifications ?",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "Chaque élixir bu augmente une stat pour toujours. Comptez ceux que cette unité a bus.",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "Chaque niveau ajoute une valeur aléatoire à chaque stat, dans la plage de son rang de talent (%s : %s à %s par niveau). Pire prend la valeur la plus basse à chaque niveau, moyen le milieu, meilleur la plus haute.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "Chaque kit coché est rangé dans le sac à dos personnel de chaque personnage qui entre, pour que l'escouade entre avec.",
@@ -147,6 +149,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "Inscription désactivée. Les unités peuvent être trop lourdes si vous gardez les kits.",
  "Inscriptions": "Inscriptions",
  "Inscriptions free": "Inscriptions libres",
+ "Keep editing": "Continuer",
  "Kind": "Catégorie",
  "Learned": "Apprises",
  "Left off, the economy matches the combat difficulty (%s).": "Si désactivé, l'économie suit la difficulté de combat (%s).",
@@ -321,7 +324,7 @@
  "Use this unit": "Utiliser cette unité",
  "Water Staff": "Bâton de magie de l'eau",
  "Weapon trees": "Arbres d'armes",
- "What do you want": "Que voulez-vous",
+ "What to test": "Que tester ?",
  "Which fight": "Quel combat",
  "Which room": "Quelle salle",
  "Whole units": "Unités complètes",
@@ -392,8 +395,5 @@
  "trait": "trait",
  "tree %s has no pool": "l'arbre %s n'a pas de liste",
  "two-handed": "à deux mains",
- "worst": "pire",
- "Discard your changes?": "Abandonner les modifications ?",
- "Discard": "Abandonner",
- "Keep editing": "Continuer"
+ "worst": "pire"
 }

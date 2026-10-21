@@ -123,6 +123,8 @@
  ],
  "Details": "Detalhes",
  "Difficulty": "Dificuldade",
+ "Discard": "Descartar",
+ "Discard your changes?": "Descartar as alterações?",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "Cada elixir que a unidade bebe aumenta um atributo para sempre. Conte os que esta unidade tomou.",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "Cada subida de nível soma um valor aleatório a cada atributo, dentro da faixa do seu nível de talento (%s: %s a %s por nível). Pior pega o menor valor em cada nível, média o do meio e melhor o maior.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "Cada kit marcado é guardado na mochila pessoal de cada personagem que entra, então o esquadrão entra carregando-o.",
@@ -147,6 +149,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "Inscrição desativada. As unidades podem ficar com peso excessivo se você mantiver os kits empacotados.",
  "Inscriptions": "Inscrições",
  "Inscriptions free": "Inscrições livres",
+ "Keep editing": "Continuar editando",
  "Kind": "Categoria",
  "Learned": "Aprendidas",
  "Left off, the economy matches the combat difficulty (%s).": "Desativado, a economia segue a Dificuldade de Combate (%s).",
@@ -321,7 +324,7 @@
  "Use this unit": "Usar esta unidade",
  "Water Staff": "Cajado de Água",
  "Weapon trees": "Árvores de armas",
- "What do you want": "O que você quer",
+ "What to test": "O que testar?",
  "Which fight": "Qual combate",
  "Which room": "Qual sala",
  "Whole units": "Unidades completas",
@@ -392,8 +395,5 @@
  "trait": "traço",
  "tree %s has no pool": "a árvore %s não tem conjunto",
  "two-handed": "de duas mãos",
- "worst": "pior",
- "Discard your changes?": "Descartar as alterações?",
- "Discard": "Descartar",
- "Keep editing": "Continuar editando"
+ "worst": "pior"
 }

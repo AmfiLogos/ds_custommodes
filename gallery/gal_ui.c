@@ -343,6 +343,29 @@ static DSLObj flat(DSLObj p, float x, float y, float w, float h, uint32_t c) {
     DSLObj o = K(U->panel(p, x, y, w, h, 0)); if (o) { cmw_flat(o, c); cm_raycast(o, false); }
     return o;
 }
+/* the scroll thumb (as Test Fights): the kit's scroll lists have no bar, and a card is taller than the list (its buttons
+   under the bottom edge looked cut). A thin gold bar at the list's right edge shows there is more; it follows the wheel. */
+static uintptr_t th_ct, th_bar; static float th_x, th_y, th_vh, th_ch;
+static float th_h(void) { float bh = th_vh * th_vh / th_ch; return bh < 24 ? 24 : bh; }
+static void thumb_add(DSLObj parent, DSLObj content, float x, float y, float vh, float ch) {
+    cm_il_hset(&th_ct, NULL); cm_il_hset(&th_bar, NULL);
+    if (ch <= vh + 1) return;
+    flat(parent, x, y, 4, vh, 0x3A3540FFu);
+    th_x = x; th_y = y; th_vh = vh; th_ch = ch;
+    cm_il_hset(&th_ct, content); cm_il_hset(&th_bar, flat(parent, x, y, 4, th_h(), GOLD));
+}
+static void thumb_tick(void *ud) {
+    (void)ud;
+    static cm_m pos; static void *k_sr; static int tried;
+    if (!tried) { tried = 1; k_sr = cm_il_class("UnityEngine.UI", "ScrollRect"); pos = cm_il_method("UnityEngine.UI", "ScrollRect", "get_verticalNormalizedPosition", 0, NULL); }
+    Obj ct = cm_il_hget(th_ct), bar = cm_il_hget(th_bar);
+    if (!pos.fn || !k_sr || !cm_alive(ct) || !cm_alive(bar)) return;
+    Obj sr = cm_comp(cm_parent(ct), k_sr); if (!sr) return;
+    float np = CM_CALL(pos, float, Obj, const void *)(sr, pos.mi), bh = th_h();
+    if (np < 0) np = 0;
+    if (np > 1) np = 1;
+    U->place(bar, th_x, th_y + (1 - np) * (th_vh - bh), 4, bh);
+}
 
 /* names in the game's language (the build's own title stays the wiki's, as on the wiki) */
 static void game_name(const char *key, char *o, size_t n) { mu_name_of(key, o, n); }
@@ -536,10 +559,15 @@ static void unit_cp(DSLObj p, float x, float y, float w, const gal_item *it, int
     const gal_unit *g = &it->units[u]; char t[400];
     face(p, x, y + 2, 50, g);
     float x0 = x + 110, right = x + w;
+    /* name left, health / attack right on the name's line; race / background under it (all on one line, the German
+       attack word was cut: "Magischer Angriffswert 3...") */
+    char st[200] = "", rb[300]; crumb(g, 1, t, sizeof t); crumb(g, 0, rb, sizeof rb);
+    if (strlen(t) > strlen(rb) + 6) snprintf(st, sizeof st, "%s", t + strlen(rb) + 6);   /* the stats part ("  ·  " + ...) */
     member_name(it, u, t, sizeof t);
-    txt(p, x0, y, right - x0, 20, t, 15, DSL_TXT_LEFT, MAIN);
-    crumb(g, 1, t, sizeof t);
-    txt(p, x0, y + 20, right - x0, 18, t, 12, DSL_TXT_LEFT, SUB);
+    float nw = st[0] ? (right - x0) * 0.32f : right - x0;
+    txt(p, x0, y, nw, 20, t, 15, DSL_TXT_LEFT, MAIN);
+    if (st[0]) txt(p, x0 + nw + 6, y + 2, right - x0 - nw - 6, 18, st, 12, DSL_TXT_RIGHT, SUB);
+    txt(p, x0, y + 20, right - x0, 18, rb, 12, DSL_TXT_LEFT, SUB);
     Ic ic[128]; int gr[128];
     int n = icons_a(g, ic, gr); icons(p, x0, y + 40, right, 24, ic, gr, n, 0, NULL);
     n = icons_b(g, ic, gr, -1); icons(p, x0, y + 68, right, 24, ic, gr, n, 0, NULL);
@@ -691,6 +719,7 @@ static void preview(DSLObj p, const gal_item *it) {
     float yy = 0;
     for (int u = 0; u < it->nunits; u++) yy += unit_full(sc, 0, yy, WW - 48, it, u) + 10;   /* right edge = the buttons' */
     U->scroll_height(sc, yy);
+    thumb_add(p, sc, WW - 18, y, BH - 70 - y - 8, yy);
 }
 
 /* ---- filters + the page of cards */
@@ -745,6 +774,7 @@ static void grid(DSLObj p) {
         col[c] += card(sc, vis[k], c * (CW + 12), col[c]) + 12;
     }
     U->scroll_height(sc, col[0] > col[1] ? col[0] : col[1]);
+    thumb_add(p, sc, WW - 18, GRID_Y, BH - 70 - GRID_Y - 8, col[0] > col[1] ? col[0] : col[1]);
 }
 /* the bottom line: status, page n / m, < > (cheap: called while a page loads, without drawing the cards again) */
 static void paint_status(void) {
@@ -864,6 +894,7 @@ __attribute__((visibility("default"))) void cm_gallery_init(const DSLHost *host,
     cmw_test_opener("gallery_pick", test_pick_open);
     cmw_test_state(test_state);
     cm_home_add("gallery", TR_NOOP("Wiki Build Gallery"), NULL, 30, gal_open);
+    cmw_tick_add(thumb_tick, NULL);
     mul_gallery_author = gal_link_author;                        /* My Units' "Add from wiki link": a /build/<id> link's builder */
     cm_i18n_on_change(gal_relang);
 }

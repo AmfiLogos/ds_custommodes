@@ -113,6 +113,8 @@
  ],
  "Details": "상세",
  "Difficulty": "난이도",
+ "Discard": "버리기",
+ "Discard your changes?": "변경 사항을 버릴까요?",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "엘릭서를 마시면 능력치 하나가 영구히 오릅니다. 이 유닛이 마신 수를 세어 주세요.",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "레벨업마다 각 능력치가 재능 등급의 범위 안에서 무작위로 오릅니다 (%s: 레벨당 %s~%s). 최저는 매번 가장 낮은 값, 평균은 중간, 최고는 가장 높은 값을 받습니다.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "체크한 키트는 들어가는 모든 캐릭터의 개인 배낭에 담겨, 분대가 들고 들어갑니다.",
@@ -137,6 +139,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "각인 끔. 키트를 계속 담아 두면 유닛이 무게를 초과할 수 있습니다.",
  "Inscriptions": "각인",
  "Inscriptions free": "남은 각인",
+ "Keep editing": "계속 편집",
  "Kind": "종류",
  "Learned": "습득함",
  "Left off, the economy matches the combat difficulty (%s).": "끄면 운영 난이도가 전투 난이도(%s)와 같아집니다.",
@@ -310,7 +313,7 @@
  "Use this unit": "이 유닛 사용",
  "Water Staff": "물 마법 스태프",
  "Weapon trees": "무기 트리",
- "What do you want": "테스트 종류",
+ "What to test": "테스트할 내용",
  "Which fight": "어떤 전투",
  "Which room": "어떤 방",
  "Whole units": "유닛 전체",
@@ -381,8 +384,5 @@
  "trait": "특성",
  "tree %s has no pool": "트리 %s에 풀이 없습니다",
  "two-handed": "양손",
- "worst": "최저",
- "Discard your changes?": "변경 사항을 버릴까요?",
- "Discard": "버리기",
- "Keep editing": "계속 편집"
+ "worst": "최저"
 }

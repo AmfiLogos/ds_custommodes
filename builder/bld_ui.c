@@ -1047,8 +1047,16 @@ static float sheet_group(DSLObj p, float y, float sw, const char *title, int row
 }
 static float sheet_row(DSLObj p, float y, float sw, const char *n, const char *v, const char *rkey) {
     /* the text boxes overlap the next row by 2 at each side: a 22 box under a 15 line is cut ("1.6 x the font size") */
-    text_fit(p, 14, y - 2, sw - 120, ROW_H + 4, n, 14, DSL_TXT_LEFT, MU_C_SUB);
-    DSLObj o = mu_text(p, sw - 104, y - 2, 90, ROW_H + 4, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
+    /* label up to the value (values are short: "15.2%", "34 / 34"); a game label much too long for it drops its trailing
+       "(...)" (DE "Maximale Lebenspunkte (gesamt)" shrank far below the other rows) */
+    float lw = sw - 14 - 64 - 14; char sh[120]; const char *pa = strrchr(n, '(');
+    if (pa && pa > n + 2 && pa[-1] == ' ') {
+        DSLObj t = mu_text(p, 14, y - 2, lw, ROW_H + 4, n, 14, DSL_TXT_LEFT, MU_C_SUB); float pw = t ? cm_text_preferred_w(t) : -1;
+        if (t) U->destroy(t);
+        if (pw > lw * 1.15f) { snprintf(sh, sizeof sh, "%.*s", (int)(pa - 1 - n), n); n = sh; }
+    }
+    text_fit(p, 14, y - 2, lw, ROW_H + 4, n, 14, DSL_TXT_LEFT, MU_C_SUB);
+    DSLObj o = mu_text(p, sw - 78, y - 2, 64, ROW_H + 4, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
     if (rkey) { char rn[120]; snprintf(rn, sizeof rn, "~stat:%s", rkey); reg(rn, o); }
     return y + ROW_H;
 }
@@ -1066,7 +1074,9 @@ static float sheet_looks(DSLObj p, float y, float sw, float h) {
     if (s2) reg("~look:sprite", s2);
     return y + h + 14;
 }
+static void thumb_set(int k, DSLObj content, float x, float y, float vh, float ch);
 static void draw_sheet(void) {
+    thumb_set(1, NULL, 0, 0, 0, 0);
     if (W.sheet) U->destroy(W.sheet);
     reg_forget('~');
     W.sheet = NULL;
@@ -1081,6 +1091,7 @@ static void draw_sheet(void) {
     W.sheet = scroll ? U->scroll(W.win, W.sx, W.my, sw, W.mh) : clear_holder(W.win, W.sx, W.my, sw, W.mh);
     if (!W.sheet || !W.st) return;
     if (scroll) { sw -= 22; U->scroll_height(W.sheet, ah + rest); }                  /* room for the scroll bar */
+    thumb_set(1, scroll ? W.sheet : NULL, W.sx + sw + 10, W.my, W.mh, ah + rest);
     float y = sheet_looks(W.sheet, 0, sw, ah);
     if (st) {
         y = sheet_group(W.sheet, y, sw, cm_gw("TEXTKEY_EntityStatusUI_CombatStat", "Combat Stat"), (int)st->cnt);
@@ -1105,8 +1116,37 @@ static void draw_sheet(void) {
     snprintf(t, sizeof t, "%d / %d", num(in, "free"), num(in, "slots")); sheet_row(W.sheet, y, sw, TR("Inscriptions free"), t, NULL);
 }
 
+/* scroll thumbs (as Test Fights): the kit's scroll lists have no bar, so the last portrait row looked cut at the window's
+   bottom. A thin gold bar in the list's right margin shows there is more; it follows the wheel (win_poll). 0 mid, 1 sheet */
+static struct { uintptr_t ct, track, bar; float x, y, vh, ch; } TH[2];
+static float th_h(int k) { float bh = TH[k].vh * TH[k].vh / TH[k].ch; return bh < 24 ? 24 : bh; }
+static void thumb_set(int k, DSLObj content, float x, float y, float vh, float ch) {
+    Obj o;
+    if (cm_alive(o = cm_il_hget(TH[k].track))) U->destroy(o);
+    if (cm_alive(o = cm_il_hget(TH[k].bar))) U->destroy(o);
+    cm_il_hset(&TH[k].ct, NULL); cm_il_hset(&TH[k].track, NULL); cm_il_hset(&TH[k].bar, NULL);
+    if (!content || !W.win || ch <= vh + 1) return;
+    TH[k].x = x; TH[k].y = y; TH[k].vh = vh; TH[k].ch = ch;
+    DSLObj t = clear_holder(W.win, x, y, 4, vh), b = clear_holder(W.win, x, y, 4, th_h(k));
+    look(t, NULL, 0x3A3540FFu); look(b, NULL, MU_C_GOLD);
+    cm_il_hset(&TH[k].ct, content); cm_il_hset(&TH[k].track, t); cm_il_hset(&TH[k].bar, b);
+}
+static void thumb_tick(void) {
+    static cm_m pos; static void *k_sr; static int tried;
+    if (!tried) { tried = 1; k_sr = cm_il_class("UnityEngine.UI", "ScrollRect"); pos = cm_il_method("UnityEngine.UI", "ScrollRect", "get_verticalNormalizedPosition", 0, NULL); }
+    for (int k = 0; k < 2 && pos.fn && k_sr; k++) {
+        Obj ct = cm_il_hget(TH[k].ct), bar = cm_il_hget(TH[k].bar);
+        if (!cm_alive(ct) || !cm_alive(bar)) continue;
+        Obj sr = cm_comp(cm_parent(ct), k_sr); if (!sr) continue;
+        float np = CM_CALL(pos, float, Obj, const void *)(sr, pos.mi), bh = th_h(k);
+        if (np < 0) np = 0;
+        if (np > 1) np = 1;
+        U->place(bar, TH[k].x, TH[k].y + (1 - np) * (TH[k].vh - bh), 4, bh);
+    }
+}
 static void draw_mid(void) {
     float top = W.my + W.bar_h, h = W.mh - W.bar_h - 4;
+    thumb_set(0, NULL, 0, 0, 0, 0);
     if (W.mid && fabsf(h - W.scroll_h) > 0.5f) { U->destroy(W.mid); W.mid = W.mid_holder = NULL; }
     if (!W.mid) { W.mid = U->scroll(W.win, W.mx + 4, top, W.mw - 8, h); W.mid_holder = NULL; W.scroll_h = h; }
     if (!W.mid) return;
@@ -1129,6 +1169,7 @@ static void draw_mid(void) {
     }
     U->place(p, 0, 0, LW, y + 12);
     U->scroll_height(W.mid, y + 12);
+    thumb_set(0, W.mid, W.mx + 4 + W.mw - 8 - 12, top, h, y + 12);
 }
 
 static void on_lvl(void *ud, DSLObj w) { (void)ud; char a[64]; snprintf(a, sizeof a, "{\"t\":\"lvl\",\"v\":%d}", U->value_get(w) + 1); act(a); }
@@ -1218,6 +1259,7 @@ static int relang;                       /* the language changed: build the wind
 void bld_relang(void) { relang = 1; }
 static void win_poll(void) {             /* the kit's screen layer or the UI scale changed: build the window again */
     if (!W.open || !W.win) { relang = 0; return; }
+    thumb_tick();
     /* the search box: the list follows what is typed (a short pause first, so a word is one redraw) */
     if (W.f_search) {
         char q[96] = ""; U->field_get(W.f_search, q, sizeof q);

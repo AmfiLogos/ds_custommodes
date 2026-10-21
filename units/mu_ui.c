@@ -160,23 +160,23 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     char nm[128];
     if (name && *name) snprintf(nm, sizeof nm, "%s", name);
     else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : TR("Unit"));
-    mu_text(card, x0, 2, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);
+    mu_text(card, x0, 5, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);   /* clear of the frame's top edge (it pressed on it) */
     char line[300], bg[96] = ""; if (c->bg) mu_name_of(c->bg, bg, sizeof bg);
     snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? weapon_word(c->weapon) : "");
     dsi_utf8_fix_end(line);
-    mu_text(card, x0, 28, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
+    mu_text(card, x0, 31, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
     /* row A: worn items | skill bar */
     IconRef ic[MUC_MAX * 3]; int gr[MUC_MAX * 3], n = 0;
     for (int i = 0; i < c->neq && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_ITEM, c->eq[i].item, 0 }; gr[n++] = 0; }
     int nb = bar ? nbar : c->nbar;
     for (int i = 0; i < nb && n < MUC_MAX * 2; i++) { const char *k = bar ? bar[i] : c->bar[i]; if (k && *k) { ic[n] = (IconRef){ CM_ICON_SKILL, k, 0 }; gr[n++] = 1; } }
-    icon_row(card, x0, 52, w - 8 - lookw, 24, ic, gr, n);
+    icon_row(card, x0, 54, w - 8 - lookw, 24, ic, gr, n);
     /* row B: branches ACTIVE | PASSIVE (dim = nothing learned in it) | banked milestones */
     n = 0;
     for (int i = 0; i < c->nactive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->active[i].tree, !c->active[i].invested }; gr[n++] = 0; }
     for (int i = 0; i < c->npassive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->passive[i].tree, !c->passive[i].invested }; gr[n++] = 1; }
     for (int i = 0; i < c->nstacks; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->stacks[i].skill, !c->stacks[i].learned }; gr[n++] = 2; }
-    icon_row(card, x0, 78, w - 8 - lookw, 24, ic, gr, n);
+    icon_row(card, x0, 79, w - 8 - lookw, 24, ic, gr, n);
     /* row C: passive skills | inscriptions | soul stones | traits acquired in play */
     n = 0;
     for (int i = 0; i < c->npass && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->pass[i].skill, 0 }; gr[n++] = 0; }

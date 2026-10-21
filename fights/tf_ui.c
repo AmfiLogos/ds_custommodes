@@ -11,6 +11,7 @@
 #include "cm_home.h"
 #include "../fe/fe_json.h"
 #include "cm_il.h"
+#include "mu_ui.h"
 #include "cm_i18n.h"
 #include "cm_prefs.h"
 #include "cm_gtip.h"
@@ -537,7 +538,12 @@ static void paint_left(void) {
             if (ib) cm_raycast(ib, false);
             snprintf(lab, sizeof lab, "%s%s  (%d/%d)%s", nin ? "<color=#D9BE8F>" : "", name, nin, n, nin ? "</color>" : "");
             snprintf(nm, sizeof nm, "fights:l.team%zu", i);
-            cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, lab, n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
+            /* the name on one line at the unit rows' size (ends in "..."), the count apart before the tick box: as one kit
+               label it wrapped to two smaller lines with "(0/4)" on the border */
+            DSLObj tg = cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
+            if (tg) { char c[24]; snprintf(c, sizeof c, "%d/%d", nin, n);
+                      mu_text(tg, 12, 6, uw - 46 - 12 - 48 - 52, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN);
+                      mu_text(tg, uw - 46 - 48 - 50, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB); }
             sy += 48;
             if (team_author(i, au, sizeof au)) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
@@ -612,9 +618,11 @@ static int fold_has(const char *hay, const char *q) {
     for (const char *h = hay; *h; h++) { size_t i = 0; while (i < n && h[i] && tolower((unsigned char)h[i]) == tolower((unsigned char)q[i])) i++; if (i == n) return 1; }
     return 0;
 }
-static void fmt_n(double v, char *o, size_t n) {                     /* 1000000 -> "1,000,000" (fmtN) */
-    char d[40]; snprintf(d, sizeof d, "%.0f", v); size_t l = strlen(d), k = 0;
-    for (size_t i = 0; i < l && k + 2 < n; i++) { if (i && (l - i) % 3 == 0) o[k++] = ','; o[k++] = d[i]; }
+static void fmt_n(double v, char *o, size_t n) {                     /* 1000000 -> "1,000,000" (fmtN), the language's separator */
+    const char *c = dsi_code(), *sep = !strcmp(c, "de") || !strcmp(c, "es") || !strcmp(c, "pt-BR") ? "."
+                                      : !strcmp(c, "fr") || !strcmp(c, "ru") ? "\xC2\xA0" : ",";   /* 1.000.000 / 1 000 000 (no-break space) */
+    char d[40]; snprintf(d, sizeof d, "%.0f", v); size_t l = strlen(d), k = 0, sl = strlen(sep);
+    for (size_t i = 0; i < l && k + sl + 1 < n; i++) { if (i && d[i - 1] != '-' && (l - i) % 3 == 0) { memcpy(o + k, sep, sl); k += sl; } o[k++] = d[i]; }
     o[k] = 0;
 }
 /* owner v0.1.11 #2: the wiki's boss preview (art, name, key stats) for the chosen boss, in game style, from the game's own
@@ -714,7 +722,7 @@ static void paint_right(void) {
     DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, PANEL_H);
     right = vp;
     /* What do you want */
-    y += head(right, 0, y, w, TR("What do you want"));
+    y += head(right, 0, y, w, TR("What to test"));
     const char *ml[6]; char md[600] = "";
     for (int i = 0; i < P.nmodes; i++)
         ml[i] = !strcmp(P.modes[i], "dps") ? TR("DPS Check") : !strcmp(P.modes[i], "boss") ? TR("Boss fight") : !strcmp(P.modes[i], "arena") ? TR("Custom fight") : TR("Finished base");

@@ -133,6 +133,8 @@
  ],
  "Details": "Подробнее",
  "Difficulty": "Сложность",
+ "Discard": "Отменить",
+ "Discard your changes?": "Отменить изменения?",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "Каждый выпитый эликсир навсегда повышает одну характеристику. Укажите, сколько их выпил этот юнит.",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "Каждый уровень добавляет к каждой характеристике случайное значение в пределах её ступени таланта (%s: от %s до %s за уровень). Худший берёт наименьшее значение на каждом уровне, средний — среднее, лучший — наибольшее.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "Каждый отмеченный набор кладётся в личный рюкзак каждого входящего персонажа, так что отряд несёт его с собой.",
@@ -157,6 +159,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "Надпись выключена. Юниты могут быть перегружены, если наборы остаются упакованными.",
  "Inscriptions": "Надписи",
  "Inscriptions free": "Надписи бесплатно",
+ "Keep editing": "Продолжить",
  "Kind": "Вид",
  "Learned": "Изученные",
  "Left off, the economy matches the combat difficulty (%s).": "Если выключено, экономика соответствует сложности боя (%s).",
@@ -332,7 +335,7 @@
  "Use this unit": "Взять этот юнит",
  "Water Staff": "Посох воды",
  "Weapon trees": "Деревья оружия",
- "What do you want": "Что вы хотите",
+ "What to test": "Что проверить",
  "Which fight": "Какой бой",
  "Which room": "Какая комната",
  "Whole units": "Юниты целиком",
@@ -403,8 +406,5 @@
  "trait": "черта",
  "tree %s has no pool": "у дерева %s нет пула",
  "two-handed": "двуручное",
- "worst": "худший",
- "Discard your changes?": "Отменить изменения?",
- "Discard": "Отменить",
- "Keep editing": "Продолжить"
+ "worst": "худший"
 }

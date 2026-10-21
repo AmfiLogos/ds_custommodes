@@ -113,6 +113,8 @@
  ],
  "Details": "詳細",
  "Difficulty": "難易度",
+ "Discard": "破棄",
+ "Discard your changes?": "変更を破棄しますか？",
  "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken.": "エリクサーを飲むと能力値が1つ永続的に上がります。このユニットが飲んだ数を入力してください。",
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "レベルアップごとに、各能力値は才能の段階の範囲内でランダムに上がります（%s：レベルごとに%s～%s）。最低は毎回最小値、平均は中間、最高は最大値を取ります。",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "チェックしたキットは、入る各キャラクターの個人バックパックに詰められます。部隊はそれを持って入ります。",
@@ -137,6 +139,7 @@
  "Inscription off. Units may be overweight if you keep the kits packed.": "刻印オフ。キットを詰めたままにすると、ユニットが重量超過になる場合があります。",
  "Inscriptions": "刻印",
  "Inscriptions free": "刻印の空き",
+ "Keep editing": "編集を続ける",
  "Kind": "種類",
  "Learned": "習得済み",
  "Left off, the economy matches the combat difficulty (%s).": "オフのままにすると、経済は戦闘難易度（%s）と同じになります。",
@@ -310,7 +313,7 @@
  "Use this unit": "このユニットを使う",
  "Water Staff": "水の杖",
  "Weapon trees": "武器ツリー",
- "What do you want": "何をしますか",
+ "What to test": "テストする内容",
  "Which fight": "どの戦闘",
  "Which room": "どの部屋",
  "Whole units": "ユニット全体",
@@ -381,8 +384,5 @@
  "trait": "特性",
  "tree %s has no pool": "ツリー %s に候補がありません",
  "two-handed": "両手",
- "worst": "最低",
- "Discard your changes?": "変更を破棄しますか？",
- "Discard": "破棄",
- "Keep editing": "編集を続ける"
+ "worst": "最低"
 }
