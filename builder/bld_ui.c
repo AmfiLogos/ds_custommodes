@@ -19,6 +19,7 @@
 #include "cm_il.h"
 #include "sg_cache.h"
 #include "i18n/ds_i18n.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,7 +100,7 @@ static struct {
     char unit_id[17], lib_name[96];        /* editing this My Units unit ("" = a new unit) */
     void (*saved)(const char *, void *); void *ud;
     DSLObj win, f_name, v_lvl, status, b_save, b_cancel, nav[SEC_N], mid, mid_holder, sheet, bar, f_search;
-    float w, h, lw, lh, scale, mx, my, mw, mh, sx, bar_h, scroll_h;
+    float w, h, lw, lh, scale, mx, my, mw, mh, sx, bar_h, scroll_h, lx;   /* lx: the Level row's x */
     int bar_sec, bar_slot, search_wait;    /* the filter bar drawn for (section, open slot); ticks left before a search redraws */
     int lvl_n;                             /* values in v_lvl */
     jv *st;                                /* the model's last state */
@@ -382,12 +383,14 @@ static float label_w(const char *s, float size) {          /* a first guess, the
     return w;
 }
 static DSLObj chip(DSLObj p, float x, float y, float w, float h, const char *label, int on, dsl_ui_cb cb, void *ud, float *used) {
+    int grow = w <= 0;
     if (w <= 0) w = label_w(label, 14) + 26;
     DSLObj b = mu_button(p, x, y, w, h, "", cb, ud);
     if (!b) { if (used) *used = w; return NULL; }
     DSLObj t = mu_text(b, 8, 0, w - 16, h, label, 14, DSL_TXT_CENTER, on ? MU_C_GOLD : MU_C_MAIN);
     float pw = t ? cm_text_preferred_w(t) : -1;
-    if (t && pw > w - 16) {                                  /* the box grows to its label */
+    if (t && pw > w - 16 && grow) {                          /* the box grows to its label; a fixed cell (talent tier,
+                                                                elixir +/-) keeps its size and its label shrinks / ends in "..." */
         w = pw + 18;
         U->place(b, x, y, w, h); U->place(t, 8, 0, w - 16, h);
     }
@@ -404,7 +407,13 @@ static float heading(DSLObj p, float y, float w, const char *t) {
     text_fit(p, 10, y, w - 20, 34, t, 16, DSL_TXT_LEFT, MU_C_MAIN);
     return y + 38;
 }
-static float note(DSLObj p, float y, float w, const char *t, float h) { mu_text(p, 6, y, w - 12, h, t, 14, DSL_TXT_WRAP, MU_C_SUB); return y + h + 4; }
+/* a wrapped note; its box grows to its text (long DE / RU / FR lines, a narrow window), so it never runs over the next row */
+static float note(DSLObj p, float y, float w, const char *t, float h) {
+    DSLObj o = mu_text(p, 6, y, w - 12, h, t, 14, DSL_TXT_WRAP, MU_C_SUB);
+    float th = o && U->size >= offsetof(DSLUi, text_height) + sizeof U->text_height && U->text_height ? U->text_height(o, w - 12) : 0;
+    if (th > h - 2) { h = th + 4; U->place(o, 6, y, w - 12, h); }
+    return y + h + 4;
+}
 /* key carried by a widget callback: index into the state's array for that section */
 #define UD(i) ((void *)(intptr_t)(i))
 #define IDX(ud) ((int)(intptr_t)(ud))
@@ -767,7 +776,7 @@ static float draw_level(DSLObj p, float y) {
     y = note(p, y, LW, t, 40) + 6;
     /* offering */
     y = heading(p, y, LW, TR("Offering at each level-up"));
-    const jv *of = arr_in(lv, "offers"); float x = 6, used;
+    const jv *of = arr_in(lv, "offers");
     Flow fo; flow_init(&fo, p, 6, y, LW - 6, 36);
     for (size_t i = 0; of && i < of->cnt; i++) {
         char k[60], wn[80], lab[200], tk[120]; sraw(jget(of->v[i], "k"), k, sizeof k); sraw(jget(of->v[i], "n"), wn, sizeof wn);
@@ -783,12 +792,13 @@ static float draw_level(DSLObj p, float y) {
     /* stat gain per level */
     y = heading(p, y, LW, TR("Stat gain per level"));
     char gain[16]; sraw(jget(lv, "gain"), gain, sizeof gain);
-    const char *gl[3] = { TR("worst"), TR("average"), TR("best") }; x = 6;
+    const char *gl[3] = { TR("worst"), TR("average"), TR("best") };
+    Flow fg; flow_init(&fg, p, 6, y, LW - 6, 36);
     for (int i = 0; i < 3; i++) {
-        DSLObj c = chip(p, x, y, 0, 36, gl[i], !strcmp(gain, GAIN[i]), on_gain, UD(i), &used);
-        char rn[40]; snprintf(rn, sizeof rn, "+gain:%s", GAIN[i]); reg(rn, c); x += used + 8;
+        DSLObj c = flow_chip(&fg, gl[i], !strcmp(gain, GAIN[i]), on_gain, UD(i));
+        char rn[40]; snprintf(rn, sizeof rn, "+gain:%s", GAIN[i]); reg(rn, c);
     }
-    y += 44;
+    y = flow_end(&fg) + 2;
     const jv *ti = arr("tiers");
     { char lo[16] = "", hi[16] = "", mn[80] = "Moderate";
       for (size_t i = 0; ti && i < ti->cnt; i++) if (truthy(ti->v[i], "base")) { snprintf(lo, sizeof lo, "%d", num(ti->v[i], "lo")); snprintf(hi, sizeof hi, "%d", num(ti->v[i], "hi")); sraw(jget(ti->v[i], "k"), mn, sizeof mn); }
@@ -797,12 +807,12 @@ static float draw_level(DSLObj p, float y) {
       y = note(p, y, LW, t, 60) + 6; }
     /* talents (renderTalents) */
     y = heading(p, y, LW, cm_gw("TEXTKEY_Shared_Talent_NAME", "Talent"));
-    x = 6;
     { const char *al[4] = { NULL, NULL, NULL, TR("Randomize") }; char a0[120], a1[120], a2[120];
       snprintf(a0, sizeof a0, TR("All %s"), tier_word("Moderate", "Moderate")); snprintf(a1, sizeof a1, TR("All %s"), tier_word("Genius", "Genius")); snprintf(a2, sizeof a2, TR("All %s"), tier_word("Poor", "Poor"));
       al[0] = a0; al[1] = a1; al[2] = a2;
-      for (int i = 0; i < 4; i++) { DSLObj c = chip(p, x, y, 0, 34, al[i], 0, on_tal_all, UD(i == 3 ? -1 : i), &used); char rn[40]; snprintf(rn, sizeof rn, "+talall:%d", i); reg(rn, c); x += used + 8; } }
-    y += 42;
+      Flow fa; flow_init(&fa, p, 6, y, LW - 6, 34);
+      for (int i = 0; i < 4; i++) { DSLObj c = flow_chip(&fa, al[i], 0, on_tal_all, UD(i == 3 ? -1 : i)); char rn[40]; snprintf(rn, sizeof rn, "+talall:%d", i); reg(rn, c); }
+      y = flow_end(&fa) + 2; }
     const jv *tl = arr("tal");
     float nw = 150, cw = ti && ti->cnt ? (LW - nw - 12 - (ti->cnt - 1) * 6) / ti->cnt : 100;
     for (size_t m = 0; tl && m < tl->cnt; m++) {
@@ -881,19 +891,22 @@ static float draw_skills(DSLObj p, float y) {
                 sraw(jget(nd, "k"), sk, sizeof sk); sraw(jget(nd, "n"), wn, sizeof wn); sraw(jget(nd, "why"), why, sizeof why); sraw(jget(nd, "d"), d, sizeof d);
                 game_name(sk, wn, sn, sizeof sn);
                 int on = truthy(nd, "on"), lv = num(nd, "lv");
-                char lvs[64] = "", cost[80];
+                char lvs[64] = "", cost[80], costl[80];
                 if (lv > 1) { snprintf(lvs, sizeof lvs, "  \xC2\xB7  "); snprintf(lvs + 6, sizeof lvs - 6, TR("Lv %d"), lv); }
-                snprintf(cost, sizeof cost, truthy(tr, "w") ? TR("%d main SP") : TR("%d sub SP"), num(nd, "cost"));
-                snprintf(sub, sizeof sub, "%s%s%s%s%s%s", on ? TR("learned") : "", on ? "  \xC2\xB7  " : "", cost, lvs,
-                         truthy(nd, "p") ? "  \xC2\xB7  " : "", truthy(nd, "p") ? TR("passive") : "");
+                /* the cell is a third of the list (~150 for its text): its line says "2 SP" (the tree's heading says Main or
+                   Sub SP, the gold frame says learned); the full words are in its tooltip */
+                snprintf(cost, sizeof cost, TR("%d SP"), num(nd, "cost"));
+                snprintf(costl, sizeof costl, truthy(tr, "w") ? TR("%d main SP") : TR("%d sub SP"), num(nd, "cost"));
+                snprintf(sub, sizeof sub, "%s%s%s%s", cost, lvs, truthy(nd, "p") ? "  \xC2\xB7  " : "", truthy(nd, "p") ? TR("passive") : "");
                 dsi_utf8_fix_end(sub);
                 DSLObj b = icon_button(p, 4 + c * (cw + 8), y, cw, ch, CM_ICON_SKILL, sk, sn, sub, on ? ST_ON : why[0] ? ST_LOCKED : ST_OFF,
                                        on_skill, UD(((int)ti << 16) | ((int)r << 4) | (int)c));
                 drawn = 1;
                 if (b) {
                     char lk[400] = ""; if (why[0]) snprintf(lk, sizeof lk, TR("Locked: %s"), why);
-                    snprintf(tip, sizeof tip, "%s%s%s", lk, lk[0] && d[0] ? "\n" : "", d);
-                    U->tooltip(b, sn, tip[0] ? tip : " ");
+                    char hd[200]; snprintf(hd, sizeof hd, "%s%s%s", on ? TR("Learned") : "", on ? "  \xC2\xB7  " : "", costl);
+                    snprintf(tip, sizeof tip, "%s\n%s%s%s", hd, lk, lk[0] && d[0] ? "\n" : "", d);
+                    U->tooltip(b, sn, tip);
                     char rn[200]; snprintf(rn, sizeof rn, "+skill:%s", sk); reg(rn, b);
                 }
             }
@@ -988,7 +1001,7 @@ static float draw_presets(DSLObj p, float y) {
     }
     y = flow_end(&fw);
     int two = truthy(sets, "twoHanded");
-    DSLObj tg = U->toggle(p, 6, y, 320, TR("Add a shield (one-handed weapons)"), truthy(sets, "shield"), on_shield, NULL);
+    DSLObj tg = U->toggle(p, 6, y, LW - 12 > 520 ? 520 : LW - 12, TR("Add a shield (one-handed weapons)"), truthy(sets, "shield"), on_shield, NULL);   /* 320 cut the label */
     if (tg) { U->set_enabled(tg, !two); reg("+shield", tg); }
     y += 44;
     const jv *ls = arr_in(sets, "list");
@@ -1024,18 +1037,18 @@ static float sheet_group(DSLObj p, float y, float sw, const char *title, int row
     return y + 3;
 }
 static float sheet_row(DSLObj p, float y, float sw, const char *n, const char *v, const char *rkey) {
-    text_fit(p, 14, y, sw - 120, ROW_H, n, 14, DSL_TXT_LEFT, MU_C_SUB);
-    DSLObj o = mu_text(p, sw - 104, y, 90, ROW_H, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
+    /* the text boxes overlap the next row by 2 at each side: a 22 box under a 15 line is cut ("1.6 x the font size") */
+    text_fit(p, 14, y - 2, sw - 120, ROW_H + 4, n, 14, DSL_TXT_LEFT, MU_C_SUB);
+    DSLObj o = mu_text(p, sw - 104, y - 2, 90, ROW_H + 4, v, 15, DSL_TXT_RIGHT, MU_C_MAIN);
     if (rkey) { char rn[120]; snprintf(rn, sizeof rn, "~stat:%s", rkey); reg(rn, o); }
     return y + ROW_H;
 }
 /* the unit's avatar (portrait) and its in-game sprite (race, face, worn gear), both made by the game (mu_look.h) */
-static float sheet_looks(DSLObj p, float y, float sw) {
+static float sheet_looks(DSLObj p, float y, float sw, float h) {
     mu_look lk; memset(&lk, 0, sizeof lk);
     sraw(jget(W.st, "race"), lk.race, sizeof lk.race); sraw(jget(W.st, "portrait"), lk.portrait, sizeof lk.portrait);
     const jv *eq = arr("eq");
     for (size_t i = 0; eq && i < eq->cnt && lk.ngear < MU_LOOK_GEAR; i++) { sraw(jget(eq->v[i], "k"), lk.gear[lk.ngear], sizeof lk.gear[0]); if (lk.gear[lk.ngear][0]) lk.ngear++; }
-    float h = 100;
     deco(p, 4, y, sw - 8, h + 8, SP_CONTENTS, C_CONTENTS);
     DSLObj a = mu_look_avatar(p, 10, y + 4, h, &lk);
     if (!a) mu_icon(p, 10, y + 4, h, CM_ICON_AFFECTER, lk.race, 0, NULL);
@@ -1047,11 +1060,19 @@ static float sheet_looks(DSLObj p, float y, float sw) {
 static void draw_sheet(void) {
     if (W.sheet) U->destroy(W.sheet);
     reg_forget('~');
+    W.sheet = NULL;
     float sw = W.w - W.sx - 20;
-    W.sheet = clear_holder(W.win, W.sx, W.my, sw, W.mh);
-    if (!W.sheet || !W.st) return;
-    jv *sh = jget(W.st, "sheet"); float y = sheet_looks(W.sheet, 0, sw);
+    jv *sh = W.st ? jget(W.st, "sheet") : NULL;
     const jv *st = arr_in(sh, "stats"), *mj = arr_in(sh, "majors");
+    /* its height: looks, the stat groups (title 33 + rows + 8), Points left (3 rows). UI scale 1.4 leaves ~600: the
+       avatar gets smaller (down to 64), then the sheet scrolls; it never runs past the window's bottom */
+    float ah = 100, rest = 14 + (st ? 41 + ROW_H * (float)st->cnt : 0) + (mj ? 41 + ROW_H * (float)mj->cnt : 0) + 36 + 3 * ROW_H;
+    if (ah + rest > W.mh) { ah = W.mh - rest; if (ah < 64) ah = 64; if (ah > 100) ah = 100; }
+    int scroll = W.st && ah + rest > W.mh + 0.5f;
+    W.sheet = scroll ? U->scroll(W.win, W.sx, W.my, sw, W.mh) : clear_holder(W.win, W.sx, W.my, sw, W.mh);
+    if (!W.sheet || !W.st) return;
+    if (scroll) { sw -= 22; U->scroll_height(W.sheet, ah + rest); }                  /* room for the scroll bar */
+    float y = sheet_looks(W.sheet, 0, sw, ah);
     if (st) {
         y = sheet_group(W.sheet, y, sw, cm_gw("TEXTKEY_EntityStatusUI_CombatStat", "Combat Stat"), (int)st->cnt);
         for (size_t i = 0; i < st->cnt; i++) {
@@ -1127,7 +1148,7 @@ static void refresh(void) {
             char store[100][8]; const char *vals[100]; int n = mx > 0 && mx <= 100 ? mx : 12;
             for (int i = 0; i < n; i++) { snprintf(store[i], sizeof store[i], "%d", i + 1); vals[i] = store[i]; }
             U->destroy(W.v_lvl);
-            W.v_lvl = U->value_row(W.win, 360, 56, 240, TR("Level"), vals, n, lv - 1, on_lvl, NULL);
+            W.v_lvl = U->value_row(W.win, W.lx, 54, 240, TR("Level"), vals, n, lv - 1, on_lvl, NULL);
             W.lvl_n = n;
         } else U->value_set(W.v_lvl, lv - 1);
     }
@@ -1156,12 +1177,17 @@ static int build_ui(void) {
     { DSLObj fill = U->panel(W.win, 5, 8, w - 10, h - 16, 0);
       if (fill) { look(fill, NULL, C_FILL); cm_raycast(fill, false); cm_set_sibling(fill, 0); } }
     float y = 56;
+    /* the top row from the window's real width (mu_window clamps it): a narrow window (UI scale 1.4 on a 16:10 or 4:3
+       screen) takes the room for the message from the name box, never from the buttons */
+    float fw = 260, need = 240 - (w - 902); if (need > 0) fw -= need > 100 ? 100 : need;
+    W.lx = 84 + fw + 16; float stx = W.lx + 240 + 12;
     text_fit(W.win, 20, y, 64, 40, TR("Name"), 15, DSL_TXT_LEFT, MU_C_SUB);
-    W.f_name = U->field(W.win, 84, y, 260, 40, TR("Unit name"), W.lib_name, on_name, NULL);
-    { const char *one[] = { "-" }; W.v_lvl = U->value_row(W.win, 360, y, 240, TR("Level"), one, 1, 0, on_lvl, NULL); }
+    W.f_name = U->field(W.win, 84, y, fw, 40, TR("Unit name"), W.lib_name, on_name, NULL);
+    { const char *one[] = { "-" }; W.v_lvl = U->value_row(W.win, W.lx, y - 2, 240, TR("Level"), one, 1, 0, on_lvl, NULL); }   /* 44 high: centred on the 40 row */
     W.b_save = mu_button(W.win, w - 280, y, 125, 40, TR("Save"), on_save, NULL);
     W.b_cancel = mu_button(W.win, w - 145, y, 125, 40, TR("Cancel"), on_cancel, NULL);
-    W.status = mu_text(W.win, 612, y, w - 280 - 612 - 10, 40, W.msg, 14, DSL_TXT_LEFT, MU_C_SUB);
+    /* the message: up to three lines (y 50..104, above the lists) so a gallery load or a save error is read whole */
+    W.status = mu_text(W.win, stx, y - 6, w - 280 - stx - 10, 54, W.msg, 14, DSL_TXT_LEFT, MU_C_SUB);
     U->tooltip(W.b_save, TR("Save"), TR("Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."));
     reg("name", W.f_name); reg("save", W.b_save); reg("cancel", W.b_cancel); reg("status", W.status); reg("win", W.win);
     W.my = 108; W.mh = h - W.my - 20; W.mx = 212;
