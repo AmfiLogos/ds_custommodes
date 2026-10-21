@@ -7,15 +7,15 @@
  "%d selected||%d selected": [
   "%d개 선택됨"
  ],
- "%d slot and %g weight per character.||%d slots and %g weight per character.": [
-  "캐릭터당 슬롯 %d개, 무게 %g."
+ "%d slot and %s weight per character.||%d slots and %s weight per character.": [
+  "캐릭터당 슬롯 %d개, 무게 %s."
  ],
  "%d sub SP": "%d 보조 SP",
  "%d unit||%d units": [
   "유닛 %d개"
  ],
- "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)": [
-  "%s  (슬롯 %d개, 무게 %g)"
+ "%s  (%d slot, %s weight)||%s  (%d slots, %s weight)": [
+  "%s  (슬롯 %d개, 무게 %s)"
  ],
  "%s  (+%d %s per use)": "%s (1회당 +%d %s)",
  "%s  -  auxiliary tree, Sub SP": "%s  -  보조 트리, 보조 SP",

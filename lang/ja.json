@@ -7,15 +7,15 @@
  "%d selected||%d selected": [
   "%d件選択中"
  ],
- "%d slot and %g weight per character.||%d slots and %g weight per character.": [
-  "キャラクターあたり%dスロット、重量%g。"
+ "%d slot and %s weight per character.||%d slots and %s weight per character.": [
+  "キャラクターあたり%dスロット、重量%s。"
  ],
  "%d sub SP": "サブSP %d",
  "%d unit||%d units": [
   "%d体"
  ],
- "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)": [
-  "%s  （%dスロット、重量%g）"
+ "%s  (%d slot, %s weight)||%s  (%d slots, %s weight)": [
+  "%s  （%dスロット、重量%s）"
  ],
  "%s  (+%d %s per use)": "%s（1回につき +%d %s）",
  "%s  -  auxiliary tree, Sub SP": "%s  -  補助ツリー、サブSP",

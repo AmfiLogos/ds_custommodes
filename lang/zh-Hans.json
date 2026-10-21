@@ -7,15 +7,15 @@
  "%d selected||%d selected": [
   "已选 %d 个"
  ],
- "%d slot and %g weight per character.||%d slots and %g weight per character.": [
-  "每个角色 %d 格，负重 %g。"
+ "%d slot and %s weight per character.||%d slots and %s weight per character.": [
+  "每个角色 %d 格，负重 %s。"
  ],
  "%d sub SP": "%d 辅技能点",
  "%d unit||%d units": [
   "%d 个单位"
  ],
- "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)": [
-  "%s  （%d 格，负重 %g）"
+ "%s  (%d slot, %s weight)||%s  (%d slots, %s weight)": [
+  "%s  （%d 格，负重 %s）"
  ],
  "%s  (+%d %s per use)": "%s（每次使用 +%d %s）",
  "%s  -  auxiliary tree, Sub SP": "%s  -  辅助技能树，辅技能点",

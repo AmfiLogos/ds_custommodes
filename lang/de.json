@@ -9,18 +9,18 @@
   "%d ausgewählt",
   "%d ausgewählt"
  ],
- "%d slot and %g weight per character.||%d slots and %g weight per character.": [
-  "%d Platz und %g Gewicht pro Charakter.",
-  "%d Plätze und %g Gewicht pro Charakter."
+ "%d slot and %s weight per character.||%d slots and %s weight per character.": [
+  "%d Platz und %s Gewicht pro Charakter.",
+  "%d Plätze und %s Gewicht pro Charakter."
  ],
  "%d sub SP": "%d Sekundär-SP",
  "%d unit||%d units": [
   "%d Einheit",
   "%d Einheiten"
  ],
- "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)": [
-  "%s  (%d Platz, %g Gewicht)",
-  "%s  (%d Plätze, %g Gewicht)"
+ "%s  (%d slot, %s weight)||%s  (%d slots, %s weight)": [
+  "%s  (%d Platz, %s Gewicht)",
+  "%s  (%d Plätze, %s Gewicht)"
  ],
  "%s  (+%d %s per use)": "%s  (+%d %s pro Anwendung)",
  "%s  -  auxiliary tree, Sub SP": "%s  -  Sekundärbaum, Sekundär-SP",

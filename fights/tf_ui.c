@@ -618,6 +618,12 @@ static int fold_has(const char *hay, const char *q) {
     for (const char *h = hay; *h; h++) { size_t i = 0; while (i < n && h[i] && tolower((unsigned char)h[i]) == tolower((unsigned char)q[i])) i++; if (i == n) return 1; }
     return 0;
 }
+static int dec_comma(void) { const char *c = dsi_code(); return !strcmp(c, "de") || !strcmp(c, "es") || !strcmp(c, "pt-BR") || !strcmp(c, "fr") || !strcmp(c, "ru"); }
+static const char *fmt_g(double v, char *o, size_t n) {             /* %g with the language's decimal mark (RU "107,5") */
+    snprintf(o, n, "%g", v);
+    if (dec_comma()) for (char *p = o; *p; p++) if (*p == '.') *p = ',';
+    return o;
+}
 static void fmt_n(double v, char *o, size_t n) {                     /* 1000000 -> "1,000,000" (fmtN), the language's separator */
     const char *c = dsi_code(), *sep = !strcmp(c, "de") || !strcmp(c, "es") || !strcmp(c, "pt-BR") ? "."
                                       : !strcmp(c, "fr") || !strcmp(c, "ru") ? "\xC2\xA0" : ",";   /* 1.000.000 / 1 000 000 (no-break space) */
@@ -629,8 +635,8 @@ static void fmt_n(double v, char *o, size_t n) {                     /* 1000000 
    data (UnitTable) and sprites (the unit's Body sprite); the stat names are the game's. Returns its height. */
 static void fmt_stat(int i, float v, char *o, size_t n) {
     char t[40];
-    if (i == TFC_ASPD) snprintf(o, n, "%g", (double)((long long)(v * 100 + 0.5)) / 100);
-    else if (i == TFC_CRIT) snprintf(o, n, "%g%%", (double)((long long)(v * 10 + 0.5)) / 10);
+    if (i == TFC_ASPD) fmt_g((double)((long long)(v * 100 + 0.5)) / 100, o, n);
+    else if (i == TFC_CRIT) { fmt_g((double)((long long)(v * 10 + 0.5)) / 10, t, sizeof t); snprintf(o, n, "%s%%", t); }
     else { fmt_n(v, t, sizeof t); snprintf(o, n, "%s", t); }
 }
 /* the DPS check's card, as the boss card (owner v0.1.12): the wiki's DPS check picture (builder SG_MAPS.dps,
@@ -799,7 +805,7 @@ static void paint_right(void) {
         y += txt(right, NULL, 12, y, w - 12, TR("Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."), 14, SUB) + 4;
         int sl = 0, any = 0; double wt = 0;
         for (int i = 0; i < P.nkits; i++) {
-            char lab[200], nm[40]; snprintf(lab, sizeof lab, TRN("%s  (%d slot, %g weight)", "%s  (%d slots, %g weight)", P.kits[i].slots), TR(P.kits[i].n), P.kits[i].slots, P.kits[i].w);
+            char lab[200], nm[40], g[32]; snprintf(lab, sizeof lab, TRN("%s  (%d slot, %s weight)", "%s  (%d slots, %s weight)", P.kits[i].slots), TR(P.kits[i].n), P.kits[i].slots, fmt_g(P.kits[i].w, g, sizeof g));
             snprintf(nm, sizeof nm, "fights:r.kit%d", i);
             /* owner v0.1.11 #4: the kit's header icons at the start of the row, as the wiki's kit chip (builder.js paintSup:
                the first 4 items' icons), drawn from the game's own item sprites */
@@ -824,7 +830,7 @@ static void paint_right(void) {
         }
         char t[300];
         if (!any) snprintf(t, sizeof t, "%s", TR("No kit ticked: the squad walks in with only its gear."));
-        else snprintf(t, sizeof t, TRN("%d slot and %g weight per character.", "%d slots and %g weight per character.", sl), sl, (double)((long long)(wt * 100 + 0.5)) / 100);
+        else { char g[32]; snprintf(t, sizeof t, TRN("%d slot and %s weight per character.", "%d slots and %s weight per character.", sl), sl, fmt_g((double)((long long)(wt * 100 + 0.5)) / 100, g, sizeof g)); }
         y += txt(right, NULL, 12, y, w - 12, t, 14, SUB) + 4;
         if (any && P.insc_n[0]) {
             char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on custom saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);

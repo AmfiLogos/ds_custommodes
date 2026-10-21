@@ -164,6 +164,13 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     char line[300], bg[96] = ""; if (c->bg) mu_name_of(c->bg, bg, sizeof bg);
     snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? weapon_word(c->weapon) : "");
     dsi_utf8_fix_end(line);
+    /* one size on every card: a line too long for 13 drops its weapon word (the weapon is the first worn-item icon below)
+       instead of the kit shrinking each card to its own size and cutting the weapon with "..." (RU) */
+    if (c->weapon) {
+        DSLObj m = U->text(card, x0, 31, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
+        if (m) U->destroy(m);
+        if (pw > tw) { snprintf(line, sizeof line, "%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg); dsi_utf8_fix_end(line); }
+    }
     mu_text(card, x0, 31, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
     /* row A: worn items | skill bar */
     IconRef ic[MUC_MAX * 3]; int gr[MUC_MAX * 3], n = 0;

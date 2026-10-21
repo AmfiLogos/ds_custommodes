@@ -9,18 +9,18 @@
   "%d seleccionado",
   "%d seleccionados"
  ],
- "%d slot and %g weight per character.||%d slots and %g weight per character.": [
-  "%d ranura y %g de peso por personaje.",
-  "%d ranuras y %g de peso por personaje."
+ "%d slot and %s weight per character.||%d slots and %s weight per character.": [
+  "%d ranura y %s de peso por personaje.",
+  "%d ranuras y %s de peso por personaje."
  ],
  "%d sub SP": "%d SP secundario",
  "%d unit||%d units": [
   "%d unidad",
   "%d unidades"
  ],
- "%s  (%d slot, %g weight)||%s  (%d slots, %g weight)": [
-  "%s  (%d ranura, %g de peso)",
-  "%s  (%d ranuras, %g de peso)"
+ "%s  (%d slot, %s weight)||%s  (%d slots, %s weight)": [
+  "%s  (%d ranura, %s de peso)",
+  "%s  (%d ranuras, %s de peso)"
  ],
  "%s  (+%d %s per use)": "%s  (+%d %s por uso)",
  "%s  -  auxiliary tree, Sub SP": "%s  -  árbol auxiliar, SP secundario",
