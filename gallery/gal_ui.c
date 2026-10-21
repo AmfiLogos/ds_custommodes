@@ -588,7 +588,7 @@ static void unit_list(DSLObj p, float x, float y, float w, const gal_item *it, i
     icons(p, treex, y + 6, x + w + 4, 22, ic, gr, n, 0, NULL);
 }
 /* a card: panel (the game's panel sprite), click anywhere = Details, then title, author + counts, info, tags, units,
-   Details / Save to My Units / Test Fight. Returns its height. */
+   Details / Save to My Units / Test Fight (above the units: always in view), units. Returns its height. */
 static float card(DSLObj p, int i, float x, float y) {
     const gal_item *it = &items[i]; char t[600], nm[48]; float pad = 14, w = CW, iw = w - 2 * pad;
     DSLObj c = K(U->panel(p, x, y, w, 100, 0));
@@ -609,12 +609,8 @@ static float card(DSLObj p, int i, float x, float y) {
     meta_text(it, t, sizeof t);
     if (t[0]) { txt(c, pad, yy, iw, 18, t, 12, DSL_TXT_LEFT, SUB); yy += 22; }
     yy += tags_row(c, pad, yy, w - pad, it);
-    flat(c, pad, yy + 2, iw, 1, 0x633D33FF); yy += 10;
-    for (int u = 0; u < it->nunits; u++) {
-        if (view == 0) { unit_cp(c, pad, yy, iw, it, u); yy += CPU_H + 4; }
-        else { unit_list(c, pad, yy, iw, it, u); yy += LU_H + 2; }
-    }
-    yy += 6;
+    /* the buttons under the header, above the units: a team card is taller than the list, and at the card's foot the
+       list's bottom edge cut them through their labels in the first view */
     int nb = pick_cb ? 1 : 3;                                          /* picking for the Unit Builder: Details only */
     float bw = (iw - 8 * (nb - 1)) / nb;
     const char *lb[3] = { TR("Details"), TR("Save to My Units"), TR("Test Fight") };
@@ -624,7 +620,13 @@ static float card(DSLObj p, int i, float x, float y) {
         snprintf(nm, sizeof nm, "gallery:c%d.%s", i, sfx[b]);
         cmw_named(K(mu_button(c, pad + b * (bw + 8), yy, bw, 38, lb[b], cb[b], (void *)(intptr_t)i)), CMW_BUTTON, nm, cb[b], (void *)(intptr_t)i, lb[b]);
     }
-    yy += 38 + 12;
+    yy += 38 + 6;
+    flat(c, pad, yy + 2, iw, 1, 0x633D33FF); yy += 10;
+    for (int u = 0; u < it->nunits; u++) {
+        if (view == 0) { unit_cp(c, pad, yy, iw, it, u); yy += CPU_H + 4; }
+        else { unit_list(c, pad, yy, iw, it, u); yy += LU_H + 2; }
+    }
+    yy += 10;
     U->place(c, x, y, w, yy);
     if (hit) U->place(hit, 0, 0, w, yy);
     ncards_drawn++;

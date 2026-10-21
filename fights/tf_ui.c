@@ -494,6 +494,20 @@ static void keep_set(int k, DSLObj content, float y, float max) {   /* max: cont
     if (y > max) y = max;
     if (y > 0 && content && m_apos_set.fn) CM_CALL(m_apos_set, void, Obj, V2k, const void *)(content, (V2k){ 0, y }, m_apos_set.mi);
 }
+/* a one-line text cut with "..." at its own size so it fits w (the kit would shrink it instead: the team row's name was
+   12.5 pt next to 16 pt unit rows) */
+static void ellipsis_fit(DSLObj t, const char *s, float w) {
+    if (!t || cm_text_preferred_w(t) <= w) return;
+    char b[200]; int n = (int)strlen(s), lo = 0, hi = n;                    /* the longest prefix (whole UTF-8 chars) that fits */
+    while (lo < hi) {
+        int m = (lo + hi + 1) / 2; while (m > 0 && ((unsigned char)s[m] & 0xC0) == 0x80) m--;
+        if (m <= lo) break;
+        snprintf(b, sizeof b, "%.*s...", m, s); U->set_text(t, b);
+        if (cm_text_preferred_w(t) <= w) lo = m; else hi = m - 1;
+    }
+    while (lo > 0 && s[lo - 1] == ' ') lo--;
+    snprintf(b, sizeof b, "%.*s...", lo, s); U->set_text(t, b);
+}
 static void paint_left(void) {
     cmw_forget("fights:l.");
     float ky = keep_get(0); cm_il_hset(&h_keep[0], NULL);
@@ -542,7 +556,7 @@ static void paint_left(void) {
                label it wrapped to two smaller lines with "(0/4)" on the border */
             DSLObj tg = cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
             if (tg) { char c[24]; snprintf(c, sizeof c, "%d/%d", nin, n);
-                      mu_text(tg, 12, 6, uw - 46 - 12 - 48 - 52, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN);
+                      ellipsis_fit(mu_text(tg, 12, 6, uw - 46 - 12 - 48 - 52, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN), name, uw - 46 - 12 - 48 - 52);
                       mu_text(tg, uw - 46 - 48 - 50, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB); }
             sy += 48;
             if (team_author(i, au, sizeof au)) {
