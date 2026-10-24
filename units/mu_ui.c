@@ -1,6 +1,7 @@
 // mu_ui.c - shared pieces of the My Units and Bring Units windows (mu_ui.h).
 #include "mu_ui.h"
 #include "cm_il.h"
+#include "cm_look.h"
 #include "mu_look.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
@@ -15,7 +16,7 @@ void mu_log(const char *fmt, ...) {
     char b[1200]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
     H->log(ME, "%s", b);
 }
-void mu_ui_init(const DSLHost *host, DSLPlugin *self) { H = host; ME = self; U = dsl_ui(host); cm_il_init(host, self); }
+void mu_ui_init(const DSLHost *host, DSLPlugin *self) { H = host; ME = self; U = cm_look_ui(host, self); cm_il_init(host, self); }
 
 /* ------------------------------------------------------------------ test record */
 #define DMAX 2048

@@ -10,6 +10,7 @@
 #include "cm_home.h"
 #include "cm_il.h"
 #include "cm_i18n.h"
+#include "cm_look.h"
 #include "mu_look.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -90,11 +91,13 @@ static int build_page(Obj view) {
     nbt = 0;                                                      /* 52 high: the stock title buttons' height (44 looked thin) */
     for (int i = 0; i < nents; i++) {
         bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 52, TR(ord[i].label), on_entry, (void *)(intptr_t)i);
+        cm_look_title_button(bt[nbt]);                            /* the stock column's label size (22, not the kit's 18) */
         if (bt[nbt] && ord[i].tip[0]) U->tooltip(bt[nbt], TR(ord[i].label), TR(ord[i].tip));
         nbt++;
     }
     char back[300]; snprintf(back, sizeof back, "<color=#A69085>%s</color>", cm_gw("TEXTKEY_Common_Back", TR_NOOP("Back")));
-    bt[nbt++] = U->button((DSLObj)pt, 0, 0, 262, 52, back, on_back, NULL);
+    bt[nbt] = U->button((DSLObj)pt, 0, 0, 262, 52, back, on_back, NULL);
+    cm_look_title_button(bt[nbt++]);
     hset(&h_view, view); hset(&h_col, col); hset(&h_page, pt);
     H->log(ME, "home: page built (%d entries + Back)", nents);
     return 0;
@@ -197,7 +200,7 @@ static void lang_changed(void) {
 }
 
 int cm_home_init(const DSLHost *host, DSLPlugin *self) {
-    H = host; ME = self; U = dsl_ui(host);
+    H = host; ME = self; U = cm_look_ui(host, self);
     cm_test_register("home", cm_home_test_button, home_state);
     if (!U) { host->log(self, "home: no widget kit (loader older than API 3): the Custom Modes button is off"); return 0; }
     int r = dsl_title_add_button(host, self, TR("Units Laboratory"), 110, NULL, on_title, NULL);

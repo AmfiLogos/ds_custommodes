@@ -5,6 +5,7 @@
 #include "cm_home.h"
 #include "cm_gtip.h"
 #include "cm_il.h"
+#include "cm_look.h"
 #include "mu_ui.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
@@ -426,7 +427,7 @@ static size_t short_state(char *out, size_t cap) {
 /* ---------------------------------------------------------------- init */
 int cmw_init(const DSLHost *host, DSLPlugin *self) {
     if (H) return U ? 0 : -1;
-    H = host; S = self; U = dsl_ui(host);
+    H = host; S = self; U = cm_look_ui(host, self);
     if (!U) { cmw_log("cm_win: the loader has no widget kit (API 3 ui): Test Fights and Gallery are off"); return -1; }
     unity_init();                                                     /* the folders are read in the first frame (dirs_read) */
     int r = host->hook_method(self, "Refactor.Main.InputModule", "InputDispatcher", "Update", 0, (void *)h_disp_update, (void **)&o_disp_update);

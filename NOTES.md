@@ -39,3 +39,17 @@
   as the wiki's own gallery in that language.
 - Data: list items now carry so (soul stones), aq (acquired traits) and x (extra stats); W.skills[k][2] splits active /
   passive. No live build has tags yet: the tag chips were checked with a local wiki folder (DSCM_WIKI_DIR).
+
+## The game's text look (2026-10-24, 0.1.14)
+- Owner: "Font inside of the units lab are not the same as the rest of the menus". Measured in a test copy (EN, DE, ES, JA):
+  the font assets were already the game's (Lora / Cinzel, or the language's own faces), the MATERIAL and one size were not.
+  The game's menus draw body text, buttons, check box labels and choice values with the body font's "OutLine16" material
+  (FontMaterialType SoftOutline16: a soft dark outline, slightly bolder glyphs), section heads in Cinzel + OutLine16, and
+  the title column's labels at 22. The loader kit gives its texts the font's plain material (the multiplayer windows' rule
+  of 2026-10-13) and the Units Laboratory page buttons were kit buttons at 18.
+- home/cm_look.c: the parts get a copy of the kit's table (cm_look_ui) whose text / button / toggle / value_row set the
+  new widget's texts to LanguageSetting.GetFont + GetMaterial(style, SoftOutline16); window titles (26 and up) keep the
+  title font's plain material (as the game's Options title), fields keep the kit's look (the game's name fields are plain).
+  The page buttons get the stock column's 22 (cm_look_title_button); a label too long for 262 still shrinks (kit text fit).
+- Test: home/test/look_test.py (one hidden copy; the game's own Options window and title column are the reference).
+
