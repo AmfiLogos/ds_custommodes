@@ -44,6 +44,15 @@ static void restyle(DSLObj w, int style, int mat) {
     Obj f = CM_CALL(m_font, Obj, int32_t, const void *)(style, m_font.mi);
     Obj m = CM_CALL(m_mat, Obj, int32_t, int32_t, const void *)(style, mat, m_mat.mi);
     if (!cm_alive(f) || !cm_alive(m)) return;
+    static uintptr_t said[2][2];          /* log each font + material once (a language change: again); an address, never used */
+    if (said[style == VERY_DECORATIVE][mat] != (uintptr_t)m) {
+        said[style == VERY_DECORATIVE][mat] = (uintptr_t)m;
+        static cm_m m_name; if (!m_name.fn) m_name = cm_il_method("UnityEngine", "Object", "get_name", 0, NULL);
+        char fn[96] = "", mn[96] = "";
+        if (m_name.fn) { cm_il_utf8(CM_CALL(m_name, Obj, Obj, const void *)(f, m_name.mi), fn, sizeof fn);
+                         cm_il_utf8(CM_CALL(m_name, Obj, Obj, const void *)(m, m_name.mi), mn, sizeof mn); }
+        H->log(ME, "look: %s texts: font \"%s\", material \"%s\"", style == VERY_DECORATIVE ? (mat ? "head" : "window title") : "body", fn, mn);
+    }
     Obj g = cm_go((Obj)w); if (!g) return;
     Obj arr = CM_CALL(m_kids, Obj, Obj, Obj, bool, const void *)(g, cm_il_type_obj(k_tmp), true, m_kids.mi);
     if (!arr) return;
