@@ -389,3 +389,21 @@
   My Units' cards and Test Fights' world cards and team rows use the kit's card template (dsl_card_toggle on a holder
   with the card and its box) instead of an invisible button. Builds need the loader's sdk/ (build.sh stops on an older
   dsl_sdk.h copy). ux_test fails on any UI-RULE line (title part / test world part) and on CLOSE-TEXT-X.
+- 0.1.41, round 2 (owner 2026-10-25 after testing; ~/ds_multiplayer/LANE_TASKS_dsdps_round2_2026-10-25.md):
+  - The four switches are on the in-game meter only (the Test Fights start screen lost them: "it overloads it").
+  - MOVE RULE through the kit (`dsl_movable`, kept place in ui_places.tsv): the meter ("custom-modes.dps_meter"), the small
+    Test Fights panel (".tf_restart") and our log panel (".dps_log") move with a right-click drag. The meter and the small
+    panel keep finding their own place (under the resource list, right of an open Inspect window) until their position
+    reads back other than where they were put (a player move or a kept place): from then on only size and scale (UI
+    Scale) change. They apply UI Scale themselves: `dsl_rules_own(DSL_RULE_SCALE)`; the log panel uses `dsl_scale_follow`.
+  - Effects: a line only when the game added stacks (AffecterExecutionLog Amount, after its cap: max stack - stacks now,
+    max -1 = 1), so a re-apply at the cap writes nothing (Reckless Assault every tick, Brace Stance at 15). No
+    "removed / expired" lines (pick: they would be as many as the re-applies were).
+  - "Effects in Log": the log is kept in two renderings (with / without effect parts); a flip clears our chat lines and
+    re-sends the other rendering from the player's last clear (mp_api v4 `chat_clears`; at most 2500 lines), at once.
+  - Unit names: no <b> (it drew another face than the chat's text); gold colour only.
+  - "Restart Test" is "Restart Test Floor" in all 10 languages (fits its button in de / ru: dps_test checks no ellipsis).
+  - dps_test.py: fails on any `UI-RULE` line of the kit's guard, a DPS switch left on the start screen, a meter that does
+    not move on a right drag (or snaps back, or its place is not kept), a Reckless Assault line per re-apply, a `<b>` name
+    line, effect lines that stay in the chat with Effects in Log off (or do not come back), a cut Restart label. The probe
+    has `drag_xy` (press, 20 frames moving, release).
