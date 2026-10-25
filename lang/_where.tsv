@@ -95,12 +95,12 @@
 "Could not save the snapshot: %s"	units/mu_window.c:259
 "Custom Fight"	fights/tf_ui.c:944
 "DPS"	fights/tf_meter.c:415 fights/tf_meter.c:424
-"DPS (last 5 s)"	fights/tf_meter.c:415
+"DPS (Last 5 s)"	fights/tf_meter.c:415
 "DPS Check"	fights/tf_dps.c:561 fights/tf_meter.c:404 fights/tf_ui.c:944
-"DPS log in chat"	fights/tf_dps.c:202
+"DPS Log in Chat"	fights/tf_dps.c:202
 "Dagger"	units/mu_ui.c:187
 "Damage"	fights/tf_meter.c:422
-"Damage dealt"	fights/tf_meter.c:414
+"Damage Dealt"	fights/tf_meter.c:414
 "Day %d"	fights/tf_ui.c:962
 "Delete"	units/mu_window.c:332 units/mu_window.c:617
 "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed."	units/mu_window.c:330
@@ -115,7 +115,7 @@
 "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest."	builder/bld_ui.c:833
 "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."	fights/tf_ui.c:1015
 "Edit"	units/mu_window.c:616
-"Effects in log"	fights/tf_dps.c:203
+"Effects in Log"	fights/tf_dps.c:203
 "Every character gains %s so the load is carryable."	fights/tf_ui.c:1056
 "Extra Skill Trees"	builder/bld_ui.c:1029
 "Female"	builder/bld_ui.c:748
@@ -212,9 +212,9 @@
 "Rename"	units/mu_window.c:615
 "Rename Team"	units/mu_window.c:618
 "Renamed."	units/mu_window.c:317
-"Repaired by the scarecrow"	fights/tf_meter.c:415
+"Repaired by the Scarecrow"	fights/tf_meter.c:415
 "Reset"	fights/tf_meter.c:411 fights/tf_meter.c:411
-"Restart test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
+"Restart Test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
 "Roll %zu"	builder/bld_ui.c:993
 "Running"	fights/tf_meter.c:582
 "Save"	units/mu_window.c:638 builder/bld_ui.c:1278 builder/bld_ui.c:1282
@@ -228,8 +228,8 @@
 "Saved to My Units: %s"	gallery/gal_ui.c:294
 "Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1282
 "Saving..."	gallery/gal_ui.c:304 builder/bld_ui.c:224
-"Scarecrow heal numbers"	fights/tf_dps.c:201
-"Scarecrow speech"	fights/tf_dps.c:201
+"Scarecrow Heal Numbers"	fights/tf_dps.c:201
+"Scarecrow Speech"	fights/tf_dps.c:201
 "Search"	gallery/gal_ui.c:850 gallery/gal_ui.c:850
 "Search monsters by name..."	fights/tf_ui.c:969
 "Search: name, author, race, background or weapon"	gallery/gal_ui.c:848
@@ -247,7 +247,7 @@
 "Squad: %d / %d"	fights/tf_ui.c:1069
 "Start"	fights/tf_meter.c:408 fights/tf_ui.c:1086 fights/tf_ui.c:1114 fights/tf_ui.c:1114
 "Start from a Gallery Build"	builder/bld_ui.c:1072 builder/bld_ui.c:1074
-"Start on first hit"	fights/tf_dps.c:202
+"Start on First Hit"	fights/tf_dps.c:202
 "Stat Elixirs"	builder/bld_ui.c:882
 "Stat Gain per Level"	builder/bld_ui.c:821
 "Stop"	fights/tf_meter.c:410 fights/tf_meter.c:410

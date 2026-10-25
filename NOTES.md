@@ -303,8 +303,14 @@
   live-hp only (every building; our hooks add the number form); without it, our own live_tick / ins_tick (scarecrow only).
   One owner per hook site holds: ours is a frame poll, live-hp's is EntitySummaryUIPresenter.RefreshOnFrame. Units
   Laboratory 0.1.28 / 0.1.29 (7a77697, a97607e) had no own follow: dps_test --no-live-hp fails there ((b), (b2)), passes on 0.1.31.
+- 0.1.32: effects in the log start with the fight's first damage of any kind (they waited for a scarecrow hit, so a fight
+  without the scarecrow showed none). dps_test.py --heal: a healer (Healing Touch) + barrier squad in a Custom fight
+  (plain Grey Monster Rats + Blue Goblins attack it), the log and meter forced on there by the test switch "force 1" (same
+  code as in a DPS Check). Proven: heals "+X" in green under the healer's header, the meter's Healing = the heal lines it
+  measured, each unit's Healing = its skills', heals never in damage dealt. Not produced yet: shield absorbs (no unit of the
+  fixture squad put on a Barrier in 3 runs: Fire Cloak and Iron Clad were never cast; Shield Up raises guard, not Barrier).
 
-## One window style, UX review fixes (2026-10-25, 0.1.32, lane dsuxcm; UX_REVIEW_2026-10-25.md U1, U3-U12)
+## One window style, UX review fixes (2026-10-25, 0.1.34, lane dsuxcm; UX_REVIEW_2026-10-25.md U1, U3-U12)
 - One shell for the four windows (units/mu_ui.c `mu_shell_open`, owner decision): a backdrop over the whole screen layer
   (0x0000009E, raycast on: nothing behind answers a click), the window centred at the game's UI scale, one body colour,
   the title centred in Cinzel over a copper line (Load Campaign / Option look) and the red X top right as the only close
