@@ -33,7 +33,7 @@ typedef struct tf_hit {
     float over;                  /* heal: the part past max health */
     int res;                     /* TFD_* */
     int basic;                   /* 1 = the game marks the skill a basic attack (SkillTableData.IsBasicAttackSkill) */
-    int unit;                    /* the source: index into tf_dps_unit() */
+    int unit;                    /* the source: index into tf_dps_unit(); a squad unit's summon counts as that unit */
     int target;                  /* the target: index into tf_dps_unit() */
     int on_dummy;                /* the target is the scarecrow */
     char skill_key[80];          /* SKILL_... / AFFECTER_... ("" unknown) */
@@ -44,6 +44,9 @@ typedef struct tf_unit {
     char name[96];               /* EntityDisplayNameExtensions.GetDisplayName (as the stock unit panel), numbered if repeated */
     char portrait[64];           /* UnitEntity.PortraitID ("" none): cm_icon(CM_ICON_PORTRAIT, ...) */
     int is_player, is_dummy;     /* a squad unit (EntityExtensions.IsPlayerUnit) / the scarecrow */
+    int has_summoner;            /* a summon (UnitEntity / BuildingEntity Summoner has a value) ... */
+    uint8_t summoner[16];        /* ... of this Guid: its events count for that unit when it is a squad unit (lead 2026-10-25) */
+    char base[96];               /* the name before the repeat number ("Strange Seed" for "Strange Seed 2") */
 } tf_unit;
 int    tf_dps_active(void);                  /* 1 = a DPS Check world is loaded and shown (not the title) */
 size_t tf_dps_hits(const tf_hit **out);      /* this fight's hits, oldest first; the pointer is valid until the next hit */

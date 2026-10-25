@@ -35,6 +35,7 @@
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*sはこのゲームバージョンにありません",
  "%s (basic)": "%s（基本）",
+ "%s (summon)": "%s（召喚）",
  "%s cannot go in the %s slot": "%sは%sスロットに入れられません",
  "%s could not be read from the save: %s": "%sをセーブから読み込めませんでした：%s",
  "%s is not in one of this unit's skill trees": "%sはこのユニットのスキルツリーのどれにもありません",

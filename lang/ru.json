@@ -51,6 +51,7 @@
  "%s  Lv %d": "%s  Ур. %d",
  "%s %.*s is not in this game version": "%s %.*s нет в этой версии игры",
  "%s (basic)": "%s (базовая)",
+ "%s (summon)": "%s (призыв)",
  "%s cannot go in the %s slot": "%s нельзя поместить в слот %s",
  "%s could not be read from the save: %s": "Не удалось прочитать юнита %s из сохранения: %s",
  "%s is not in one of this unit's skill trees": "%s нет ни в одном из деревьев навыков этого юнита",

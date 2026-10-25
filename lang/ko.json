@@ -35,6 +35,7 @@
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*s은(는) 이 게임 버전에 없습니다",
  "%s (basic)": "%s (기본)",
+ "%s (summon)": "%s (소환수)",
  "%s cannot go in the %s slot": "%s은(는) %s 슬롯에 들어갈 수 없습니다",
  "%s could not be read from the save: %s": "세이브에서 %s 유닛을 읽을 수 없습니다: %s",
  "%s is not in one of this unit's skill trees": "%s은(는) 이 유닛의 스킬 트리에 없습니다",

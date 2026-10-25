@@ -35,6 +35,7 @@
  "%s  Lv %d": "%s  等級 %d",
  "%s %.*s is not in this game version": "%s %.*s 不在此遊戲版本中",
  "%s (basic)": "%s（普攻）",
+ "%s (summon)": "%s（召喚物）",
  "%s cannot go in the %s slot": "%s 無法放入 %s 欄位",
  "%s could not be read from the save: %s": "無法從存檔讀取 %s：%s",
  "%s is not in one of this unit's skill trees": "%s 不在此單位的任一技能樹中",

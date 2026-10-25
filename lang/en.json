@@ -19,6 +19,7 @@
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*s is not in this game version",
  "%s (basic)": "%s (basic)",
+ "%s (summon)": "%s (summon)",
  "%s cannot go in the %s slot": "%s cannot go in the %s slot",
  "%s could not be read from the save: %s": "%s could not be read from the save: %s",
  "%s is not in one of this unit's skill trees": "%s is not in one of this unit's skill trees",

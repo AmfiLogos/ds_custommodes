@@ -314,8 +314,9 @@ static void key_name(const char *key, int basic, char *out, size_t n) {   /* the
 }
 static cm_m m_isplayer;
 static int ent_of(Obj e) {                               /* the entity table: squad units, the scarecrow, others; names numbered */
-    uint8_t g[16] = { 0 }; static void *k_ue; static int32_t f_ug = -1, f_bg = -1; static cm_m m_port;
+    uint8_t g[16] = { 0 }; static void *k_ue; static int32_t f_ug = -1, f_bg = -1, f_us = -1, f_bs = -1; static cm_m m_port;
     if (!k_ue) { k_ue = cm_il_class("Refactor", "UnitEntity"); f_ug = cm_il_field(k_ue, "<Guid>k__BackingField"); f_bg = cm_il_field(k_bld, "<Guid>k__BackingField");
+                 f_us = cm_il_field(k_ue, "<Summoner>k__BackingField"); f_bs = cm_il_field(k_bld, "<Summoner>k__BackingField");
                  m_port = cm_il_method("Refactor", "UnitEntity", "get_PortraitID", 0, NULL); }
     void *kc = e ? x_obj_class(e) : NULL;
     int is_unit = kc && k_ue && (kc == k_ue || (x_subclass && x_subclass(kc, k_ue, false)));
@@ -331,11 +332,14 @@ static int ent_of(Obj e) {                               /* the entity table: sq
         if (key[0]) key_name(key, 0, u->name, sizeof u->name);
     }
     if (!u->name[0]) snprintf(u->name, sizeof u->name, "?");
+    snprintf(u->base, sizeof u->base, "%s", u->name);
     int same = 1; for (int i = 0; i < nunit; i++) if (!strncmp(unitv[i].name, u->name, strlen(u->name)) && (unitv[i].name[strlen(u->name)] == 0 || unitv[i].name[strlen(u->name)] == ' ')) same++;
     if (same > 1) { size_t l = strlen(u->name); snprintf(u->name + l, sizeof u->name - l, " %d", same); }   /* "Rat", "Rat 2", ... */
     if (is_unit && m_port.fn) cm_il_utf8(CM_CALL(m_port, Obj, Obj, const void *)(e, m_port.mi), u->portrait, sizeof u->portrait);
     u->is_player = e && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(e, m_isplayer.mi);
     u->is_dummy = is_b && is_dummy_e(e);
+    int32_t fs = is_unit ? f_us : is_b ? f_bs : -1;          /* Nullable<Guid> Summoner: hasValue, then the Guid at +4 */
+    if (fs >= 0 && *((uint8_t *)e + fs)) { u->has_summoner = 1; memcpy(u->summoner, (uint8_t *)e + fs + 4, 16); }
     if (u->is_dummy) cm_il_hset(&h_dummy_ent, e);         /* for h_cse */
     return nunit++;
 }
@@ -353,8 +357,23 @@ static Obj h_cse(Obj user, Obj inmap, const void *mi) {
     Obj d = cm_il_hget(h_dummy_ent);
     return d && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi) ? d : r;
 }
-static int involved(Obj user, Obj tgt) {                 /* a squad unit or the scarecrow takes part */
-    return (tgt && is_dummy_e(tgt)) || (user && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi))
+/* Summons (lead 2026-10-25, as damage meters do): what a squad unit's summon does counts for that unit: in the log under its
+   header as "<summon> (summon)", in the meter in its row with the summon as its own skill row. -1 = not a squad unit's. */
+static int owner_of(int ui) {
+    if (ui < 0 || ui >= nunit || !unitv[ui].has_summoner) return -1;
+    for (int i = 0; i < nunit; i++) if (i != ui && unitv[i].is_player && !memcmp(unitv[i].guid, unitv[ui].summoner, 16)) return i;
+    return -1;
+}
+static int squad_summon(Obj e) {                         /* a summon of a squad unit already seen (it has acted: it cast it) */
+    if (!e) return 0;
+    void *kc = x_obj_class(e); static void *k_ue; static int32_t f_us = -1;
+    if (!k_ue) { k_ue = cm_il_class("Refactor", "UnitEntity"); f_us = cm_il_field(k_ue, "<Summoner>k__BackingField"); }
+    if (!k_ue || f_us < 0 || (kc != k_ue && !(x_subclass && x_subclass(kc, k_ue, false))) || !*((uint8_t *)e + f_us)) return 0;
+    for (int i = 0; i < nunit; i++) if (unitv[i].is_player && !memcmp(unitv[i].guid, (uint8_t *)e + f_us + 4, 16)) return 1;
+    return 0;
+}
+static int involved(Obj user, Obj tgt) {                 /* a squad unit (or its summon) or the scarecrow takes part */
+    return (tgt && is_dummy_e(tgt)) || squad_summon(user) || (user && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi))
         || (tgt && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(tgt, m_isplayer.mi));
 }
 /* one event: into the list (meter + tests) and into its source's group of this tick (chat) */
@@ -366,6 +385,8 @@ static void ev_add(int kind, Obj user, Obj tgt, const char *key, int basic, floa
     snprintf(h->skill_key, sizeof h->skill_key, "%s", key);
     if (key[0]) key_name(key, basic, h->skill, sizeof h->skill);
     else snprintf(h->skill, sizeof h->skill, "%s", unitv[h->unit].name);   /* no skill / affecter behind it: the source itself (an item) */
+    int ow = user ? owner_of(h->unit) : -1;
+    if (ow >= 0) { snprintf(h->skill, sizeof h->skill, TR("%s (summon)"), unitv[h->unit].base); h->unit = ow; h->basic = 0; }   /* "Strange Seed (summon)" */
     nhit++;
     if (kind == TFK_DMG && h->on_dummy) { hits++; dmg_sum += amt; n_crit += res == TFD_CRIT; n_miss += res == TFD_MISS; }
     n_dmg_ev += kind == TFK_DMG; n_heal_ev += kind == TFK_HEAL; n_abs_ev += kind == TFK_ABSORB; n_eff_ev += kind == TFK_EFFECT;

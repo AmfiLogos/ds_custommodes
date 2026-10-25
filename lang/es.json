@@ -43,6 +43,7 @@
  "%s  Lv %d": "%s  LV. %d",
  "%s %.*s is not in this game version": "%s %.*s no está en esta versión del juego",
  "%s (basic)": "%s (básico)",
+ "%s (summon)": "%s (invocación)",
  "%s cannot go in the %s slot": "%s no puede ir en la ranura %s",
  "%s could not be read from the save: %s": "No se pudo leer %s de la partida: %s",
  "%s is not in one of this unit's skill trees": "%s no está en ninguno de los árboles de habilidades de esta unidad",

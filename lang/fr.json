@@ -43,6 +43,7 @@
  "%s  Lv %d": "%s  Niv. %d",
  "%s %.*s is not in this game version": "%s %.*s ne figure pas dans cette version du jeu.",
  "%s (basic)": "%s (de base)",
+ "%s (summon)": "%s (invocation)",
  "%s cannot go in the %s slot": "%s ne peut pas aller dans l'emplacement %s",
  "%s could not be read from the save: %s": "Impossible de lire %s dans la sauvegarde : %s",
  "%s is not in one of this unit's skill trees": "%s n'est dans aucun arbre de compétences de cette unité",

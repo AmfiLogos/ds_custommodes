@@ -416,3 +416,9 @@
   dsl_window_close (window, backdrop, Escape entry). Kit bug worked around: the template's backdrop came out of
   dsl_ui_flat with its clicks off (a click beside My Units reached the title page): cm_raycast(backdrop, true) right after
   (reported to lane dskit). Window heights +8 for the 72 header (My Units 746, Builder 806, Test Fights 728).
+- 0.1.43: summons count for their squad unit (lead 2026-10-25, as damage meters do). A unit or building whose Summoner
+  (Nullable<Guid>: hasValue, then the Guid at +4) is a squad unit already seen: its damage, heals, absorbs it caused and
+  effects go to that unit, named "<summon> (summon)" (the name before its repeat number; 10 languages). In the log they
+  sit under the owner's header ("Strange Seed (summon) » Unit 24: +20"), in the meter in the owner's row with the summon
+  as its own skill row. A summon of a unit that has not acted yet stays its own source. dps_test --heal 12/12: 7 Strange
+  Seed heals under the healer, the meter row "Strange Seed (summon)" 140.

@@ -660,6 +660,18 @@ def run_heal():
     check('the meter\'s Healing = the sum of the squad\'s heal lines it measured; Absorbed = the sum of the absorbs; damage dealt holds neither',
           abs(m.get('heal', -1) - hs) < 0.01 and abs(m.get('absorbed', -1) - asum) < 0.01 and abs(m.get('total', -1) - dsum) < 0.01 and hs > 0,
           json.dumps({'meter': [m.get('heal'), m.get('absorbed'), m.get('total')], 'logged': [hs, asum, dsum], 'spans': spans[:3]}))
+    # summons count for their squad unit (lead 2026-10-25): "Strange Seed (summon)" under the owner's header and in its meter row
+    sm = [h for h in heals if h['skill'].endswith('(summon)')]
+    owners = {un[h['unit']]['name'] for h in sm}
+    srow = [(u['name'], x['skill'], x.get('heal', 0)) for u in m.get('units') or [] for x in u.get('skills') or [] if x['skill'].endswith('(summon)')]
+    under, cur = True, None
+    for x in alll:
+        if x and not x.startswith('<indent='):
+            cur = re.sub(r'<[^>]*>', '', x).replace('\u200b', '')
+        elif '(summon)' in x and cur not in owners:
+            under = False
+    check(f'summon heals count for their squad unit: {len(sm)} "(summon)" heals under {sorted(owners)}, meter rows {srow[:3]}',
+          sm and all(un[h['unit']]['player'] for h in sm) and under and any(r[0] in owners and r[2] > 0 for r in srow), json.dumps({'n': len(sm), 'rows': srow[:4]}, ensure_ascii=False))
     uh = {u['name']: u for u in m.get('units') or []}
     sk_bad = [u for u in uh.values() if abs(sum(x.get('heal', 0) for x in u.get('skills') or []) - u.get('heal', 0)) > 1e-3]
     check('each unit\'s Healing = its skills\' Healing', not sk_bad and any(u.get('heal', 0) > 0 for u in uh.values()), json.dumps(sk_bad[:2], ensure_ascii=False)[:300])

@@ -43,6 +43,7 @@
  "%s  Lv %d": "%s  Stufe %d",
  "%s %.*s is not in this game version": "%s %.*s ist in dieser Spielversion nicht vorhanden",
  "%s (basic)": "%s (Grundangriff)",
+ "%s (summon)": "%s (Beschwörung)",
  "%s cannot go in the %s slot": "%s passt nicht in den Platz %s",
  "%s could not be read from the save: %s": "%s konnte nicht aus dem Spielstand gelesen werden: %s",
  "%s is not in one of this unit's skill trees": "%s ist in keinem der Skillbäume dieser Einheit",
