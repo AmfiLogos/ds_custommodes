@@ -43,3 +43,4 @@ int  cmw_title_shown(void);                               /* the title menu is u
  * (SaveLoadHelper.GetSaveDirectory). Safe from any thread once read. 0 ok */
 int  cmw_game_data(char *out, size_t n);
 int  cmw_saves_dir(char *out, size_t n);
+void cmw_dirs_now(void);                                 /* main thread: read them now when no frame read them yet (a hook) */

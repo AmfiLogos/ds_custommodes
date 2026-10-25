@@ -4,7 +4,9 @@
  * Autosaves the game makes inside a test fight carry the same GUID, so they are hidden too.
  * Test worlds are throwaway copies made from the wiki's templates: back on the title after the fight their saves are
  * removed and the game refreshes its save list and the title's Continue (back to the player's own latest world). Writing a new test world also removes the files of older ones left over (game closed inside a fight).
- * Nothing of the player's own worlds is ever touched. */
+ * Nothing of the player's own worlds is ever touched. The title never picks a test world as its background or Continue
+ * save (also saves left by a crash), and while a test world is loaded the player's records (OutGame.json: tutorials,
+ * items obtained, credits, Downfall unlock) are not written and are set back in memory when the test is left. */
 #pragma once
 #include "dsl_sdk.h"
 #include <stddef.h>

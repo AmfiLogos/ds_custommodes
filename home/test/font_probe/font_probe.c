@@ -6,6 +6,7 @@
 //   cmd state | click {target} | hover {target} | key {code} | type {target,text} | wheel {target,dy} | capture {name}
 //       | call {fn, s}  (a Units Laboratory test function "int fn(const char *s, char *out, size_t cap)" by name)
 //       | fonts {name, all}  (every TMP text -> <dir>/fonts_<name>.jsonl, see fonts_dump)
+//       | title  (the title's background world, the Continue save, the world loaded now: see title_state)
 #include "dsl_sdk.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -243,6 +244,72 @@ static int fonts_dump(const char *name, int all) {
     fclose(f);
     return k;
 }
+/* "title" (fights/test/title_test.py): what the title shows, read by name. "prev" = the world drawn as the title's
+   background (TitleScenePreviewController._currentSaveSelection: valid, save name, campaign guid), "cont" = the save the
+   Continue button loads (TitleMenuView._continueSaveName), "lguid" = the world loaded now (CampaignSaveLoader's campaign
+   data: ClanDataContainer.CampaignGuid, as the multiplayer mod reads it; "lsave" = CampaignSaveLoader._saveName),
+   "items" = the items obtained the game holds in memory (MainFlow._outGameRecord._itemObtainedContainer._obtainedItems). */
+static void guid_hex(const unsigned char *g, char out[33]) {      /* System.Guid as ToString("N") */
+    uint32_t a; uint16_t b, c; memcpy(&a, g, 4); memcpy(&b, g + 4, 2); memcpy(&c, g + 6, 2);
+    snprintf(out, 33, "%08x%04x%04x%02x%02x%02x%02x%02x%02x%02x%02x", a, b, c, g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]);
+}
+static size_t title_state(char *out, size_t cap) {
+    static Obj (*find_any)(Obj, const void *); static void *k_tpc, *k_tmv, *k_mf;
+    static int32_t o_sel = -1, o_valid = -1, o_hdr = -1, h_guid = -1, h_name = -1, o_cont = -1, o_ldr = -1, o_lname = -1,
+                   o_og = -1, o_oic = -1, o_set = -1, o_cdc = -1, o_clan = -1, o_cguid = -1;
+    static void *(*m_from_name)(void *, const char *, int), *(*obj_cls)(void *);
+    if (!find_any) {
+        i_cls_type = H->il2cpp_fn("il2cpp_class_get_type"); i_type_obj = H->il2cpp_fn("il2cpp_type_get_object");
+        i_cls_methods = H->il2cpp_fn("il2cpp_class_get_methods"); i_m_name = H->il2cpp_fn("il2cpp_method_get_name");
+        i_m_pcount = H->il2cpp_fn("il2cpp_method_get_param_count"); i_m_param = H->il2cpp_fn("il2cpp_method_get_param");
+        i_type_type = H->il2cpp_fn("il2cpp_type_get_type");
+        find_any = find_m("UnityEngine", "Object", "FindAnyObjectByType", 1, 0x12);   /* (System.Type), not the generic <T>(FindObjectsInactive) */
+        k_tpc = H->find_class("Refactor", "TitleScenePreviewController"); k_tmv = H->find_class("Refactor.UI", "TitleMenuView");
+        k_mf = H->find_class("Refactor.Main", "MainFlow");
+        void *k_sel = H->find_class("Refactor", "TitleBasePreviewSaveSelection"), *k_hdr = H->find_class("Refactor", "CampaignSaveHeader");
+        void *k_csl = H->find_class("Refactor", "CampaignSaveLoader");
+        if (k_tpc) o_sel = H->field_offset(k_tpc, "_currentSaveSelection");
+        if (k_sel) { o_valid = H->field_offset(k_sel, "<IsValid>k__BackingField"); o_hdr = H->field_offset(k_sel, "<Header>k__BackingField"); }
+        if (k_hdr) { int32_t g0 = H->field_offset(k_hdr, "CampaignGuid"), n0 = H->field_offset(k_hdr, "SaveName");   /* value type: offsets count the object header */
+                     if (g0 >= 0 && n0 > g0) { h_guid = 0; h_name = n0 - g0; } }
+        if (k_tmv) o_cont = H->field_offset(k_tmv, "_continueSaveName");
+        if (k_mf) o_ldr = H->field_offset(k_mf, "_campaignSaveLoader");
+        if (k_csl) { o_lname = H->field_offset(k_csl, "_saveName"); o_cdc = H->field_offset(k_csl, "_campaignDataContainer"); }
+        void *k_cdc = H->find_class("Refactor.Main", "CampaignDataContainer"), *k_clan = H->find_class("Refactor", "ClanDataContainer");
+        if (k_cdc) o_clan = H->field_offset(k_cdc, "ClanDataContainer");
+        if (k_clan) o_cguid = H->field_offset(k_clan, "<CampaignGuid>k__BackingField");
+        void *k_og = H->find_class("Refactor.Main", "OutGameRecordContainer"), *k_oic = H->find_class("Refactor.Main", "ItemObtainedContainer");
+        if (k_mf) o_og = H->field_offset(k_mf, "_outGameRecord");
+        if (k_og) o_oic = H->field_offset(k_og, "_itemObtainedContainer");
+        if (k_oic) o_set = H->field_offset(k_oic, "_obtainedItems");
+        m_from_name = H->il2cpp_fn("il2cpp_class_get_method_from_name"); obj_cls = H->il2cpp_fn("il2cpp_object_get_class");
+        H->log(ME, "title probe: find %p sel %d valid %d hdr %d name %d cont %d ldr %d lname %d cdc %d clan %d cguid %d", (void *)find_any, o_sel, o_valid, o_hdr, h_name, o_cont, o_ldr, o_lname, o_cdc, o_clan, o_cguid);
+    }
+    char cont[300] = "", psave[300] = "", pg[33] = "", lsave[300] = "", lg[33] = "", e1[400], e2[400], e3[400];
+    int menu = 0, prev = 0, valid = 0;
+    Obj v = find_any && k_tmv ? find_any(i_type_obj(i_cls_type(k_tmv)), NULL) : NULL;
+    if (v) { menu = 1; if (o_cont >= 0) u8of(*(Obj *)((char *)v + o_cont), cont, sizeof cont); }
+    Obj pc = find_any && k_tpc ? find_any(i_type_obj(i_cls_type(k_tpc)), NULL) : NULL;
+    Obj sel = pc && o_sel >= 0 ? *(Obj *)((char *)pc + o_sel) : NULL;
+    if (pc) prev = 1;
+    if (sel && o_valid >= 0 && o_hdr >= 0 && h_name > 0) {
+        valid = *(uint8_t *)((char *)sel + o_valid);
+        char *h = (char *)sel + o_hdr; u8of(*(Obj *)(h + h_name), psave, sizeof psave); guid_hex((const unsigned char *)h + h_guid, pg);
+    }
+    Obj mf = find_any && k_mf ? find_any(i_type_obj(i_cls_type(k_mf)), NULL) : NULL;
+    Obj ldr = mf && o_ldr >= 0 ? *(Obj *)((char *)mf + o_ldr) : NULL;
+    if (ldr && o_lname >= 0) u8of(*(Obj *)((char *)ldr + o_lname), lsave, sizeof lsave);
+    Obj cdc = ldr && o_cdc >= 0 ? *(Obj *)((char *)ldr + o_cdc) : NULL, clan = cdc && o_clan >= 0 ? *(Obj *)((char *)cdc + o_clan) : NULL;
+    if (clan && o_cguid >= 0) guid_hex((const unsigned char *)clan + o_cguid, lg);
+    int items = -1;
+    Obj og = mf && o_og >= 0 ? *(Obj *)((char *)mf + o_og) : NULL, oic = og && o_oic >= 0 ? *(Obj *)((char *)og + o_oic) : NULL;
+    Obj set = oic && o_set >= 0 ? *(Obj *)((char *)oic + o_set) : NULL;
+    void *gc = set && m_from_name && obj_cls ? m_from_name(obj_cls(set), "get_Count", 0) : NULL;   /* HashSet<string>.Count */
+    if (gc) items = ((int32_t (*)(Obj, const void *))H->method_address(gc))(set, gc);
+    jesc(e1, sizeof e1, cont); jesc(e2, sizeof e2, psave); jesc(e3, sizeof e3, lsave);
+    return (size_t)snprintf(out, cap, "\"title\":{\"menu\":%d,\"cont\":\"%s\",\"prev\":%d,\"pvalid\":%d,\"psave\":\"%s\",\"pguid\":\"%s\",\"lsave\":\"%s\",\"lguid\":\"%s\",\"items\":%d},",
+                            menu, e1, prev, valid, e2, pg, e3, lg, items);
+}
 static void handle(const char *j) {
     static char out[65536], st[200000];
     char cmd[32], t[256], s[4096]; int seq = (int)jnum(j, "seq", 0), rc = 0; size_t o = 0;
@@ -265,6 +332,7 @@ static void handle(const char *j) {
     else if (!strcmp(cmd, "field_set")) { jstr(j, "text", s, sizeof s); DSLObj w = target(t); if (w) U->field_set(w, s); else rc = -1; }
     else if (!strcmp(cmd, "capture")) { jstr(j, "name", s, sizeof s); rc = capture(s); }
     else if (!strcmp(cmd, "fonts")) { jstr(j, "name", s, sizeof s); rc = fonts_dump(s, (int)jnum(j, "all", 0)); }
+    else if (!strcmp(cmd, "title")) o += title_state(out + o, sizeof out - o);
     else if (!strcmp(cmd, "call")) {
         char fn[96]; jstr(j, "fn", fn, sizeof fn); jstr(j, "s", s, sizeof s);
         int (*f)(const char *, char *, size_t) = cm_img ? (int (*)(const char *, char *, size_t))dlsym(cm_img, fn) : NULL;

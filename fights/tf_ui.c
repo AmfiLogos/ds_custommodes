@@ -360,8 +360,7 @@ static char *builds_json(char *err, size_t errn) {
     if (!st.nids) { snprintf(err, errn, "%s", TR("Pick at least one unit.")); return NULL; }
     size_t cap = 1024, k = 0; char *o = malloc(cap); o[k++] = '[';
     for (int i = 0; i < st.nids && i < P.max_squad; i++) {
-        const jv *u = lib ? mu_find(lib, st.ids[i]) : NULL; jv *b = u ? jget(u, "build") : NULL;
-        size_t n = 0; char *t = b ? jdump(b, 0, &n) : NULL;
+        size_t n = 0; char *t = lib ? mu_fight_build_json(lib, st.ids[i], cm_gettext, &n) : NULL;   /* with its My Units name */
         if (!t) { free(o); snprintf(err, errn, "%s", TR("A picked unit is no longer in My Units.")); return NULL; }
         if (k + n + 4 > cap) { cap = (k + n + 4) * 2; o = realloc(o, cap); }
         if (i) o[k++] = ',';
