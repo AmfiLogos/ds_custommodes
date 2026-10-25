@@ -108,6 +108,21 @@ var CMF = (function () {
     });
   }
 
+  // Auto Skill on for every clan unit (lead 2026-10-25: test-fight units must cast their skills as in a normal fight). The
+  // game's BehaviourOption AutoAttack (1) is its "Auto Skill" (TEXTKEY_SummaryOptionUI_AutoAttack_NAME): without it
+  // DecidePlayerCombatBehaviour.DecideSkill returns the basic attack only, whatever the bar and its AutoUse flags say. The
+  // wiki's generator writes Option 0 | Hold Position (2), so no squad unit ever cast a skill (6 runs, lane dsdps). OR-ed in
+  // like the generator's own Hold Position bit; a unit's per-skill AutoUse (the generator's: every active on) still decides
+  // which skills.
+  function autoSkill(save) {
+    var ec = save.EntityComponentSaveData.EntityComponents, uc = save.EntityContainerSaveData.UnitContainerSaveData || {};
+    Object.keys(uc).forEach(function (side) {
+      ((uc[side] || {}).PlayerGuidList || []).forEach(function (g) {
+        (ec[g] || []).forEach(function (c) { if (c && c.Type === 1 && c.Data) c.Data.Option = (c.Data.Option || 0) | 1; });
+      });
+    });
+  }
+
   // World units (owner 2026-10-25: "when loading units from save directly bring over the items they carry", "Give the
   // option to import their affecters from save as is"). A build taken straight from a save holds `_cm`, made by the game
   // side from the save (units/mu_worlds.c mu_save_fight_build; keys the game does not know are already left out):
@@ -230,6 +245,7 @@ var CMF = (function () {
       }
       if (cp.length) r.problems = (r.problems || []).concat(cp);
       nameKeys(r.save);
+      autoSkill(r.save);
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
         clan: r.clan };

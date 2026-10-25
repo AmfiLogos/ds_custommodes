@@ -317,6 +317,19 @@
   its own AffecterSimulator call (key / stack / duration swapped, then put back), because the fixture squad never casts
   a skill (no Auto Skill: see 0.1.35). dps_test.py --heal 10/10: 32 absorbs, 30 fully blocked hits logged as 0 damage,
   meter Absorbed 1605.62 = the absorb lines it measured.
+- 0.1.36: test-fight units cast their skills (lead 2026-10-25: "a DPS check where units never use their skills measures
+  the wrong thing"). Two causes, both from the game's own code:
+  1. The game's "Auto Skill" is BehaviourOption AutoAttack (1) (TEXTKEY_SummaryOptionUI_AutoAttack_NAME; a new unit starts
+     with 0: EntityInfoComponent.Init). Without it DecidePlayerCombatBehaviour.DecideSkill returns the basic attack only,
+     whatever the bar and AutoUse say. The wiki's generator writes Option 0 | Hold Position (2): sg_glue.js autoSkill() now
+     ORs Auto Skill onto every clan unit of every Test Fights world (the per-skill AutoUse stays the generator's: all on).
+     Monster fight: Sweeping Cleave, Fire Cloak (with its own Barrier), Strange Seed now cast (dps_test --heal 10/10).
+  2. DecideSkill only looks at the bar when CombatUtility.GetClosestSingleEnemy finds a combatable hostile UNIT
+     (GetClosestCombatableHostiles): a building never counts, so on the scarecrow alone skills never fired. In a DPS Check
+     world, for a squad unit with no hostile unit about, tf_dps.c h_cse answers the scarecrow (IEntity, the method's own
+     return type); range, cooldown, energy, target and per-skill auto-use stay the game's checks. It starts with the
+     scarecrow's first hit (its handle is taken then).
+  dps_test.py check: hits of active skills in the first 30 s of the fight (Piercing Thrust, Sweeping Cleave); 35/35.
 
 ## One window style, UX review fixes (2026-10-25, 0.1.35, lane dsuxcm; UX_REVIEW_2026-10-25.md U1, U3-U12)
 - One shell for the four windows (units/mu_ui.c `mu_shell_open`, owner decision): a backdrop over the whole screen layer
@@ -345,3 +358,7 @@
 - Tests: units/test/ux_test.py (language files + one hidden copy per language: backdrop takes the page's clicks, X square
   top right in all four windows, Delete Team box order and full-screen dim, talent / boss / pick-details text fit, My Units
   closes when a world loads); units/test/save (World units by save time).
+- 0.1.37 CARD RULE (owner 2026-10-25): a click anywhere on a unit card toggles its tick, as the check box, in All units,
+  team views and a world's view. Each card is drawn inside a button of its size (mu_window.c row[i], on_card); its texts and
+  icons let clicks through, and a click on the snapshot line (its holder takes the hover for the full line) goes up to the
+  button. worlds_test.py: card middle, snapshot line and a world card each tick then untick (fails on main e059e4f).

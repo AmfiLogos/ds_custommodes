@@ -17,6 +17,8 @@ Fails when (the breaks this catches):
   - a 4-unit team whose units are snapshots (source line) and in teams needs 2 pages at the test copy's size (960x540).
   - Rename team: the new name is not in library.json, the gallery team's author / its units are lost, or the left list
     and the cards' team lines do not show the new name at once.
+  - CARD RULE (owner 2026-10-25): a click on a card (its middle, or its snapshot line, which takes the hover) does not
+    toggle its tick like the check box, in All units and in a world's view.
   - the owner's real library file changed (sha256 + time), or a save file changed.
   worlds_test.py           env: HM_BUILD = a loader build folder (dsload.dylib, mods/multiplayer, mods/custom-modes)
                                 LD_ROOT = a ds_modloader checkout (its loader/test helpers; default ~/ds_launcher)
@@ -207,6 +209,15 @@ def run(ids):
         return
     shot('teams_en')
     teams_check('start')
+    # ---- CARD RULE: a click anywhere on a card toggles its tick
+    click('mu:all', 1)
+    t0 = mu().get('ticked'); click('mu:card0'); t1 = mu().get('ticked'); click('mu:card0'); t2 = mu().get('ticked')
+    check('a click on a card ticks it, a second click unticks it (All units)', (t0, t1, t2) == (0, 1, 0), (t0, t1, t2))
+    ni = next((i for i, c in enumerate(mu().get('card_list') or []) if c.get('src')), -1)
+    t1 = t2 = None
+    if ni >= 0:
+        click(f'mu:note{ni}'); t1 = mu().get('ticked'); click(f'mu:note{ni}'); t2 = mu().get('ticked')
+    check('a click on a card\'s snapshot line toggles the tick too', ni >= 0 and (t1, t2) == (1, 0), (ni, t1, t2))
     # ---- 4 per page: the full team (4 snapshot units in several teams) on one page
     click('mu:team3', 2); s = mu(); shot('full_en')
     check('a 4-unit team of snapshot units fits one page (source and team lines inside the cards)',
@@ -274,6 +285,8 @@ def run(ids):
           and not any(c.get('teams') for c in s.get('card_list') or []), (s.get('sel_world'), len(wunits), s.get('cards')))
     check('a world\'s units are read only (no Save as team / Rename / Delete / Delete team; Save snapshot shown)',
           not shown('mu:save_team') and not shown('mu:rename') and not shown('mu:delete') and not shown('mu:delete_team') and not shown('mu:rename_team') and shown('mu:snapshot'))
+    t0 = mu().get('wticked'); click('mu:card0'); t1 = mu().get('wticked'); click('mu:card0'); t2 = mu().get('wticked')
+    check('a click on a world unit\'s card ticks it, a second click unticks it', (t0, t1, t2) == (0, 1, 0), (t0, t1, t2))
     # ---- Save snapshot of the first 2 units
     click('mu:tick0'); click('mu:tick1'); s = mu()
     check('2 world units ticked', s.get('wticked') == 2, s.get('wticked'))

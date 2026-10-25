@@ -311,6 +311,7 @@ def run():
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow (right click, as a player)', n >= 1, n)
     until(lambda: dps('state').get('hits', 0) > 5, 'the squad hits the scarecrow', 120, 1)
+    t_first = time.time(); n30 = [None]                          # events logged in the first 30 s of hits (Auto Skill check below)
     s = dps('state'); check('the scarecrow selected again, the mouse kept on it', s.get('same') and s.get('bpanel_on'), json.dumps(s)[:300])
     check('the follow is ' + ('live-hp' if LIVE_HP else "Units Laboratory's own (no live-hp)"), s.get('live_hp') == (1 if LIVE_HP else 0), s.get('live_hp'))
     if PLACE:
@@ -352,6 +353,8 @@ def run():
     t0 = time.time(); fx_bad = []; k = 0
     while time.time() - t0 < BURST:
         time.sleep(0.25); s = dps('state'); rows.append((time.time(), s['hits'], s['sum'], s['dur'], s['repaired'])); k += 1
+        if n30[0] is None and time.time() - t_first >= 30:
+            n30[0] = s['events']
         if k % 6 == 0:
             v = dps('vfx')
             if v.get('speech') or any(x.strip().lstrip('+') == '200' for x in v.get('texts', [])):
@@ -365,6 +368,10 @@ def run():
     info.update({'burst_hits': hits, 'burst_dealt': dealt, 'burst_lost': lost, 'burst_repaired': rep})
     check(f'(c) {hits} hits in {BURST} s; their sum = the durability lost + what the self repair added (every 0.25 s read)', hits > 20 and rep > 0 and not bad,
           json.dumps({'dealt': dealt, 'lost': lost, 'repaired': rep, 'bad_reads': bad[:5]}))
+    ev30 = [h for h in hits_dump(0) if n30[0] is None or h['i'] < n30[0]]; un = units_dump()
+    act = sorted({h['skill'] for h in ev30 if h['kind'] == 0 and not h['basic'] and h['key'].startswith('SKILL_') and un.get(h['unit'], {}).get('player')})
+    info['active_skills_30s'] = act
+    check(f'the squad casts its active skills (Auto Skill on): hits of {len(act)} active skills in the first 30 s of the fight', act, act)
     check('speech + heal numbers off: no speech bubble and no "200" over the scarecrow in 30 s of hits (the repair went on)', not fx_bad and rep > 0,
           json.dumps({'bad': fx_bad[:3], 'counters': {k2: s.get(k2) for k2 in ('speech_shown', 'speech_hidden', 'heal_shown', 'heal_hidden')}}))
     mine = dlog(str(n0)).split('\n')[:n1 - n0]
