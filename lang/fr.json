@@ -3,6 +3,7 @@
   " %d unité reste : elle est aussi dans une autre équipe.",
   " %d unités restent : elles sont aussi dans une autre équipe."
  ],
+ " (%.0f over)": " (%.0f en trop)",
  "%d SP": "%d SP",
  "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
   "%d objet du sac que le jeu ne connaît pas est laissé de côté.",
@@ -41,6 +42,7 @@
  "%s  -  weapon tree, Main SP, from an inscription": "%s  -  arbre d'armes, SP principaux, depuis une inscription",
  "%s  Lv %d": "%s  Niv. %d",
  "%s %.*s is not in this game version": "%s %.*s ne figure pas dans cette version du jeu.",
+ "%s (basic)": "%s (de base)",
  "%s cannot go in the %s slot": "%s ne peut pas aller dans l'emplacement %s",
  "%s could not be read from the save: %s": "Impossible de lire %s dans la sauvegarde : %s",
  "%s is not in one of this unit's skill trees": "%s n'est dans aucun arbre de compétences de cette unité",
@@ -63,6 +65,7 @@
   "Une équipe contient au maximum %d unités."
  ],
  "A unit holds one soul stone: picking another replaces it.": "Une unité porte une seule pierre d'âme : en choisir une autre la remplace.",
+ "Absorbed": "Absorbé",
  "Acquired traits": "Traits acquis",
  "Active": "Actives",
  "Add": "Ajouter",
@@ -152,6 +155,7 @@
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "Chaque niveau ajoute une valeur aléatoire à chaque stat, dans la plage de son rang de talent (%s : %s à %s par niveau). Pire prend la valeur la plus basse à chaque niveau, moyen le milieu, meilleur la plus haute.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "Chaque kit coché est rangé dans le sac à dos personnel de chaque personnage qui entre, pour que l'escouade entre avec.",
  "Edit": "Modifier",
+ "Effects in log": "Effets dans le journal",
  "Every character gains %s so the load is carryable.": "Chaque personnage gagne %s pour que la charge puisse être portée.",
  "Extra skill trees": "Arbres de compétences supplémentaires",
  "Female": "Femme",
@@ -164,6 +168,7 @@
  "Getting the wiki's Test Fights files...": "Téléchargement des fichiers Combats d'essai du wiki...",
  "Grant %s on custom saves": "Accorder %s sur les sauvegardes personnalisées",
  "Greatsword": "Grande épée",
+ "Healing": "Soins",
  "Helmet": "Casque",
  "Hood": "Capuche",
  "How many": "Combien",
@@ -399,6 +404,7 @@
  "Your squad standing at a boss door, boss alive and never beaten.": "Votre escouade devant la porte d'un chef encore vivant et jamais vaincu.",
  "a file from the wiki arrived incomplete": "un fichier du wiki est arrivé incomplet",
  "a team holds 1 to %d units": "une équipe contient de 1 à %d unités",
+ "absorbed": "absorbé",
  "acquired trait": "trait acquis",
  "average": "moyen",
  "background %.*s is not in this game version": "la biographie %.*s n'existe pas dans cette version du jeu",

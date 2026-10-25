@@ -2,6 +2,7 @@
  " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
   " %d 個單位會保留：它也在另一支隊伍中。"
  ],
+ " (%.0f over)": "（溢出 %.0f）",
  "%d SP": "%d SP",
  "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
   "%d 個遊戲不認識的背包物品不會帶入。"
@@ -33,6 +34,7 @@
  "%s  -  weapon tree, Main SP, from an inscription": "%s  -  武器技能樹，主要 SP，來自銘文",
  "%s  Lv %d": "%s  等級 %d",
  "%s %.*s is not in this game version": "%s %.*s 不在此遊戲版本中",
+ "%s (basic)": "%s（普攻）",
  "%s cannot go in the %s slot": "%s 無法放入 %s 欄位",
  "%s could not be read from the save: %s": "無法從存檔讀取 %s：%s",
  "%s is not in one of this unit's skill trees": "%s 不在此單位的任一技能樹中",
@@ -54,6 +56,7 @@
   "一支隊伍最多容納 %d 個單位。"
  ],
  "A unit holds one soul stone: picking another replaces it.": "一個單位只能持有一塊靈魂石：選擇另一塊會將其替換。",
+ "Absorbed": "吸收",
  "Acquired traits": "獲得的特質",
  "Active": "主動",
  "Add": "新增",
@@ -139,6 +142,7 @@
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "每次升級，各項屬性會在其天賦等級的範圍內隨機提升（%s：每級 %s 至 %s）。最差每級取最低值，平均取中間值，最好取最高值。",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "每個已勾選的套組都會放入每位進場角色的個人背包，因此小隊進場時會攜帶它。",
  "Edit": "編輯",
+ "Effects in log": "在紀錄中顯示效果",
  "Every character gains %s so the load is carryable.": "每個角色獲得 %s，使負重可以攜帶。",
  "Extra skill trees": "額外技能樹",
  "Female": "女性",
@@ -151,6 +155,7 @@
  "Getting the wiki's Test Fights files...": "正在取得維基的測試戰鬥檔案...",
  "Grant %s on custom saves": "在自訂存檔中給予 %s",
  "Greatsword": "巨劍",
+ "Healing": "治療",
  "Helmet": "頭盔",
  "Hood": "兜帽",
  "How many": "數量",
@@ -381,6 +386,7 @@
  "Your squad standing at a boss door, boss alive and never beaten.": "你的小隊站在首領門前，首領仍然存活，且從未被擊敗。",
  "a file from the wiki arrived incomplete": "維基的一個檔案不完整",
  "a team holds 1 to %d units": "一支隊伍可容納 1 到 %d 個單位",
+ "absorbed": "吸收",
  "acquired trait": "已獲得特質",
  "average": "平均",
  "background %.*s is not in this game version": "背景 %.*s 不在此遊戲版本中",
