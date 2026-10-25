@@ -166,9 +166,9 @@ static void on_cancel(void *ud, DSLObj w) {      /* unsaved changes: the game's 
     if (W.dirty || strcmp(nm, W.name0)) { U->notice(TR("Discard your changes?"), TR("Discard"), TR("Keep Editing"), discard_ok, NULL, NULL); return; }
     mu_log("builder: closed without saving"); close_win();
 }
-/* Escape (kit 0.1.28 owns the key; an older kit: nothing, as before) = Cancel: with unsaved changes the game's notice asks
-   (that box is the kit's: Escape there = "Keep editing") */
-static void esc_win(void *ud) { (void)ud; mu_log("builder: Escape = Cancel"); on_cancel(NULL, NULL); }
+/* the window's Close (the template's red X and Escape: mu_shell) = Cancel: with unsaved changes the game's notice asks
+   first (that box is the kit's: Escape there = "Keep Editing") */
+static void win_close(void *ud) { (void)ud; mu_log("builder: Close = Cancel"); on_cancel(NULL, NULL); }
 
 /* a click: the action JSON goes to the model, the answer redraws */
 static void act(const char *json) {
@@ -1259,9 +1259,8 @@ static void refresh(void) {
 static int build_ui(void) {
     float w, h;
     /* the shell's red X is the window's Cancel (asks first with unsaved changes): no Cancel button (owner 2026-10-25, U5) */
-    W.win = mu_shell_open(&W.sh, W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 798, 0, &w, &h, on_cancel, NULL);
+    W.win = mu_shell_open(&W.sh, W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 806, 0, &w, &h, win_close, NULL, NULL);
     if (!W.win) { mu_log("builder: kit not ready"); return -1; }
-    dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* again after each build: a gear list goes on top */
     W.w = w; W.h = h; W.mid = W.mid_holder = W.sheet = W.bar = W.f_search = NULL; W.nreg = 0; W.lvl_n = 0; W.bar_sec = -1; W.scroll_h = 0;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* one fill over the Box sprite (it holds a lighter block that ended mid-window when stretched); its copper edge stays */

@@ -143,31 +143,53 @@ DSLObj mu_close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_c
     DSLObj b = dsl_close_x(U, parent, x, y, s, win);
     return b ? b : U->button(parent, x, y, s, s, "X", cb, ud);
 }
-DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud) {
+/* our own frame on an older kit: its Escape (Back first, then the Close) and its X (the Close) */
+static void shell_esc(void *ud) { mu_shell *s = ud; if (!s || !s->win) return; if (s->back_fn && s->back_fn(s->ud)) return; if (s->close) s->close(s->ud); }
+static void shell_x(void *ud, DSLObj w) { (void)w; mu_shell *s = ud; if (s && s->win && s->close) s->close(s->ud); }
+DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h,
+                     void (*close)(void *ud), int (*back)(void *ud), void *ud) {
     memset(s, 0, sizeof *s);
     if (!U) return NULL;
-    if (nshell++ == 0) title_icons(0);
-    s->back = mu_backdrop(0x0000009Eu);                                /* the title (or the world) dimmed, its clicks taken */
-    DSLObj p = U->panel(NULL, 0, 0, want_w, want_h, 0);
-    if (!p) { if (s->back) U->destroy(s->back); s->back = NULL; if (--nshell == 0) title_icons(1); return NULL; }
+    s->close = close; s->back_fn = back; s->ud = ud;
+    /* the room on the screen layer (a probe panel: the layer's size before the window is made) */
     float lw = 0, lh = 0;
-    if (cm_rect_size(cm_parent(p), &lw, &lh) || lw < 100 || lh < 100) { lw = 1920; lh = 1080; }
+    { DSLObj pr = U->panel(NULL, 0, 0, 10, 10, 0);
+      if (!pr || cm_rect_size(cm_parent(pr), &lw, &lh) || lw < 100 || lh < 100) { lw = 1920; lh = 1080; }
+      if (pr) U->destroy(pr); }
     /* the game's UI scale like the game's own windows: drawn at its size x scale, never cut by the screen layer: fit 0 =
        the room it may take (in its own units) is the layer / scale minus a margin; fit 1 = its size stays, the scale goes
        down until it fits */
-    float sc = mu_ui_scale(), ww = want_w, hh = want_h;                  /* KIT-SCALE: ours; no dsl_scale_follow on this window */
+    float sc = mu_ui_scale(), ww = want_w, hh = want_h;                  /* KIT-SCALE: ours (DSL_WIN_OWN_SCALE) */
     if (!fit) { float aw = lw / sc - 40, ah = lh / sc - 40; if (ww > aw) ww = aw; if (hh > ah) hh = ah; }
     else { if (sc * ww > lw - 40) sc = (lw - 40) / ww; if (sc * hh > lh - 40) sc = (lh - 40) / hh; }
-    rt_set(p, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ ww, hh }, (V2s){ 0, 0 });
+    if (nshell++ == 0) title_icons(0);
+    DSLWinStd o; memset(&o, 0, sizeof o);
+    o.size = sizeof o; o.kind = DSL_WIN_MODAL; o.w = ww; o.h = hh; o.title = title; o.close = close; o.back = back; o.ud = ud;
+    o.flags = DSL_WIN_OWN_SCALE; o.band_h = MU_SHELL_BAND;
+    DSLWinParts parts; memset(&parts, 0, sizeof parts);
+    DSLObj p = close ? dsl_window_std(U, &o, &parts) : NULL;
+    if (p) {
+        s->std = 1; s->esc_ok = 1; s->back = parts.backdrop; s->x = parts.close_x;
+        /* the template's backdrop must take every click: kits d529f52 .. a4408f1 left its clicks off (dsl_ui_flat; a click
+           beside the window reached the title page, ux_test U1); 6e6071a+ turns them on itself, this is then a no-op */
+        if (s->back) cm_raycast(s->back, true);
+    }
+    else {                                                             /* an older kit: our own frame, the template's layout */
+        s->back = mu_backdrop(0x0000009Eu);
+        p = U->panel(NULL, 0, 0, ww, hh, 0);
+        if (!p) { if (s->back) U->destroy(s->back); s->back = NULL; if (--nshell == 0) title_icons(1); return NULL; }
+        rt_set(p, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ ww, hh }, (V2s){ 0, 0 });
+        mu_plate(p, 4, 4, ww - 8, hh - 8, MU_C_BODY);
+        mu_plate(p, 4, 4, ww - 8, MU_SHELL_BAND - 4, MU_C_BAND);
+        mu_plate(p, 4, MU_SHELL_BAND, ww - 8, 1, MU_C_COPPER);
+        DSLObj t = U->text(p, 70, 4, ww - 140, MU_SHELL_BAND - 4, title, 30, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+        if (t) { cm_text_ellipsis(t); cm_raycast(t, false); }
+        s->esc_ok = dsl_esc_push(U, p, shell_esc, s, 0) == 0;
+        float xs = 38;
+        s->x = mu_close_x(p, ww - 24 - xs, (MU_SHELL_BAND - xs) / 2, xs, p, shell_x, s);
+        dsl_rules_own(U, p, DSL_RULE_SCALE);                           /* KIT-SCALE: UI Scale is ours (the UI-RULE guard) */
+    }
     if (sc > 0.1f) set_scale(p, sc);
-    mu_plate(p, 6, 6, ww - 12, hh - 12, MU_C_BODY);                    /* one body colour inside the frame (the lobby's #222025) */
-    /* the header as Load Campaign: the title centred in the game's title font, a copper line under it; the X top right */
-    DSLObj t = U->text(p, 70, 6, ww - 140, MU_SHELL_BAND - 8, title, 30, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
-    if (t) { cm_text_ellipsis(t); cm_raycast(t, false); }
-    mu_plate(p, 12, MU_SHELL_BAND - 1, ww - 24, 2, MU_C_COPPER);
-    float xs = 38;
-    s->x = mu_close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, p, on_x, ud);
-    dsl_rules_own(U, p, DSL_RULE_SCALE);                               /* KIT-SCALE: UI Scale is ours (the UI-RULE guard) */
     s->win = p;
     if (w) *w = ww;
     if (h) *h = hh;
@@ -175,8 +197,8 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
 }
 void mu_shell_close(mu_shell *s) {
     if (!U || !s || !s->win) return;
-    U->destroy(s->win);
-    if (s->back) U->destroy(s->back);
+    if (s->std) dsl_window_close(U, s->win);                           /* window, backdrop and its Escape entry */
+    else { U->destroy(s->win); if (s->back) U->destroy(s->back); }
     memset(s, 0, sizeof *s);
     if (nshell > 0 && --nshell == 0) title_icons(1);
 }

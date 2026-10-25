@@ -151,11 +151,10 @@ static void close_win(void) {
     if (W.lib) { jfree(W.lib); W.lib = NULL; }
     mu_save_cache_clear();                                             /* parsed saves (a few MB each) */
 }
-static void on_close(void *ud, DSLObj w) { (void)ud; (void)w; close_win(); }
-/* Escape (kit 0.1.28 owns the key; an older kit: Escape does nothing here, as before): the window = its Close; the paste
-   box and the name box = their Cancel (DSL_ESC_EDIT: also while their field has the keyboard); the Delete team box = its
-   Cancel. Each is pushed when it shows (the window again after each build), dropped when it hides. */
-static void esc_win(void *ud) { (void)ud; mu_log("my units: closed (Escape)"); close_win(); }
+/* the window's Close (the template's red X and Escape: mu_shell). Escape on the boxes (kit 0.1.28 owns the key): the
+   paste box and the name box = their Cancel (DSL_ESC_EDIT: also while their field has the keyboard); the Delete Team box =
+   its Cancel. Each box is pushed when it shows (again after each build), dropped when it hides. */
+static void win_close(void *ud) { (void)ud; mu_log("my units: closed"); close_win(); }
 static void on_box_cancel(void *ud, DSLObj w);
 static void esc_box(void *ud) { on_box_cancel(ud, NULL); }
 /* the paste box takes the top of the lists while it shows: they move down under it (it hid the empty-list hint, the
@@ -588,10 +587,9 @@ static void refresh(void) {
    the layer is laid out one frame later, and the game window or the UI scale can change while it is open */
 static int build_ui(void) {
     float w, h;
-    /* 738 high: 4 cards fit the list at UI scale 1 under the shell's header (owner 2026-10-17) */
-    W.win = mu_shell_open(&W.sh, TR("My Units"), 1100, 738, 0, &w, &h, on_close, NULL);
+    /* 746 high: 4 cards fit the list at UI scale 1 under the template's header (owner 2026-10-17) */
+    W.win = mu_shell_open(&W.sh, TR("My Units"), 1100, 746, 0, &w, &h, win_close, NULL, NULL);
     if (!W.win) { mu_log("my units: kit not ready"); return -1; }
-    dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* first: its boxes go on top of it */
     W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = W.nworld_btn = 0; W.b_snap = NULL;
     W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = W.dlg_x = NULL;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();

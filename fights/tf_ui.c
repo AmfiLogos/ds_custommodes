@@ -27,7 +27,7 @@
 #include <ctype.h>
 
 #define WIN_W 1040.0f
-#define WIN_H 720.0f
+#define WIN_H 728.0f                                       /* the body as before under the template's 72 header */
 #define BODY_H (WIN_H - CMW_BAND - 1)
 #define PANEL_H (BODY_H - 110 - foot_x)     /* the two lists: shorter while a long status message needs more lines */
 #define LX 24.0f
