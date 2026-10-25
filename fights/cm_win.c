@@ -221,13 +221,14 @@ static void win_destroy(Win *w) {
     memset(w, 0, sizeof *w);
     if (closed) closed(ud);
 }
-static void x_click(void *ud, DSLObj w) { (void)w; Win *v = ud; win_destroy(v); }
-/* Escape: the kit owns the key (kit 0.1.28): the window is on its Escape stack and a press closes it as its X does (the
-   entry goes when U->destroy takes the window). An older kit: win_tick polls the key itself, as before */
-static void esc_close(void *ud) {
-    Win *v = ud; if (!v || !v->win) return;
-    if (v->sub_back && v->sub_back(v->sub_ud)) { cmw_log("cm_win: %s: Escape = Back (a sub-page)", v->id); return; }   /* owner 2026-10-25: Back one level first */
-    cmw_log("cm_win: %s closed (Escape)", v->id); win_destroy(v);
+static void x_click(void *ud, DSLObj w) { (void)w; Win *v = ud; win_destroy(v); }   /* the test registry's "<win>:close" */
+/* the window is the kit's template (mu_shell): its Close (the red X; Escape when no sub-page went Back) and its Back
+   (owner 2026-10-25: Escape goes Back one level first, e.g. the Gallery's Details page; the red X never goes Back).
+   An older kit with no Escape stack: win_tick polls the key itself, as before */
+static void win_close_cb(void *ud) { Win *v = ud; if (v && v->win) { cmw_log("cm_win: %s closed", v->id); win_destroy(v); } }
+static int win_back_cb(void *ud) {
+    Win *v = ud; if (!v || !v->win || !v->sub_back || !v->sub_back(v->sub_ud)) return 0;
+    cmw_log("cm_win: %s: Escape = Back (a sub-page)", v->id); return 1;
 }
 void cmw_set_back(const char *id, int (*back)(void *ud), void *ud) { Win *v = win_of(id); if (v) { v->sub_back = back; v->sub_ud = ud; } }
 DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*closed)(void *), void *ud) {
@@ -236,7 +237,7 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     Win *v = NULL; for (int i = 0; i < NWIN; i++) if (!wins[i].win) { v = &wins[i]; break; }
     if (!v) return NULL;
     /* the shell at the game's UI scale (its size stays, the scale goes down when it would not fit the screen layer) */
-    v->win = mu_shell_open(&v->sh, title, w, h, 1, NULL, NULL, x_click, v);
+    v->win = mu_shell_open(&v->sh, title, w, h, 1, NULL, NULL, win_close_cb, win_back_cb, v);
     if (!v->win) { memset(v, 0, sizeof *v); return NULL; }
     snprintf(v->id, sizeof v->id, "%s", id);
     char nm[48];
@@ -246,7 +247,7 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     cmw_named(v->sh.x, CMW_BUTTON, nm, x_click, v, "X");
     v->body = cmw_flat(U->panel(v->win, 0, CMW_BAND + 1, w, h - CMW_BAND - 1, 0), 0x00000000);
     v->closed = closed; v->ud = ud; v->seq = ++win_seq;
-    v->kit_esc = dsl_esc_push(U, v->win, esc_close, v, 0) == 0;
+    v->kit_esc = v->sh.esc_ok;                                         /* the shell put it on the kit's Escape stack */
     return v->body;
 }
 void cmw_close(const char *id) { win_destroy(win_of(id)); }

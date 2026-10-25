@@ -19,7 +19,7 @@ int  cmw_tick_add(void (*tick)(void *ud), void *ud);
 
 /* a window: returns its body (w x (h - band), origin top-left), or NULL. One window per id; opening an open id closes
  * it first. closed(ud) runs after the window is gone (X, Esc, cmw_close). */
-#define CMW_BAND 64.0f
+#define CMW_BAND 72.0f                                     /* = MU_SHELL_BAND: the kit template's header band */
 DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*closed)(void *ud), void *ud);
 void   cmw_close(const char *id);
 /* a window with sub-pages (owner 2026-10-25: Escape goes Back one level first): back(ud) runs on Escape before the window
