@@ -200,3 +200,34 @@
   first open and after a reopen, the box adds 3 units while folded, the arrow opens / closes; fight 1 (switch off) and
   fight 2 (switch on, two units with a bag): the game's own save of the running world (test call tf_test_save) holds each
   unit's bag as in the save, no save affecter with the switch off, every save affecter within 1 s with it on.
+
+## Test Fights > DPS Check while it runs (2026-10-25, 0.1.24; fights/tf_dps.c)
+- Owner: the practice scarecrow's HP "997296 / 100000" wrapped its last "0" at 1,000,000; its HP stood still while the
+  mouse stayed on it; "a DPS display log logging the damages in the chat of the MP function", every hit.
+- Only in a world loaded from a DPS Check save (tf_wikisave.c tfw_dps_made, set in tf_worlds.c's load hook); every hook
+  passes straight through anywhere else. Nothing changes game state.
+- Panel (EntitySummaryUIView.UpdateBuildingEntityUI hook + the frame tick): "<now> / <max>" with the language's thousands
+  separator (as the Test Fights card), one line. A number that fits its 50-unit box stays as the game shows it; a longer one
+  grows away from the "/" (now right-aligned, max left-aligned) into the bar's free room; only if that is too narrow both
+  shrink alike (never under 60 %). en/de/ru/ja: 1,000,000 fits at the game's size. The panel follows the shown building's
+  durability every frame it changes (bar + texts through the game's own SetDurabilityUI).
+- Stock (decomp 25846389): a building's durability in that panel is set only when the panel is filled
+  (EntitySummaryUIPresenter.RefreshSummary); status changes refresh UNITS only. So every building's panel stands still in
+  the stock game; only the DPS Check's follows here. Measured: with our follow off the text stayed while durability fell.
+- Hit log (DamageSimulator.Simulate hook, one call per hit): target = BUILDING_DungeonScareCrow (the wiki's DPS target) ->
+  "<unit display name>: <skill / affecter name in the game's language> <TotalDamage as F0>[ Crit|Guard]", "Miss" / "Immune"
+  with no number (the game's VFXExecution words). Into the multiplayer chat (mp_api v3 chat_local: never sent, no rate
+  limit, shows in single player); without multiplayer (or "Chat: Off", or an older multiplayer) into our own panel
+  (bottom-left, 10 lines, wheel scrolls; without multiplayer the game's camera zoom is held while the pointer is on it:
+  not proven in game). All lines kept for the fight; a new DPS Check clears.
+- The scarecrow's self repair (AFFECTER_SelfRepair, 200) did NOT pause while it was hit: +200 about every second through a
+  30 s burst. The durability drop understates the squad's damage by that; the log does not.
+- New hook sites (docs/hooks.json at the next cm_pin): EntitySummaryUIView.UpdateBuildingEntityUI/1,
+  DamageSimulator.Simulate/4, UnityEngine.Input.get_mouseScrollDelta/0 (ONLY when multiplayer is not loaded; multiplayer
+  owns that site otherwise: sites.tsv note wanted). All have Windows callers or are virtual (Simulate): none inlined away.
+- Test: fights/test/dps_test.py (one hidden copy; 4 fixture units with weapons; Test Fights > DPS Check > Start; the
+  scarecrow clicked, the mouse kept on it; each unit right-clicks it). Checks (a) one line and inside the bar at 1,000,000
+  and 999,999 (TMP textBounds against the "/" and the bar box), (b) the panel follows, (c) per 0.25 s read the logged
+  damage = durability lost + whole repair steps, (d) one line per hit, all in the chat in order; our own panel forced on
+  shows the newest 10. --no-mp (multiplayer off) did not get past the title in a hidden copy (the title button click did
+  not open the lab: 3 tries), so the no-multiplayer path itself is only proven through the forced panel.

@@ -27,5 +27,6 @@ void tfw_loading(void);                                 /* our load is starting:
  * At load: a hook on SaveLoadHelper.DeserializeCampaignSaveDataSafely(json, settings, path) hands the game the fixed
  * text (the file itself stays as it is). */
 int  tfw_wiki_made(const char *save_name);              /* 1 = a name only the wiki's save generator writes */
+int  tfw_dps_made(const char *save_name);               /* 1 = one of those, and a DPS Check (tf_dps.h) */
 struct jv;
 int  tfw_consecration_fix(struct jv *save);             /* off + acknowledged; 1 = something changed */

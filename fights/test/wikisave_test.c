@@ -1,5 +1,6 @@
 /* wikisave_test - the breaks this guards: a save the PLAYER made gets its Lock Consecration choice changed (it must never
- * be touched), or a save the wiki's generator made still opens the "Lock Consecration Results" box at load.
+ * be touched), or a save the wiki's generator made still opens the "Lock Consecration Results" box at load; the DPS Check
+ * log and panel (tf_dps.c) switched on in another world (a boss fight, a player's save) or off in a DPS Check.
  * Names: real ones the generator writes (savegen.js finish(): team slug, fight, difficulty slug) and real player names. */
 #include "../tf_worlds.h"
 #include "../../fe/fe_json.h"
@@ -22,6 +23,9 @@ int main(void) {
     for (size_t i = 0; i < sizeof wiki / sizeof *wiki; i++) CHECK(tfw_wiki_made(wiki[i]), "wiki name not known: %s", wiki[i]);
     for (size_t i = 0; i < sizeof player / sizeof *player; i++) CHECK(!tfw_wiki_made(player[i]), "player name taken for a wiki save: %s", player[i]);
     CHECK(!tfw_wiki_made(NULL), "NULL name");
+    /* the DPS Check's panel and hit log (tf_dps.c) run only in a DPS Check world: on in the 2 DPS names, off in every other */
+    for (size_t i = 0; i < sizeof wiki / sizeof *wiki; i++) CHECK(tfw_dps_made(wiki[i]) == (i < 2), "DPS Check world wrong for %s", wiki[i]);
+    for (size_t i = 0; i < sizeof player / sizeof *player; i++) CHECK(!tfw_dps_made(player[i]), "player name taken for a DPS Check world: %s", player[i]);
 
     /* the generator's templates: both fields false (the box shows) -> off + acknowledged, once */
     const char *tpl = "{\"CampaignSaveHeader\":{},\"CampaignSettingSaveData\":{\"CampaignStartSettingSaveData\":{\"IronModeEnabled\":false,"
