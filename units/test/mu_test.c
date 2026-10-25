@@ -11,7 +11,10 @@
  *  8. one click (mu_link): a link on the clipboard (a private test pasteboard, never the player's) is added as a team
  *     without a box; no link = the box; the box's text; NET=1: a short link on the clipboard
  *  9. folding: the unit writer (pvp_build.c pb_folded_skill) folds exactly the builder's conditional passives
- * 10. the card of a library unit (mu_build_of -> mu_card_of) */
+ * 10. the card of a library unit (mu_build_of -> mu_card_of)
+ * 11. "Delete team" (owner 2026-10-25): "Team and units" deletes exactly the team's units that are in no other team
+ *     (the number the box shows), a unit also in another team stays there, other teams keep all their units, the file
+ *     read back says the same; "Team only" keeps every unit */
 #include "myunits.h"
 #include "wk_link.h"
 #include "mu_link.h"
@@ -229,6 +232,41 @@ static void t_store(const char *tmpdir, const char *link) {
     jfree(lib);
 }
 
+static int has_id(char ids[][17], int n, const char *id) { for (int i = 0; i < n; i++) if (!strcmp(ids[i], id)) return 1; return 0; }
+static void t_team_delete(const char *tmpdir, const char *link) {
+    char p[600], e[400]; snprintf(p, sizeof p, "%s/lib_teamdel/library.json", tmpdir);
+    setenv("DSMP_UNITS_LIB", p, 1);
+    jv *lib = mu_load(e, sizeof e); if (!lib) { CHECK(0, "teamdel: load: %s", e); return; }
+    int code, n = wkl_decode_offline(link, A, WK_MAX_UNITS, &code, e, sizeof e);
+    CHECK(n >= 2, "teamdel: a team link of 2+ units (%d) %s", n, e); if (n < 2) { jfree(lib); return; }
+    char t1[MU_TEAM_MAX][17], t3[MU_TEAM_MAX][17], tid1[17], tid2[17], tid3[17], nm[200], got[MU_TEAM_MAX][17];
+    CHECK(mu_add_team(lib, A, n, "One", t1, e, sizeof e) == n, "teamdel: team one");
+    CHECK(!mu_team_new(lib, "Two", t1, 1, tid2, e, sizeof e), "teamdel: team two holds one's first unit: %s", e);
+    CHECK(mu_add_team(lib, A, n, "Three", t3, e, sizeof e) == n, "teamdel: team three");
+    mu_team_id_at(lib, 0, tid1); mu_team_id_at(lib, 2, tid3);
+    char go[MU_TEAM_MAX * 4][17]; int ngo = -1, nst = -1;
+    CHECK(mu_team_split(lib, tid1, go, &ngo, &nst) == n && ngo == n - 1 && nst == 1, "teamdel: split %d go / %d stay (want %d / 1)", ngo, nst, n - 1);
+    CHECK(!has_id(go, ngo, t1[0]), "teamdel: the unit in team two is not in the list that goes");
+    int gone = -1;
+    CHECK(!mu_team_delete_units(lib, tid1, &gone) && gone == ngo, "teamdel: team and units: %d deleted (box said %d)", gone, ngo);
+    CHECK(!mu_save(lib, e, sizeof e), "teamdel: save: %s", e);
+    jfree(lib); lib = mu_load(e, sizeof e); if (!lib) { CHECK(0, "teamdel: reload: %s", e); return; }
+    CHECK(mu_count(lib) == (size_t)(n + 1), "teamdel: %zu units in the file (want %d: team two's unit + team three)", mu_count(lib), n + 1);
+    CHECK(mu_find(lib, t1[0]) != NULL, "teamdel: the unit also in team two stays");
+    int lost = 0; for (int i = 1; i < n; i++) lost += mu_find(lib, t1[i]) != NULL;
+    CHECK(!lost, "teamdel: %d of team one's other units still there", lost);
+    int kept3 = 0; for (int i = 0; i < n; i++) kept3 += mu_find(lib, t3[i]) != NULL;
+    CHECK(kept3 == n, "teamdel: team three's units all kept (%d / %d)", kept3, n);
+    char id0[17];
+    CHECK(mu_team_count(lib) == 2 && !mu_team_id_at(lib, 0, id0) && !strcmp(id0, tid2) && mu_team_at(lib, 0, nm, sizeof nm, got) == 1 && !strcmp(got[0], t1[0]),
+          "teamdel: team two still holds its unit (%zu teams)", mu_team_count(lib));
+    CHECK(mu_team_at(lib, 1, nm, sizeof nm, got) == n, "teamdel: team three still has its %d units", n);
+    CHECK(mu_team_split(lib, tid1, NULL, &ngo, &nst) == -1 && mu_team_delete_units(lib, tid1, NULL) == -1, "teamdel: the deleted team is gone");
+    /* Team only: every unit stays */
+    CHECK(!mu_team_delete(lib, tid3) && mu_team_count(lib) == 1 && mu_count(lib) == (size_t)(n + 1), "teamdel: team only keeps the units");
+    jfree(lib);
+}
+
 static int wait_done(mul_result *r, int ms) {
     for (int t = 0; t < ms / 10; t++) { int s = mul_poll(r); if (s != MUL_BUSY) return s; struct timespec ts = { 0, 10000000 }; nanosleep(&ts, NULL); }
     return mul_poll(r);
@@ -316,6 +354,7 @@ int main(int argc, char **argv) {
     t_forms(team3 && *team3 ? team3 : link);
     t_answers();
     t_store(tmp, team3 && *team3 ? team3 : link);
+    t_team_delete(tmp, team3 && *team3 ? team3 : link);
     t_click(tmp, team3 && *team3 ? team3 : link);
     t_fold();
     t_card_lib(tmp);

@@ -238,6 +238,68 @@ int mu_team_delete(jv *lib, const char *tid) {
     for (size_t t = 0; teams && t < teams->cnt; t++) if (jstreq(jget(teams->v[t], "id"), tid)) { jarr_del(teams, t); return 0; }
     return -1;
 }
+/* is unit id in a team other than tid? */
+static int in_other_team(const jv *lib, const char *id, const char *tid) {
+    jv *teams = jget(lib, "teams");
+    for (size_t t = 0; teams && teams->t == JN_ARR && t < teams->cnt; t++) {
+        if (jstreq(jget(teams->v[t], "id"), tid)) continue;
+        jv *ui = jget(teams->v[t], "unit_ids");
+        for (size_t k = 0; ui && ui->t == JN_ARR && k < ui->cnt; k++) if (jstreq(ui->v[k], id)) return 1;
+    }
+    return 0;
+}
+int mu_team_split(const jv *lib, const char *tid, char go[][17], int *ngo, int *nstay) {
+    jv *teams = jget(lib, "teams"), *tm = NULL;
+    for (size_t t = 0; teams && teams->t == JN_ARR && t < teams->cnt && !tm; t++) if (jstreq(jget(teams->v[t], "id"), tid)) tm = teams->v[t];
+    int n = 0, g = 0, st = 0;
+    if (ngo) *ngo = 0;
+    if (nstay) *nstay = 0;
+    if (!tm) return -1;
+    char seen[MU_TEAM_MAX * 4][17]; int ns = 0;
+    jv *ui = jget(tm, "unit_ids");
+    for (size_t k = 0; ui && ui->t == JN_ARR && k < ui->cnt; k++) {
+        jv *v = ui->v[k]; if (!v || v->t != JN_STR || v->n != 16) continue;
+        char id[17]; memcpy(id, v->s, 16); id[16] = 0;
+        if (!mu_find(lib, id)) continue;                                  /* a unit no longer in the library */
+        int dup = 0; for (int i = 0; i < ns; i++) if (!strcmp(seen[i], id)) dup = 1;
+        if (dup || ns >= (int)(sizeof seen / sizeof *seen)) continue;
+        memcpy(seen[ns++], id, 17); n++;
+        if (in_other_team(lib, id, tid)) st++;
+        else { if (go) memcpy(go[g], id, 17); g++; }
+    }
+    if (ngo) *ngo = g;
+    if (nstay) *nstay = st;
+    return n;
+}
+int mu_team_delete_units(jv *lib, const char *tid, int *ngone) {
+    char go[MU_TEAM_MAX * 4][17]; int ngo = 0, nst = 0;
+    if (ngone) *ngone = 0;
+    if (mu_team_split(lib, tid, go, &ngo, &nst) < 0) return -1;
+    if (mu_team_delete(lib, tid)) return -1;
+    int k = 0;
+    for (int i = 0; i < ngo; i++) if (!mu_delete(lib, go[i])) k++;      /* in no other team: no other team changes */
+    if (ngone) *ngone = k;
+    return 0;
+}
+int mu_set_source(jv *lib, const char *id, const mu_source *s) {
+    jv *u = (jv *)mu_find(lib, id); if (!u || !s) return -1;
+    jv *o = jobj();
+    jset(o, "kind", jstrv("snapshot"));
+    jset(o, "world", jstr_text(s->world)); jset(o, "campaign", jstr_text(s->campaign)); jset(o, "save", jstr_text(s->save));
+    jset(o, "save_time", jstr_text(s->save_time)); jset(o, "unit", jstr_text(s->unit)); jset(o, "taken", jnum_i(s->taken));
+    jset(u, "source", o);
+    return 0;
+}
+int mu_source_of(const jv *lib, const char *id, mu_source *out) {
+    memset(out, 0, sizeof *out);
+    const jv *u = mu_find(lib, id); jv *o = u ? jget(u, "source") : NULL;
+    if (!o || o->t != JN_OBJ || !jstreq(jget(o, "kind"), "snapshot")) return 0;
+    raw_cpy(out->world, sizeof out->world, jget(o, "world")); raw_cpy(out->campaign, sizeof out->campaign, jget(o, "campaign"));
+    raw_cpy(out->save, sizeof out->save, jget(o, "save")); raw_cpy(out->save_time, sizeof out->save_time, jget(o, "save_time"));
+    raw_cpy(out->unit, sizeof out->unit, jget(o, "unit")); out->taken = (long long)jnumv(jget(o, "taken"));
+    for (char *p = out->world; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';   /* raw text: no escapes on screen */
+    return 1;
+}
 /* where a team came from (owner 2026-10-17: a gallery team shows its builder's name): teams[i].author = the builder's
    name as the wiki shows it, teams[i].gallery = the gallery item id. Optional members: other readers ignore them. */
 int mu_team_set_source(jv *lib, size_t i, const char *author, const char *gallery_id) {

@@ -1,4 +1,7 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d 個單位會保留：它也在另一支隊伍中。"
+ ],
  "%d SP": "%d SP",
  "%d main SP": "%d 主要 SP",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -91,6 +94,7 @@
  "Compact Plus": "緊凑+",
  "Complete only": "僅限完整構築",
  "Copies": "複製",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "依此存檔中的狀態，將勾選的單位複製到「我的單位」。你的存檔不會被更改。",
  "Copy a team or unit link on the wiki builder, or paste it here.": "請在維基構築器複製隊伍或單位連結，或直接貼在此處。",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "在維基的單位構築器中複製單位或隊伍連結，然後按此處：會從剪貼簿讀取。",
  "Could not add to My Units: %s": "無法新增至「我的單位」：%s",
@@ -98,6 +102,7 @@
  "Could not load this team. Try again later.": "無法載入此隊伍。請稍後再試。",
  "Could not read My Units: %s": "無法讀取「我的單位」：%s",
  "Could not save My Units: %s": "無法保存「我的單位」：%s",
+ "Could not save the snapshot: %s": "無法保存快照：%s",
  "Custom fight": "自訂戰鬥",
  "DPS Check": "DPS 測試",
  "Dagger": "匕首",
@@ -107,7 +112,7 @@
   "要從「我的單位」刪除 %d 個單位嗎？\n它們也會離開所屬隊伍。你的存檔不會被更改。"
  ],
  "Delete team": "刪除隊伍",
- "Delete this team?\nIts units stay in My Units.": "要刪除此隊伍嗎？\n其單位會留在「我的單位」中。",
+ "Delete the team \"%s\"?": "要刪除隊伍「%s」嗎？",
  "Deleted %d unit.||Deleted %d units.": [
   "已刪除 %d 個單位。"
  ],
@@ -126,6 +131,7 @@
  "Fire Staff": "火焰法杖",
  "Focus: %s": "聚焦：%s",
  "From Lv %d": "等級 %d 起",
+ "Game saves": "一般存檔",
  "Gear": "裝備",
  "Gear quick sets": "裝備快速套裝",
  "Getting the wiki's Test Fights files...": "正在取得維基的測試戰鬥檔案...",
@@ -161,6 +167,7 @@
  "Male": "男性",
  "Mana stones spent to reach it: %s": "達到該等級消耗的魔力石：%s",
  "Management": "管理",
+ "Modded saves": "模組存檔",
  "Most popular": "最熱門",
  "My Units": "我的單位",
  "My Units could not be read.": "無法讀取「我的單位」。",
@@ -176,6 +183,7 @@
  "No portraits for this race in the wiki's data yet.": "維基資料中還沒有這個種族的頭像。",
  "No public builds match these filters yet.": "目前沒有符合這些篩選條件的公開構築。",
  "No public builds match this search.": "沒有符合此搜尋的公開作品。",
+ "No saves found.": "找不到存檔。",
  "No units of your clan are stored in this save.": "此存檔中沒有你探險隊的單位。",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "尚無單位。請在維基中開啟單位構築器，複製單位或隊伍的連結，然後按「從維基連結新增」。",
  "No wiki link on the clipboard. Paste one below.": "剪貼簿中沒有維基連結。請在下方貼上。",
@@ -206,6 +214,7 @@
  "Race": "種族",
  "Races": "種族",
  "Randomize": "隨機",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "唯讀：這些單位在你的存檔中。勾選單位後按「保存快照」，即可將它們複製到「我的單位」。",
  "Reading the link...": "正在讀取連結...",
  "Remove": "移除",
  "Rename": "修改名稱",
@@ -213,9 +222,14 @@
  "Roll %zu": "詞條 %zu",
  "Save": "保存",
  "Save as team": "保存為隊伍",
+ "Save snapshot": "保存快照",
  "Save to My Units": "保存到「我的單位」",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "已將 %d 個單位保存為 %s。"
+ ],
+ "Saved %s": "保存於 %s",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "已將 %d 個單位的快照保存到「我的單位」。"
  ],
  "Saved to My Units.": "已保存到「我的單位」。",
  "Saved to My Units: %s": "已保存到「我的單位」：%s",
@@ -244,7 +258,16 @@
  "Sword": "劍",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "天賦總和：%d。新兵的總和在 %d 至 %d 之間。",
  "Team %zu": "第 %zu 隊",
+ "Team and units": "隊伍和單位",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "隊伍和單位：將刪除 %d 個單位。"
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "已刪除隊伍及 %d 個單位。"
+ ],
  "Team deleted. Its units stay in My Units.": "已刪除隊伍。其單位會留在「我的單位」中。",
+ "Team only": "僅隊伍",
+ "Team only: the units stay in My Units.": "僅隊伍：單位會留在「我的單位」中。",
  "Teams": "隊伍",
  "Test": "測試",
  "Test Fight": "測試戰鬥",
@@ -291,6 +314,7 @@
  "This short link was removed on the wiki.": "此短連結已在維基上移除。",
  "This team has no units.": "此隊伍沒有任何單位。",
  "This unit cannot be saved: %s": "無法保存此單位：%s",
+ "This unit cannot be shown.": "無法顯示此單位。",
  "This unit could not be read: %s": "無法讀取此單位：%s",
  "This unit is not in the save.": "此單位不在存檔中。",
  "This unit is not one of your clan's units in this save.": "此單位不是此存檔中你探險隊的單位。",
@@ -319,6 +343,7 @@
  "Whole units": "完整單位",
  "Wiki Build Gallery": "維基作品庫",
  "Working...": "處理中...",
+ "World units": "世界中的單位",
  "XP to reach level %d: %d": "達到 %d 級所需經驗：%d",
  "Your squad standing at a boss door, boss alive and never beaten.": "你的小隊站在首領門前，首領仍然存活，且從未被擊敗。",
  "a file from the wiki arrived incomplete": "維基的一個檔案不完整",
@@ -359,8 +384,10 @@
  "passive": "被動",
  "race %.*s is not in this game version": "種族 %.*s 不在此遊戲版本中",
  "race %s has no look (portraits) in this game build": "種族 %s 在此遊戲版本中沒有外觀（頭像）",
+ "save %s": "存檔 %s",
  "skill": "技能",
  "skill tree": "技能樹",
+ "snapshot %s": "快照 %s",
  "soul stone": "靈魂石",
  "talent tier out of range": "天賦階級超出範圍",
  "the Gallery did not answer (error %d)": "作品庫沒有回應（錯誤 %d）",

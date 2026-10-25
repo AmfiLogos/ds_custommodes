@@ -55,6 +55,13 @@ int  mu_delete(jv *lib, const char *id);
 /* "Save as team": a new team of these library ids (1..MU_TEAM_MAX, all present). 0 ok (tid_out filled), -1 + err */
 int  mu_team_new(jv *lib, const char *name, char ids[][17], int n, char tid_out[17], char *err, size_t errn);
 int  mu_team_delete(jv *lib, const char *tid);                       /* the units stay. 0 ok, -1 no such team */
+/* "Delete team" asks each time (owner 2026-10-25): "Team and units" or "Team only". go = the team's units that are in no
+   other team (they go with "Team and units"), *nstay = its units also in another team (they stay). Returns the number of
+   the team's units, -1 no such team. go may be NULL. */
+int  mu_team_split(const jv *lib, const char *tid, char go[][17], int *ngo, int *nstay);
+/* "Team and units": the team, then its units that are in no other team. *ngone (may be NULL) = units deleted.
+   0 ok, -1 no such team. Does NOT save. */
+int  mu_team_delete_units(jv *lib, const char *tid, int *ngone);
 int  mu_team_id_at(const jv *lib, size_t i, char out[17]);           /* 0 ok */
 /* a team from the Wiki Build Gallery: teams[i].author (the builder's name as the wiki shows it) and teams[i].gallery
    (the gallery item id), optional members. 0 ok, -1 no such team. Does NOT save. */
@@ -62,6 +69,14 @@ int  mu_team_set_source(jv *lib, size_t i, const char *author, const char *galle
 int  mu_team_author(const jv *lib, size_t i, char *out, size_t n);    /* 1 = the team has an author (out filled), 0 none */
 /* the team's icon: its first unit still in the library (portrait, race). 0 ok, -1 empty team */
 int  mu_team_lead(const jv *lib, size_t i, mu_info *out);
+
+/* where a unit came from: a snapshot of a unit in one of the player's worlds (owner 2026-10-25: "save a snapshot of chosen
+   units into regular my units, which can show time & save of snapshot"). units[i].source = {"kind": "snapshot", "world":
+   clan name, "campaign": world guid, "save": save name, "save_time": the save's time as the game wrote it, "unit": the
+   unit's guid in the save, "taken": unix ms}. An optional member: other readers ignore it. */
+typedef struct mu_source { char world[96], campaign[40], save[200], save_time[24], unit[40]; long long taken; } mu_source;
+int  mu_set_source(jv *lib, const char *id, const mu_source *s);     /* 0 ok, -1 no such unit. Does NOT save. */
+int  mu_source_of(const jv *lib, const char *id, mu_source *out);    /* 1 = the unit has a source (out filled), 0 none */
 
 /* a library unit as wk_build (wk_from_json, pvp_wiki.h) */
 int  mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t errn);

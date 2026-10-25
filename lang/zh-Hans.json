@@ -1,4 +1,7 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d 个单位会保留：它也在另一支队伍中。"
+ ],
  "%d SP": "%d 技能点",
  "%d main SP": "%d 主技能点",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -91,6 +94,7 @@
  "Compact Plus": "精简+",
  "Complete only": "仅限完整构筑",
  "Copies": "复制数",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "将勾选的单位按此存档中的状态复制到我的单位。你的存档不会改变。",
  "Copy a team or unit link on the wiki builder, or paste it here.": "请在维基构筑器中复制队伍或单位链接，或将其粘贴到此处。",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "请在维基的单位构筑器中复制单位或队伍链接，然后按此处：将从剪贴板读取。",
  "Could not add to My Units: %s": "无法添加到我的单位：%s",
@@ -98,6 +102,7 @@
  "Could not load this team. Try again later.": "无法加载此队伍。请稍后再试。",
  "Could not read My Units: %s": "无法读取我的单位：%s",
  "Could not save My Units: %s": "无法保存我的单位：%s",
+ "Could not save the snapshot: %s": "无法保存快照：%s",
  "Custom fight": "自定义战斗",
  "DPS Check": "DPS 测试",
  "Dagger": "匕首",
@@ -107,7 +112,7 @@
   "要从我的单位中删除 %d 个单位吗？它们也会退出其队伍。你的存档不会改变。"
  ],
  "Delete team": "删除队伍",
- "Delete this team?\nIts units stay in My Units.": "要删除此队伍吗？它的单位会保留在我的单位中。",
+ "Delete the team \"%s\"?": "要删除队伍“%s”吗？",
  "Deleted %d unit.||Deleted %d units.": [
   "已删除 %d 个单位。"
  ],
@@ -126,6 +131,7 @@
  "Fire Staff": "火焰法杖",
  "Focus: %s": "聚焦：%s",
  "From Lv %d": "等级 %d 起",
+ "Game saves": "普通存档",
  "Gear": "装备",
  "Gear quick sets": "装备快速套装",
  "Getting the wiki's Test Fights files...": "正在获取维基测试战斗文件……",
@@ -161,6 +167,7 @@
  "Male": "男性",
  "Mana stones spent to reach it: %s": "达到该等级消耗的魔力石：%s",
  "Management": "管理",
+ "Modded saves": "模组存档",
  "Most popular": "最受欢迎",
  "My Units": "我的单位",
  "My Units could not be read.": "无法读取我的单位。",
@@ -176,6 +183,7 @@
  "No portraits for this race in the wiki's data yet.": "维基数据中还没有这个种族的头像。",
  "No public builds match these filters yet.": "目前没有符合这些筛选条件的公开构筑。",
  "No public builds match this search.": "没有符合此搜索的公开作品。",
+ "No saves found.": "没有找到存档。",
  "No units of your clan are stored in this save.": "此存档中没有存放你团队的单位。",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "还没有单位。请在维基中打开单位构筑器，复制单位或队伍的链接，然后按下“从维基链接添加”。",
  "No wiki link on the clipboard. Paste one below.": "剪贴板中没有维基链接。请在下方粘贴一个。",
@@ -206,6 +214,7 @@
  "Race": "种族",
  "Races": "种族",
  "Randomize": "随机",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "只读：这些单位在你的存档中。勾选单位后按“保存快照”，即可将其复制到我的单位。",
  "Reading the link...": "正在读取链接……",
  "Remove": "移除",
  "Rename": "重命名",
@@ -213,9 +222,14 @@
  "Roll %zu": "随机词条 %zu",
  "Save": "保存",
  "Save as team": "保存为队伍",
+ "Save snapshot": "保存快照",
  "Save to My Units": "保存到我的单位",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "已将 %d 个单位保存为 %s。"
+ ],
+ "Saved %s": "保存于 %s",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "已将 %d 个单位的快照保存到我的单位。"
  ],
  "Saved to My Units.": "已保存到我的单位。",
  "Saved to My Units: %s": "已保存到我的单位：%s",
@@ -244,7 +258,16 @@
  "Sword": "剑",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "天赋总和：%d。新兵的总和在 %d 至 %d 之间。",
  "Team %zu": "队伍 %zu",
+ "Team and units": "队伍和单位",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "队伍和单位：将删除 %d 个单位。"
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "已删除队伍及 %d 个单位。"
+ ],
  "Team deleted. Its units stay in My Units.": "队伍已删除。其单位保留在我的单位中。",
+ "Team only": "仅队伍",
+ "Team only: the units stay in My Units.": "仅队伍：单位保留在我的单位中。",
  "Teams": "队伍",
  "Test": "测试",
  "Test Fight": "测试战斗",
@@ -291,6 +314,7 @@
  "This short link was removed on the wiki.": "此短链接已在维基上被移除。",
  "This team has no units.": "此队伍没有单位。",
  "This unit cannot be saved: %s": "无法保存此单位：%s",
+ "This unit cannot be shown.": "无法显示此单位。",
  "This unit could not be read: %s": "无法读取此单位：%s",
  "This unit is not in the save.": "此单位不在存档中。",
  "This unit is not one of your clan's units in this save.": "此单位不是此存档中你团队的单位。",
@@ -319,6 +343,7 @@
  "Whole units": "完整单位",
  "Wiki Build Gallery": "维基作品库",
  "Working...": "正在处理……",
+ "World units": "世界中的单位",
  "XP to reach level %d: %d": "达到 %d 级所需经验：%d",
  "Your squad standing at a boss door, boss alive and never beaten.": "你的小队站在首领门前，首领仍然存活，且从未被击败。",
  "a file from the wiki arrived incomplete": "维基的一个文件下载不完整",
@@ -359,8 +384,10 @@
  "passive": "被动",
  "race %.*s is not in this game version": "种族 %.*s 不在此游戏版本中",
  "race %s has no look (portraits) in this game build": "种族 %s 在此游戏版本中没有外观（头像）",
+ "save %s": "存档 %s",
  "skill": "技能",
  "skill tree": "技能树",
+ "snapshot %s": "快照 %s",
  "soul stone": "灵魂石",
  "talent tier out of range": "天赋层级超出范围",
  "the Gallery did not answer (error %d)": "作品库未响应（错误 %d）",

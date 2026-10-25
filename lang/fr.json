@@ -1,4 +1,8 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d unité reste : elle est aussi dans une autre équipe.",
+  " %d unités restent : elles sont aussi dans une autre équipe."
+ ],
  "%d SP": "%d SP",
  "%d main SP": "%d SP principaux",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -99,6 +103,7 @@
  "Compact Plus": "Compact+",
  "Complete only": "Complètes uniquement",
  "Copies": "Copies",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "Les unités cochées sont copiées dans Mes unités telles qu'elles sont dans cette sauvegarde. Votre sauvegarde n'est pas modifiée.",
  "Copy a team or unit link on the wiki builder, or paste it here.": "Copiez un lien d'équipe ou d'unité dans le Créateur d'unités du wiki, ou collez-le ici.",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "Copiez un lien d'unité ou d'équipe dans le Créateur d'unités du wiki, puis cliquez ici : il est lu depuis le presse-papiers.",
  "Could not add to My Units: %s": "Impossible d'ajouter à Mes unités : %s",
@@ -106,6 +111,7 @@
  "Could not load this team. Try again later.": "Impossible de charger cette équipe. Réessayez plus tard.",
  "Could not read My Units: %s": "Impossible de lire Mes unités : %s",
  "Could not save My Units: %s": "Impossible de sauvegarder Mes unités : %s",
+ "Could not save the snapshot: %s": "Impossible de sauvegarder l'instantané : %s",
  "Custom fight": "Combat personnalisé",
  "DPS Check": "Test de DPS",
  "Dagger": "Dague",
@@ -116,7 +122,7 @@
   "Supprimer %d unités de Mes unités ?\nElles quittent aussi leurs équipes. Vos sauvegardes ne sont pas modifiées."
  ],
  "Delete team": "Supprimer l'équipe",
- "Delete this team?\nIts units stay in My Units.": "Supprimer cette équipe ?\nSes unités restent dans Mes unités.",
+ "Delete the team \"%s\"?": "Supprimer l'équipe « %s » ?",
  "Deleted %d unit.||Deleted %d units.": [
   "%d unité supprimée.",
   "%d unités supprimées."
@@ -136,6 +142,7 @@
  "Fire Staff": "Bâton de magie du feu",
  "Focus: %s": "Focus : %s",
  "From Lv %d": "Dès le niv. %d",
+ "Game saves": "Sauvegardes normales",
  "Gear": "Équipement",
  "Gear quick sets": "Ensembles rapides d'équipement",
  "Getting the wiki's Test Fights files...": "Téléchargement des fichiers Combats d'essai du wiki...",
@@ -171,6 +178,7 @@
  "Male": "Homme",
  "Mana stones spent to reach it: %s": "Pierres de mana dépensées pour l'atteindre : %s",
  "Management": "Gestion",
+ "Modded saves": "Sauvegardes avec mod",
  "Most popular": "Les plus populaires",
  "My Units": "Mes unités",
  "My Units could not be read.": "Impossible de lire Mes unités.",
@@ -186,6 +194,7 @@
  "No portraits for this race in the wiki's data yet.": "Pas encore de portraits pour cette race dans les données du wiki.",
  "No public builds match these filters yet.": "Aucun build public ne correspond à ces filtres pour l'instant.",
  "No public builds match this search.": "Aucun build public ne correspond à cette recherche.",
+ "No saves found.": "Aucune sauvegarde trouvée.",
  "No units of your clan are stored in this save.": "Aucune unité de votre clan n'est stockée dans cette sauvegarde.",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "Aucune unité pour l'instant. Sur le wiki, ouvrez le Créateur d'unités, copiez le lien d'une unité ou d'une équipe, puis cliquez sur « Ajouter depuis un lien wiki ».",
  "No wiki link on the clipboard. Paste one below.": "Aucun lien wiki dans le presse-papiers. Collez-en un ci-dessous.",
@@ -216,6 +225,7 @@
  "Race": "Race",
  "Races": "Races",
  "Randomize": "Aléatoire",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "Lecture seule : ces unités sont dans votre sauvegarde. Cochez des unités, puis cliquez sur « Sauvegarder l'instantané » pour les copier dans Mes unités.",
  "Reading the link...": "Lecture du lien...",
  "Remove": "Retirer",
  "Rename": "Renommer",
@@ -223,10 +233,16 @@
  "Roll %zu": "Jet %zu",
  "Save": "Sauvegarder",
  "Save as team": "Sauvegarder comme équipe",
+ "Save snapshot": "Sauvegarder l'instantané",
  "Save to My Units": "Sauvegarder",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "%d unité sauvegardée sous le nom %s.",
   "%d unités sauvegardées sous le nom %s."
+ ],
+ "Saved %s": "Sauvegardé le %s",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "Instantané de %d unité sauvegardé dans Mes unités.",
+  "Instantané de %d unités sauvegardé dans Mes unités."
  ],
  "Saved to My Units.": "Sauvegardé dans Mes unités.",
  "Saved to My Units: %s": "Sauvegardé dans Mes unités : %s",
@@ -255,7 +271,18 @@
  "Sword": "Épée",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "Somme des talents : %d. Une recrue tire une somme de %d à %d.",
  "Team %zu": "Équipe %zu",
+ "Team and units": "Équipe et unités",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "Équipe et unités : %d unité supprimée.",
+  "Équipe et unités : %d unités supprimées."
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "Équipe supprimée avec %d unité.",
+  "Équipe supprimée avec %d unités."
+ ],
  "Team deleted. Its units stay in My Units.": "Équipe supprimée. Ses unités restent dans Mes unités.",
+ "Team only": "Équipe seule",
+ "Team only: the units stay in My Units.": "Équipe seule : les unités restent dans Mes unités.",
  "Teams": "Équipes",
  "Test": "Test",
  "Test Fight": "Combat d'essai",
@@ -302,6 +329,7 @@
  "This short link was removed on the wiki.": "Ce lien court a été retiré du wiki.",
  "This team has no units.": "Cette équipe n'a aucune unité.",
  "This unit cannot be saved: %s": "Cette unité ne peut pas être sauvegardée : %s",
+ "This unit cannot be shown.": "Cette unité ne peut pas être affichée.",
  "This unit could not be read: %s": "Cette unité n'a pas pu être lue : %s",
  "This unit is not in the save.": "Cette unité n'est pas dans la sauvegarde.",
  "This unit is not one of your clan's units in this save.": "Cette unité n'est pas une de vos unités de clan dans cette sauvegarde.",
@@ -330,6 +358,7 @@
  "Whole units": "Unités complètes",
  "Wiki Build Gallery": "Galerie de builds du wiki",
  "Working...": "En cours...",
+ "World units": "Unités des mondes",
  "XP to reach level %d: %d": "XP pour atteindre le niveau %d : %d",
  "Your squad standing at a boss door, boss alive and never beaten.": "Votre escouade devant la porte d'un chef encore vivant et jamais vaincu.",
  "a file from the wiki arrived incomplete": "un fichier du wiki est arrivé incomplet",
@@ -370,8 +399,10 @@
  "passive": "passive",
  "race %.*s is not in this game version": "la race %.*s n'existe pas dans cette version du jeu",
  "race %s has no look (portraits) in this game build": "la race %s n'a pas d'apparence (portraits) dans ce build du jeu",
+ "save %s": "sauvegarde %s",
  "skill": "compétence",
  "skill tree": "arbre de compétences",
+ "snapshot %s": "instantané %s",
  "soul stone": "pierre d'âme",
  "talent tier out of range": "rang de talent hors limites",
  "the Gallery did not answer (error %d)": "la Galerie n'a pas répondu (erreur %d)",

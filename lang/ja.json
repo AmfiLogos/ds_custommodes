@@ -1,4 +1,7 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d体のユニットは、別のチームにも入っているため残ります。"
+ ],
  "%d SP": "SP %d",
  "%d main SP": "メインSP %d",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -91,6 +94,7 @@
  "Compact Plus": "コンパクト+",
  "Complete only": "完成済みのみ",
  "Copies": "コピー",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "チェックしたユニットを、このセーブの状態のままマイユニットにコピーします。セーブは変更されません。",
  "Copy a team or unit link on the wiki builder, or paste it here.": "Wikiビルダーでユニットかチームのリンクをコピーするか、ここに貼り付けてください。",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "Wikiのユニットビルダーでユニットかチームのリンクをコピーしてから、ここを押してください。クリップボードから読み取られます。",
  "Could not add to My Units: %s": "マイユニットに追加できませんでした：%s",
@@ -98,6 +102,7 @@
  "Could not load this team. Try again later.": "このチームを読み込めませんでした。後でもう一度お試しください。",
  "Could not read My Units: %s": "マイユニットを読み取れませんでした：%s",
  "Could not save My Units: %s": "マイユニットを保存できませんでした：%s",
+ "Could not save the snapshot: %s": "スナップショットを保存できませんでした：%s",
  "Custom fight": "カスタム戦闘",
  "DPS Check": "DPSチェック",
  "Dagger": "短剣",
@@ -107,7 +112,7 @@
   "マイユニットから%d体のユニットを削除しますか？\nチームからも外れます。セーブは変更されません。"
  ],
  "Delete team": "チームを削除",
- "Delete this team?\nIts units stay in My Units.": "このチームを削除しますか？\nそのユニットはマイユニットに残ります。",
+ "Delete the team \"%s\"?": "チーム「%s」を削除しますか？",
  "Deleted %d unit.||Deleted %d units.": [
   "%d体のユニットを削除しました。"
  ],
@@ -126,6 +131,7 @@
  "Fire Staff": "炎の杖",
  "Focus: %s": "フォーカス：%s",
  "From Lv %d": "Lv %d から",
+ "Game saves": "通常のセーブ",
  "Gear": "装備",
  "Gear quick sets": "装備クイックセット",
  "Getting the wiki's Test Fights files...": "Wikiのテスト戦闘ファイルを取得中...",
@@ -161,6 +167,7 @@
  "Male": "男性",
  "Mana stones spent to reach it: %s": "到達までに使うマナストーン：%s",
  "Management": "管理",
+ "Modded saves": "MODのセーブ",
  "Most popular": "人気順",
  "My Units": "マイユニット",
  "My Units could not be read.": "マイユニットを読み取れませんでした。",
@@ -176,6 +183,7 @@
  "No portraits for this race in the wiki's data yet.": "Wikiのデータにはこの種族の肖像画がまだありません。",
  "No public builds match these filters yet.": "この条件に一致する公開ビルドはまだありません。",
  "No public builds match this search.": "この検索に合う公開ビルドはありません。",
+ "No saves found.": "セーブが見つかりません。",
  "No units of your clan are stored in this save.": "このセーブには、あなたのクランのユニットは保存されていません。",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "ユニットがまだありません。Wikiでユニットビルダーを開き、ユニットかチームのリンクをコピーしてから、「Wikiリンクから追加」を押してください。",
  "No wiki link on the clipboard. Paste one below.": "クリップボードにWikiリンクがありません。下に貼り付けてください。",
@@ -206,6 +214,7 @@
  "Race": "種族",
  "Races": "種族",
  "Randomize": "ランダム",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "読み取り専用：これらのユニットはこのセーブにあります。ユニットにチェックを入れて「スナップショットを保存」を押すと、マイユニットにコピーされます。",
  "Reading the link...": "リンクを読み取り中...",
  "Remove": "削除",
  "Rename": "名前変更",
@@ -213,9 +222,14 @@
  "Roll %zu": "ロール %zu",
  "Save": "保存",
  "Save as team": "チームとして保存",
+ "Save snapshot": "スナップショットを保存",
  "Save to My Units": "マイユニットに保存",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "%d体のユニットを%sとして保存しました。"
+ ],
+ "Saved %s": "%s に保存",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "%d体のユニットのスナップショットをマイユニットに保存しました。"
  ],
  "Saved to My Units.": "マイユニットに保存しました。",
  "Saved to My Units: %s": "マイユニットに保存しました：%s",
@@ -244,7 +258,16 @@
  "Sword": "剣",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "才能の合計：%d。新兵の合計は%d～%dになります。",
  "Team %zu": "チーム %zu",
+ "Team and units": "チームとユニット",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "チームとユニット：%d体が削除されます。"
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "チームを%d体のユニットとともに削除しました。"
+ ],
  "Team deleted. Its units stay in My Units.": "チームを削除しました。ユニットはマイユニットに残ります。",
+ "Team only": "チームのみ",
+ "Team only: the units stay in My Units.": "チームのみ：ユニットはマイユニットに残ります。",
  "Teams": "チーム",
  "Test": "テスト",
  "Test Fight": "テスト戦闘",
@@ -291,6 +314,7 @@
  "This short link was removed on the wiki.": "この短いリンクはWikiで削除されました。",
  "This team has no units.": "このチームにはユニットがありません。",
  "This unit cannot be saved: %s": "このユニットは保存できません：%s",
+ "This unit cannot be shown.": "このユニットは表示できません。",
  "This unit could not be read: %s": "このユニットを読み込めませんでした：%s",
  "This unit is not in the save.": "このユニットはセーブにありません。",
  "This unit is not one of your clan's units in this save.": "このユニットは、このセーブにあるあなたのクランのユニットではありません。",
@@ -319,6 +343,7 @@
  "Whole units": "ユニット全体",
  "Wiki Build Gallery": "Wikiビルドギャラリー",
  "Working...": "処理中...",
+ "World units": "ワールドのユニット",
  "XP to reach level %d: %d": "レベル%dまでの経験値：%d",
  "Your squad standing at a boss door, boss alive and never beaten.": "ボスの扉の前に立つ部隊。ボスは生存しており、一度も倒されていません。",
  "a file from the wiki arrived incomplete": "Wikiからのファイルが不完全な状態で届きました",
@@ -359,8 +384,10 @@
  "passive": "パッシブ",
  "race %.*s is not in this game version": "種族 %.*sはこのゲームバージョンにありません",
  "race %s has no look (portraits) in this game build": "種族 %s には、このゲームビルドで見た目（ポートレート）がありません",
+ "save %s": "セーブ %s",
  "skill": "スキル",
  "skill tree": "スキルツリー",
+ "snapshot %s": "スナップショット %s",
  "soul stone": "魂石",
  "talent tier out of range": "才能の段階が範囲外です",
  "the Gallery did not answer (error %d)": "ギャラリーから応答がありませんでした（エラー %d）",

@@ -53,3 +53,20 @@
   The page buttons get the stock column's 22 (cm_look_title_button); a label too long for 262 still shrinks (kit text fit).
 - Test: home/test/look_test.py (one hidden copy; the game's own Options window and title column are the reference).
 
+
+## My Units: team delete box, World units, snapshot (2026-10-25, 0.1.15)
+- Owner: Delete team "Ask each time"; "My save / world units" so he can test things with his units; "save a snapshot of
+  chosen units into regular my units, which can show time & save of snapshot". Design picks: PLAN_v013.md (ds_multiplayer,
+  2026-10-25 lane dsunits).
+- Delete team: a box inside the My Units window (the game's notice box has two buttons): Team and units / Team only /
+  Cancel, with the number of units that go (myunits.c mu_team_split, mu_team_delete_units: a unit also in another team
+  stays).
+- units/mu_worlds.c: the worlds Load Campaign lists (DSML_GAME_SAVES = game saves, the modded game's Saves folder), one
+  row per (folder, campaign guid), the newest file; the CampaignSaveHeader is cut out of the file text and parsed alone.
+  Our hub / PvP worlds, multiplayer temp saves and Test Fights worlds are never listed. A world's units are the
+  Bring Units save reader's (mu_save.c), read only. Saves are only read.
+- Snapshot: mu_snapshot -> a normal library unit + units[i].source (myunits.h mu_source); the card shows
+  "<world> · save <time> · snapshot <time>" on a line under it.
+- Tests: units/test mu_test (t_team_delete), units/test/save/run.sh (save_test worlds: newest save listed, filters,
+  snapshot = the save's unit, save unchanged), units/test/worlds_test.py (one hidden copy, test library DSMP_UNITS_LIB,
+  game saves = a folder with a copy of a real save; the owner's library checked unchanged).

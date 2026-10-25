@@ -9,15 +9,20 @@ mkdir -p $T $H/old
 mkdir -p $T/run
 nice -n 19 cc -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fsanitize=address,undefined \
   -I $C/units -I $C -I $C/fe -o $T/save_test $H/save_test.c \
-  $C/units/{mu_save.c,pvp_wiki.c,pvp_build.c,mu_card.c} $C/fe/{fe_json.c,fe_save.c} $C/units/test/dsi_impl.c -lz -lm
+  $C/units/{mu_save.c,mu_worlds.c,myunits.c,pvp_wiki.c,pvp_build.c,mu_card.c} $C/fe/{fe_json.c,fe_save.c} $C/units/test/dsi_impl.c -lz -lm
 export ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 B=~/DungeonSettlers_SaveBackups/2026-10-11-1827/Saves
 I=~/ds_multiplayer/instances/A/data/Saves
 st=0
-$T/save_test list $B/*.json $I/WikiGolem__*.json $I/MoonlightBrigade__AutoSave_fe5ea00005a54b06a374b2810b9a732d_0.json \
-  $I/MoonlightNormal__*.json $I/MPFE_0c0c23a7.json > $T/run/list.txt || st=1
+# the rig copies' test saves come and go: the ones present (the save backup's are always there)
+SAVES=($B/*.json(N) $I/WikiGolem__*.json(N) $I/MoonlightBrigade__AutoSave_fe5ea00005a54b06a374b2810b9a732d_0.json(N) \
+  $I/MoonlightNormal__*.json(N) $I/MPFE_0c0c23a7.json(N))
+echo "${#SAVES} real saves"
+$T/save_test list $SAVES > $T/run/list.txt || st=1
+# World units + snapshot (a copy of a real save; the library is a test file under tmp/run)
+$T/save_test worlds $T/run/worlds $B/ElvenExpedition__AutoSave_f816ebc6195c432c9fff754b75ee3738_0.json > $T/run/worlds.txt || st=1
 # the builder's own import of each real save vs the reader
-for f in $B/*.json $I/WikiGolem__*.json $I/MoonlightBrigade__AutoSave_fe5ea00005a54b06a374b2810b9a732d_0.json $I/MoonlightNormal__*.json $I/MPFE_0c0c23a7.json; do
+for f in $SAVES; do
   k=${${f:t}%.json}
   node $H/builder_import.js $f > $T/run/ref_$k.jsonl
   $T/save_test ref $f $T/run/ref_$k.jsonl > $T/run/refout_$k.txt || st=1

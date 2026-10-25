@@ -3,8 +3,15 @@
  *   save_test rt BUILDS.jsonl TMPDIR  round trip: builder build -> wk_from_json -> pb_entry (the save writer) -> a save
  *                                     file holding all those units -> mu_save_units / mu_save_build_ex -> same unit?
  *   save_test ref SAVE REF.jsonl      the wiki builder's own save import (builder_import.js) of SAVE == this reader
+ *   save_test worlds TMPDIR SAVE      My Units "World units" (mu_worlds.c): a world's NEWEST save is the one listed (a
+ *                                     snapshot of an older save would be wrong), our own worlds / temp saves / test worlds
+ *                                     never listed, game + modded folders apart; a snapshot of units of a real save (a copy)
+ *                                     read back from the library file = the save's units, with their source; the save
+ *                                     file's bytes unchanged
  * Exit 1 on any FAIL. */
 #include "mu_save.h"
+#include "mu_worlds.h"
+#include "myunits.h"
 #include "mu_card.h"
 #include "pvp_build.h"
 #include "pvp_wiki_tables.h"
@@ -15,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <utime.h>
+#include <sys/stat.h>
 
 static int pass, failc;
 #define CHECK(c, ...) do { if (c) pass++; else { failc++; printf("FAIL %s:%d ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
@@ -216,10 +225,91 @@ static void ref_save(const char *save, const char *ref) {
     printf("== builder import vs reader, %s: %d units, %d identical (after %d portrait + %d acquired-trait differences, by design)\n", bn ? bn + 1 : save, n, same, port, acq);
 }
 
+/* ---- World units + snapshot */
+static void put_save(const char *dir, const char *name, const char *guid, const char *clan, const char *when, long long mt) {
+    char p[1200]; snprintf(p, sizeof p, "%s/%s.json", dir, name);
+    FILE *f = fopen(p, "wb"); if (!f) { CHECK(0, "write %s", p); return; }
+    /* the game's layout: entity data first, the header in the middle */
+    fprintf(f, "{\n  \"EntityContainerSaveData\": {\"UnitContainerSaveData\": {}},\n  \"Note\": \"a \\\"CampaignSaveHeader\\\" text in a string\",\n");
+    if (guid) fprintf(f, "  \"CampaignSaveHeader\": {\"CampaignGuid\": \"%s\", \"ClanName\": \"%s\", \"SaveName\": \"%s\", \"SaveTime\": \"%s\", \"Nested\": {\"a\": \"}\"}},\n", guid, clan, name, when);
+    fprintf(f, "  \"EntityComponentSaveData\": {\"EntityComponents\": {}}\n}\n");
+    fclose(f);
+    struct utimbuf u = { (time_t)mt, (time_t)mt }; utime(p, &u);
+}
+static int skip_test(const char *guid, const char *save) { (void)save; return !strcmp(guid, "55555555555555555555555555555555"); }
+static unsigned char *bytes(const char *p, size_t *n) {
+    FILE *f = fopen(p, "rb"); if (!f) return NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET);
+    unsigned char *b = malloc((size_t)L + 1); *n = fread(b, 1, (size_t)L, f); fclose(f); return b;
+}
+static void worlds(const char *tmp, const char *real) {
+    char g[1100], m[1100]; snprintf(g, sizeof g, "%s/w/game", tmp); snprintf(m, sizeof m, "%s/w/mod", tmp);
+    char w0[1100]; snprintf(w0, sizeof w0, "%s/w", tmp); mkdir(tmp, 0755); mkdir(w0, 0755); mkdir(g, 0755); mkdir(m, 0755);
+    long long T = (long long)time(NULL) - 1000;
+    const char *G1 = "11111111222233334444555555555555", *G1D = "11111111-2222-3333-4444-555555555555";
+    put_save(g, "ClanA__AutoSave_11111111222233334444555555555555_0", G1D, "Clan A", "2026-10-20 10:00:00", T - 100);
+    put_save(g, "ClanA__AutoSave_11111111222233334444555555555555_1", G1D, "Clan A", "2026-10-21 11:00:00", T);
+    put_save(g, "My own save", "22222222-2222-2222-2222-222222222222", "Clan B", "2026-10-19 09:30:00", T - 50);
+    put_save(g, "mp_sync", "33333333333333333333333333333333", "Temp", "2026-10-22 00:00:00", T + 10);
+    put_save(g, "ForeignExpeditionHub__AutoSave_fe5ea00094e9478e909cfb74cbcad20e_0", "fe5ea000-94e9-478e-909c-fb74cbcad20e", "Hub", "2026-10-22 00:00:00", T + 10);
+    put_save(g, "Hub copy", "fe5eb000-94e9-478e-909c-fb74cbcad20e", "Hub", "2026-10-22 00:00:00", T + 10);  /* our world, no guid in the name */
+    put_save(g, "SaveHeaderCache", "44444444444444444444444444444444", "Cache", "2026-10-22 00:00:00", T + 10);
+    put_save(g, "Broken__AutoSave_66666666666666666666666666666666_0", NULL, NULL, NULL, T + 20);       /* no header */
+    put_save(m, "PvPBase__AutoSave_b45e0553a2054c6a9fe3bb03fc5d2094_0", "b45e0553-a205-4c6a-9fe3-bb03fc5d2094", "PvP", "2026-10-22 00:00:00", T + 10);
+    put_save(m, "ClanA__AutoSave_11111111222233334444555555555555_0", G1D, "Clan A", "2026-10-18 08:00:00", T - 200);
+    put_save(m, "TeamX_DPS Check_Normal__AutoSave_55555555555555555555555555555555_0", "55555555-5555-5555-5555-555555555555", "Test", "2026-10-22 00:00:00", T + 30);
+    const char *dirs[2] = { g, m };
+    mu_world w[16]; int n = mu_worlds_list(dirs, 2, w, 16, skip_test);
+    for (int i = 0; i < n; i++) printf("  world %d: group %d %s | %s | %s | %s\n", i, w[i].group, w[i].name, w[i].save, w[i].guid, w[i].when);
+    CHECK(n == 3, "worlds: 3 listed (got %d): our hub / PvP worlds, temp saves, the header cache, a test world and a file with no header left out", n);
+    if (n == 3) {
+        CHECK(w[0].group == 0 && !strcmp(w[0].name, "Clan A") && strstr(w[0].save, "_1") && !strcmp(w[0].when, "2026-10-21 11:00") && !strcmp(w[0].guid, G1),
+              "worlds: the game world's NEWEST save is listed (%s, %s)", w[0].save, w[0].when);
+        CHECK(w[1].group == 0 && !strcmp(w[1].name, "Clan B") && !strcmp(w[1].save, "My own save"), "worlds: a save with any name is found by its header (%s)", w[1].name);
+        CHECK(w[2].group == 1 && !strcmp(w[2].name, "Clan A") && !strcmp(w[2].when, "2026-10-18 08:00"), "worlds: the same world in the modded folder is its own row (%d %s)", w[2].group, w[2].when);
+    }
+    /* snapshot of a real save (a copy) */
+    char sd[1100], sp[1300], lp[1300], e[400]; snprintf(sd, sizeof sd, "%s/w/snap", tmp); mkdir(sd, 0755);
+    const char *bn = strrchr(real, '/'); bn = bn ? bn + 1 : real;
+    snprintf(sp, sizeof sp, "%s/%s", sd, bn);
+    size_t n0 = 0, n1 = 0; unsigned char *b0 = bytes(real, &n0);
+    CHECK(b0 != NULL, "snapshot: read %s", real); if (!b0) return;
+    { FILE *f = fopen(sp, "wb"); fwrite(b0, 1, n0, f); fclose(f); }
+    const char *sdirs[1] = { sd };
+    mu_world sw; int ns = mu_worlds_list(sdirs, 1, &sw, 1, NULL);
+    CHECK(ns == 1, "snapshot: the real save is one world (%d)", ns); if (ns != 1) { free(b0); return; }
+    printf("  real world: %s | %s | %s\n", sw.name, sw.when, sw.guid);
+    static mu_save_unit U[256]; int nu = mu_save_units(sp, U, 256, e, sizeof e);
+    CHECK(nu >= 2, "snapshot: the save has 2+ units (%d) %s", nu, e); if (nu < 2) { free(b0); return; }
+    snprintf(lp, sizeof lp, "%s/w/library.json", tmp); setenv("DSMP_UNITS_LIB", lp, 1);
+    jv *lib = mu_load(e, sizeof e); if (!lib) { CHECK(0, "snapshot: library: %s", e); free(b0); return; }
+    int pick[2] = { 0, nu - 1 }; char ids[2][17];
+    for (int k = 0; k < 2; k++) CHECK(!mu_snapshot(lib, &sw, U[pick[k]].guid, k ? NULL : "Snap One", ids[k], e, sizeof e), "snapshot of %s: %s", U[pick[k]].guid, e);
+    CHECK(!mu_save(lib, e, sizeof e), "snapshot: library saved: %s", e);
+    jfree(lib); lib = mu_load(e, sizeof e); if (!lib) { CHECK(0, "snapshot: reload: %s", e); free(b0); return; }
+    CHECK(mu_count(lib) == 2, "snapshot: 2 units in the library file (%zu)", mu_count(lib));
+    for (int k = 0; k < 2; k++) {
+        wk_build a, b; mu_source s;
+        int ra = mu_save_build(sp, U[pick[k]].guid, &a, e, sizeof e), rb = mu_build_of(lib, ids[k], &b, e, sizeof e);
+        CHECK(!ra && !rb, "snapshot %d: builds (%s)", k, e); if (ra || rb) continue;
+        if (k == 0) CHECK(!strcmp(b.name, "Snap One"), "snapshot 0: the given name (%s)", b.name);
+        a.name[0] = b.name[0] = 0;
+        CHECK(wk_hash(&a, 1) == wk_hash(&b, 1), "snapshot %d: the library unit = the save's unit (race %d/%d lvl %d/%d learned %d/%d)", k, a.race, b.race, a.lvl, b.lvl, a.nlearned, b.nlearned);
+        CHECK(mu_source_of(lib, ids[k], &s) && !strcmp(s.world, sw.name) && !strcmp(s.campaign, sw.guid) && !strcmp(s.save, sw.save)
+              && !strcmp(s.save_time, sw.when) && !strcmp(s.unit, U[pick[k]].guid) && s.taken > 0, "snapshot %d: source (%s / %s / %s / %s)", k, s.world, s.save, s.save_time, s.unit);
+        char line[400]; mu_source_line(&s, line, sizeof line);
+        CHECK(strstr(line, sw.name) && strstr(line, sw.when), "snapshot %d: card line \"%s\"", k, line);
+    }
+    jfree(lib);
+    unsigned char *b1 = bytes(sp, &n1);
+    CHECK(b1 && n1 == n0 && !memcmp(b0, b1, n0), "snapshot: the save file is unchanged");
+    free(b0); free(b1);
+}
+
 int main(int argc, char **argv) {
     if (argc >= 3 && !strcmp(argv[1], "list")) for (int i = 2; i < argc; i++) list_save(argv[i]);
     else if (argc >= 4 && !strcmp(argv[1], "rt")) round_trip(argv[2], argv[3]);
     else if (argc >= 4 && !strcmp(argv[1], "ref")) ref_save(argv[2], argv[3]);
+    else if (argc >= 4 && !strcmp(argv[1], "worlds")) worlds(argv[2], argv[3]);
     else { fprintf(stderr, "usage: save_test list SAVE... | save_test rt BUILDS.jsonl TMPDIR\n"); return 2; }
     mu_save_cache_clear();
     printf("%d passed, %d failed\n", pass, failc);

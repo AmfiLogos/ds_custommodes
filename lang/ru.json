@@ -1,4 +1,9 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d юнит остаётся: он также состоит в другой команде.",
+  " %d юнита остаются: они также состоят в другой команде.",
+  " %d юнитов остаются: они также состоят в другой команде."
+ ],
  "%d SP": "%d SP",
  "%d main SP": "основные SP: %d",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -107,6 +112,7 @@
  "Compact Plus": "Компактный+",
  "Complete only": "Только завершённые",
  "Copies": "Копии",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "Отмеченные юниты копируются в «Мои юниты» в таком виде, как они есть в этом сохранении. Ваше сохранение не меняется.",
  "Copy a team or unit link on the wiki builder, or paste it here.": "Скопируйте ссылку на команду или юнита в конструкторе вики или вставьте её здесь.",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "Скопируйте ссылку на юнита или команду в Конструкторе юнитов вики, затем нажмите здесь: ссылка будет прочитана из буфера обмена.",
  "Could not add to My Units: %s": "Не удалось добавить в «Мои юниты»: %s",
@@ -114,6 +120,7 @@
  "Could not load this team. Try again later.": "Не удалось загрузить эту команду. Попробуйте позже.",
  "Could not read My Units: %s": "Не удалось прочитать «Мои юниты»: %s",
  "Could not save My Units: %s": "Не удалось сохранить «Мои юниты»: %s",
+ "Could not save the snapshot: %s": "Не удалось сохранить снимок: %s",
  "Custom fight": "Особый бой",
  "DPS Check": "Проверка DPS",
  "Dagger": "Кинжал",
@@ -125,7 +132,7 @@
   "Удалить %d юнитов из «Моих юнитов»?\nОни также выходят из своих команд. Ваши сохранения не меняются."
  ],
  "Delete team": "Удалить команду",
- "Delete this team?\nIts units stay in My Units.": "Удалить эту команду?\nЕё юниты останутся в «Моих юнитах».",
+ "Delete the team \"%s\"?": "Удалить команду «%s»?",
  "Deleted %d unit.||Deleted %d units.": [
   "Удалён %d юнит.",
   "Удалено %d юнита.",
@@ -146,6 +153,7 @@
  "Fire Staff": "Посох огня",
  "Focus: %s": "Фокус: %s",
  "From Lv %d": "С ур. %d",
+ "Game saves": "Обычные сохранения",
  "Gear": "Снаряжение",
  "Gear quick sets": "Быстрые наборы снаряжения",
  "Getting the wiki's Test Fights files...": "Загрузка файлов «Тестовых боёв» с вики...",
@@ -181,6 +189,7 @@
  "Male": "Мужской",
  "Mana stones spent to reach it: %s": "Камней маны потрачено до него: %s",
  "Management": "Управление",
+ "Modded saves": "Сохранения с модами",
  "Most popular": "Популярные",
  "My Units": "Мои юниты",
  "My Units could not be read.": "Не удалось прочитать «Мои юниты».",
@@ -196,6 +205,7 @@
  "No portraits for this race in the wiki's data yet.": "В данных вики пока нет портретов этой расы.",
  "No public builds match these filters yet.": "Пока нет публичных сборок, подходящих под эти фильтры.",
  "No public builds match this search.": "Нет открытых сборок по этому запросу.",
+ "No saves found.": "Сохранения не найдены.",
  "No units of your clan are stored in this save.": "В этом сохранении нет юнитов вашего клана.",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "Юнитов пока нет. На вики откройте Конструктор юнитов, скопируйте ссылку на юнита или команду и нажмите «Добавить по ссылке с вики».",
  "No wiki link on the clipboard. Paste one below.": "В буфере обмена нет ссылки с вики. Вставьте её ниже.",
@@ -226,6 +236,7 @@
  "Race": "Раса",
  "Races": "Расы",
  "Randomize": "Случайно",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "Только чтение: эти юниты есть в вашем сохранении. Отметьте юниты и нажмите «Сохранить снимок», чтобы скопировать их в «Мои юниты».",
  "Reading the link...": "Чтение ссылки...",
  "Remove": "Убрать",
  "Rename": "Переименовать",
@@ -233,11 +244,18 @@
  "Roll %zu": "Бросок %zu",
  "Save": "Сохранить",
  "Save as team": "Сохранить как команду",
+ "Save snapshot": "Сохранить снимок",
  "Save to My Units": "Сохранить",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "Сохранён %d юнит как %s.",
   "Сохранено %d юнита как %s.",
   "Сохранено %d юнитов как %s."
+ ],
+ "Saved %s": "Сохранено %s",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "Снимок сохранён в «Мои юниты»: %d юнит.",
+  "Снимок сохранён в «Мои юниты»: %d юнита.",
+  "Снимок сохранён в «Мои юниты»: %d юнитов."
  ],
  "Saved to My Units.": "Сохранено в «Мои юниты».",
  "Saved to My Units: %s": "Сохранено в «Мои юниты»: %s",
@@ -266,7 +284,20 @@
  "Sword": "Меч",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "Сумма талантов: %d. У новобранца выпадает сумма от %d до %d.",
  "Team %zu": "Команда %zu",
+ "Team and units": "Команда и юниты",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "Команда и юниты: удаляется %d юнит.",
+  "Команда и юниты: удаляются %d юнита.",
+  "Команда и юниты: удаляются %d юнитов."
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "Команда удалена вместе с %d юнитом.",
+  "Команда удалена вместе с %d юнитами.",
+  "Команда удалена вместе с %d юнитами."
+ ],
  "Team deleted. Its units stay in My Units.": "Команда удалена. Её юниты остаются в «Моих юнитах».",
+ "Team only": "Только команда",
+ "Team only: the units stay in My Units.": "Только команда: юниты остаются в «Моих юнитах».",
  "Teams": "Команды",
  "Test": "Тест",
  "Test Fight": "Тестовый бой",
@@ -313,6 +344,7 @@
  "This short link was removed on the wiki.": "Эта короткая ссылка удалена на вики.",
  "This team has no units.": "В этой команде нет юнитов.",
  "This unit cannot be saved: %s": "Этого юнита нельзя сохранить: %s",
+ "This unit cannot be shown.": "Этого юнита нельзя показать.",
  "This unit could not be read: %s": "Этого юнита не удалось прочитать: %s",
  "This unit is not in the save.": "Этого юнита нет в сохранении.",
  "This unit is not one of your clan's units in this save.": "Этот юнит не принадлежит вашему клану в этом сохранении.",
@@ -341,6 +373,7 @@
  "Whole units": "Юниты целиком",
  "Wiki Build Gallery": "Галерея сборок вики",
  "Working...": "Выполняется...",
+ "World units": "Юниты миров",
  "XP to reach level %d: %d": "Опыт до уровня %d: %d",
  "Your squad standing at a boss door, boss alive and never beaten.": "Ваш отряд у двери босса; босс жив и ещё ни разу не побеждён.",
  "a file from the wiki arrived incomplete": "файл с вики пришёл неполным",
@@ -381,8 +414,10 @@
  "passive": "пассивное",
  "race %.*s is not in this game version": "расы %.*s нет в этой версии игры",
  "race %s has no look (portraits) in this game build": "раса %s не имеет облика (портретов) в этой сборке игры",
+ "save %s": "сохранение %s",
  "skill": "навык",
  "skill tree": "дерево навыков",
+ "snapshot %s": "снимок %s",
  "soul stone": "камень души",
  "talent tier out of range": "уровень таланта вне диапазона",
  "the Gallery did not answer (error %d)": "Галерея не ответила (ошибка %d)",

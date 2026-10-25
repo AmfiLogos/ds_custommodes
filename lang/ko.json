@@ -1,4 +1,7 @@
 {
+ " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
+  " %d개의 유닛은 다른 팀에도 있어 남습니다."
+ ],
  "%d SP": "%d SP",
  "%d main SP": "%d 주요 SP",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
@@ -91,6 +94,7 @@
  "Compact Plus": "간단함+",
  "Complete only": "완성된 빌드만",
  "Copies": "사본",
+ "Copies the ticked units into My Units as they are in this save. Your save is not changed.": "체크한 유닛을 이 세이브에 있는 그대로 내 유닛에 복사합니다. 세이브는 변경되지 않습니다.",
  "Copy a team or unit link on the wiki builder, or paste it here.": "위키 빌더에서 팀 또는 유닛 링크를 복사하거나 여기에 붙여넣으십시오.",
  "Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard.": "위키의 유닛 빌더에서 유닛 또는 팀 링크를 복사한 다음 여기를 누르십시오. 클립보드에서 읽습니다.",
  "Could not add to My Units: %s": "내 유닛에 추가할 수 없습니다: %s",
@@ -98,6 +102,7 @@
  "Could not load this team. Try again later.": "이 팀을 불러올 수 없습니다. 나중에 다시 시도하십시오.",
  "Could not read My Units: %s": "내 유닛을 읽을 수 없습니다: %s",
  "Could not save My Units: %s": "내 유닛을 저장할 수 없습니다: %s",
+ "Could not save the snapshot: %s": "스냅샷을 저장할 수 없습니다: %s",
  "Custom fight": "커스텀 전투",
  "DPS Check": "DPS 체크",
  "Dagger": "단검",
@@ -107,7 +112,7 @@
   "내 유닛에서 유닛 %d개를 삭제하시겠습니까?\n속한 팀에서도 빠집니다. 세이브는 변경되지 않습니다."
  ],
  "Delete team": "팀 삭제",
- "Delete this team?\nIts units stay in My Units.": "이 팀을 삭제하시겠습니까?\n팀의 유닛은 내 유닛에 남습니다.",
+ "Delete the team \"%s\"?": "\"%s\" 팀을 삭제하시겠습니까?",
  "Deleted %d unit.||Deleted %d units.": [
   "유닛 %d개를 삭제했습니다."
  ],
@@ -126,6 +131,7 @@
  "Fire Staff": "화염 마법 스태프",
  "Focus: %s": "초점: %s",
  "From Lv %d": "Lv %d 부터",
+ "Game saves": "일반 세이브",
  "Gear": "장비",
  "Gear quick sets": "장비 빠른 세트",
  "Getting the wiki's Test Fights files...": "위키의 테스트 전투 파일을 가져오는 중...",
@@ -161,6 +167,7 @@
  "Male": "남성",
  "Mana stones spent to reach it: %s": "도달까지 쓰는 마나석: %s",
  "Management": "운영",
+ "Modded saves": "모드 세이브",
  "Most popular": "인기순",
  "My Units": "내 유닛",
  "My Units could not be read.": "내 유닛을 읽을 수 없습니다.",
@@ -176,6 +183,7 @@
  "No portraits for this race in the wiki's data yet.": "위키 데이터에 이 종족의 초상화가 아직 없습니다.",
  "No public builds match these filters yet.": "이 필터에 맞는 공개 빌드가 아직 없습니다.",
  "No public builds match this search.": "이 검색에 맞는 공개 빌드가 없습니다.",
+ "No saves found.": "세이브를 찾을 수 없습니다.",
  "No units of your clan are stored in this save.": "이 세이브에는 내 클랜의 유닛이 없습니다.",
  "No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".": "아직 유닛이 없습니다. 위키에서 유닛 빌더를 열고, 유닛 또는 팀 링크를 복사한 다음 \"위키 링크에서 추가\"를 누르십시오.",
  "No wiki link on the clipboard. Paste one below.": "클립보드에 위키 링크가 없습니다. 아래에 붙여넣으십시오.",
@@ -206,6 +214,7 @@
  "Race": "종족",
  "Races": "종족",
  "Randomize": "무작위",
+ "Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units.": "읽기 전용: 이 유닛들은 이 세이브에 있습니다. 유닛을 체크한 뒤 \"스냅샷 저장\"을 누르면 내 유닛으로 복사됩니다.",
  "Reading the link...": "링크를 읽는 중...",
  "Remove": "제거",
  "Rename": "이름 변경",
@@ -213,9 +222,14 @@
  "Roll %zu": "랜덤 옵션 %zu",
  "Save": "저장",
  "Save as team": "팀으로 저장",
+ "Save snapshot": "스냅샷 저장",
  "Save to My Units": "내 유닛에 저장",
  "Saved %d unit as %s.||Saved %d units as %s.": [
   "유닛 %d개를 %s(으)로 저장했습니다."
+ ],
+ "Saved %s": "%s 저장됨",
+ "Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units.": [
+  "유닛 %d개의 스냅샷을 내 유닛에 저장했습니다."
  ],
  "Saved to My Units.": "내 유닛에 저장했습니다.",
  "Saved to My Units: %s": "내 유닛에 저장했습니다: %s",
@@ -244,7 +258,16 @@
  "Sword": "검",
  "Talent sum: %d. A recruit rolls a sum from %d to %d.": "재능 합계: %d. 신병의 합계는 %d~%d입니다.",
  "Team %zu": "팀 %zu",
+ "Team and units": "팀과 유닛",
+ "Team and units: %d unit goes.||Team and units: %d units go.": [
+  "팀과 유닛: 유닛 %d개가 삭제됩니다."
+ ],
+ "Team deleted with %d unit.||Team deleted with %d units.": [
+  "팀을 유닛 %d개와 함께 삭제했습니다."
+ ],
  "Team deleted. Its units stay in My Units.": "팀을 삭제했습니다. 유닛은 내 유닛에 남습니다.",
+ "Team only": "팀만",
+ "Team only: the units stay in My Units.": "팀만: 유닛은 내 유닛에 남습니다.",
  "Teams": "팀",
  "Test": "테스트",
  "Test Fight": "테스트 전투",
@@ -291,6 +314,7 @@
  "This short link was removed on the wiki.": "이 짧은 링크는 위키에서 삭제되었습니다.",
  "This team has no units.": "이 팀에는 유닛이 없습니다.",
  "This unit cannot be saved: %s": "이 유닛을 저장할 수 없습니다: %s",
+ "This unit cannot be shown.": "이 유닛은 표시할 수 없습니다.",
  "This unit could not be read: %s": "이 유닛을 읽을 수 없습니다: %s",
  "This unit is not in the save.": "이 유닛은 세이브에 없습니다.",
  "This unit is not one of your clan's units in this save.": "이 유닛은 이 세이브의 내 클랜 유닛이 아닙니다.",
@@ -319,6 +343,7 @@
  "Whole units": "유닛 전체",
  "Wiki Build Gallery": "위키 빌드 갤러리",
  "Working...": "작업 중...",
+ "World units": "월드 유닛",
  "XP to reach level %d: %d": "레벨 %d까지 경험치: %d",
  "Your squad standing at a boss door, boss alive and never beaten.": "보스 문 앞에 선 분대. 보스는 살아 있고 아직 한 번도 처치되지 않았습니다.",
  "a file from the wiki arrived incomplete": "위키에서 받은 파일이 불완전하게 도착했습니다",
@@ -359,8 +384,10 @@
  "passive": "패시브",
  "race %.*s is not in this game version": "종족 %.*s은(는) 이 게임 버전에 없습니다",
  "race %s has no look (portraits) in this game build": "이 게임 빌드에서 종족 %s의 외형(초상화)이 없습니다",
+ "save %s": "세이브 %s",
  "skill": "스킬",
  "skill tree": "스킬 트리",
+ "snapshot %s": "스냅샷 %s",
  "soul stone": "영혼석",
  "talent tier out of range": "재능 단계가 범위를 벗어났습니다",
  "the Gallery did not answer (error %d)": "갤러리가 응답하지 않았습니다(오류 %d)",
