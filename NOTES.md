@@ -275,3 +275,15 @@
 - Restart test (tf_worlds.c tf_restart, in every test world; a small panel with only that button outside DPS Check): the
   start save kept by tfw_write is written and loaded again by the Start path. A restart passes through the title scene
   (the title background world loads first): the "--- restart ---" chat line waits until the world shows 30 frames.
+- 0.1.27 (owner ask 10 + answers, 2026-10-25): the log shows every damage, heal, shield absorb and effect put on where a
+  squad unit or the scarecrow takes part (hooks DamageSimulator / HealSimulator / AffecterSimulator / StatusSimulator.Simulate,
+  read only). One indented line per source and game tick (TimeHandler._currentTick), parts joined by " · ": "<source>[ ×n]
+  » <targets>: -X[ Crit]" (damage), "+X" (heal, green), "<shield> (<owner>): absorbed X" (StatType Barrier before - after;
+  the absorbed part is no damage), "<effect> » <targets>" (quiet; only effects the game names; switch "Effects in log", on).
+  The arrow is "»": the chat's fonts have no "→" (it showed "?"). Basic attacks (SkillTableData.IsBasicAttackSkill, class
+  Util.Sheet) read "<name> (basic)". A source with no skill behind it (an item such as a torch) is named by its key.
+  Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
+  max health and max health + the added part only), so "(n over)" never shows yet.
+- Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
+- The panel / Inspect follow is the Fix live-hp only (it makes every building follow; our own copy was removed): without it the
+  DPS Check panel stands still, as every building in the stock game.

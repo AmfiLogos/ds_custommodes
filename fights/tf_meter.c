@@ -42,21 +42,23 @@ typedef struct { float r, g, b, a; } Col;
 #define TOG_H 38.f
 #define Y_BTN (BAR + 8)                       /* Start Stop Reset */
 #define Y_FIRST (Y_BTN + 36)                  /* Start on first hit */
-#define Y_STATS (Y_FIRST + 40)                /* 5 lines */
-#define Y_HEAD (Y_STATS + 5 * LINE_H + 4)     /* the rows' column names */
+#define Y_STATS (Y_FIRST + 40)                /* 6 lines */
+#define Y_HEAD (Y_STATS + 6 * LINE_H + 4)     /* the rows' column names */
 #define Y_ROWS (Y_HEAD + 20)
-#define TAIL (6 + 3 * TOG_H + 2 + 32 + PAD)   /* under the rows: the three switches, Restart test */
+#define TAIL (6 + 4 * TOG_H + 2 + 32 + PAD)   /* under the rows: the four switches, Restart test */
 #define H_FIXED (Y_ROWS + TAIL)
 #define MIN_ROWS 2
 /* columns inside a row (RW wide) */
 #define C_NAME 38.f
-#define W_NAME 116.f
-#define C_DMG 156.f
-#define W_DMG 78.f
-#define C_DPS 236.f
-#define W_DPS 54.f
-#define C_SH 292.f
-#define W_SH 46.f
+#define W_NAME 92.f
+#define C_DMG 132.f
+#define W_DMG 62.f
+#define C_HEAL 196.f                          /* healing (ask 10): never counted as damage */
+#define W_HEAL 50.f
+#define C_DPS 248.f
+#define W_DPS 46.f
+#define C_SH 296.f
+#define W_SH 42.f
 /* the small panel of a test world that is not a DPS Check */
 #define SW 250.f
 #define SH (BAR + 8 + 32 + 8)
@@ -68,14 +70,15 @@ static const DSLHost *H; static const DSLUi *U;
 static unsigned fr;
 
 /* ================================================================ the measurement */
-typedef struct { char id[96], name[96]; double dmg; unsigned hits; } Sk;
-typedef struct { double dmg; unsigned hits; Sk *sk; int nsk, csk; } Un;
+typedef struct { char id[96], name[96]; double dmg, heal; unsigned hits; } Sk;
+typedef struct { double dmg, heal; unsigned hits; Sk *sk; int nsk, csk; } Un;
 typedef struct { size_t a, b; } Span;                     /* counted hit indices [a, b); b = SIZE_MAX while open */
 static struct {
     int running, armed;
     double t0, acc;                                      /* clock at the last (re)start; measured seconds before it */
     double rep0, rep_acc;                                /* tf_dps_repaired at the last (re)start; repaired before it */
     double total; unsigned hits;
+    double heal, absorbed;                               /* healing done by the squad; damage shields absorbed (not damage) */
     size_t scan; int units_seen;                         /* next hit to look at; units the fight had */
     Un *u; int nu;
     double *ct; float *cd; size_t *cx; size_t nc, cc;    /* counted hits: measured time, damage, hit index */
@@ -114,8 +117,8 @@ static Un *m_unit(int i) {
     }
     return &M.u[i];
 }
-static Sk *m_skill(Un *u, const tf_hit *h) {               /* by its key ("#basic" for an auto attack), named as the hit */
-    char id[96]; snprintf(id, sizeof id, "%s", h->basic ? "#basic" : h->skill_key[0] ? h->skill_key : h->skill);
+static Sk *m_skill(Un *u, const tf_hit *h) {               /* by its key, named as the hit */
+    char id[96]; snprintf(id, sizeof id, "%s", h->skill_key[0] ? h->skill_key : h->skill);
     Sk *s = NULL;
     for (int k = 0; k < u->nsk && !s; k++) if (!strcmp(u->sk[k].id, id)) s = &u->sk[k];
     if (!s) {
@@ -134,7 +137,16 @@ static void m_start(size_t i, double t) {                /* from hit i on, the t
     M.running = 1; M.armed = 0; M.t0 = t; M.rep0 = tf_dps_repaired();
     m_span_open(i); m_dirty = 1;
 }
+static int counts_dmg(const tf_hit *h) { return h->kind == TFK_DMG && h->on_dummy; }   /* the DPS Check's measure */
 static void m_count(size_t i, const tf_hit *h) {
+    const tf_unit *src = tf_dps_unit(h->unit);
+    if (h->kind == TFK_ABSORB) { M.absorbed += h->dmg; m_dirty = 1; return; }
+    if (h->kind == TFK_HEAL && src && src->is_player) {  /* a squad unit's heal: its own column, never damage */
+        Un *u = m_unit(h->unit);
+        if (u) { if (!u->hits && !u->heal) m_layout = 1; u->heal += h->dmg; Sk *s = m_skill(u, h); if (s) s->heal += h->dmg; }
+        M.heal += h->dmg; m_dirty = 1; return;
+    }
+    if (!counts_dmg(h)) return;
     double d = (double)h->dmg, mt = M.acc + (h->t - M.t0);
     if (mt < M.acc) mt = M.acc;
     M.total += d; M.hits++;
@@ -168,7 +180,7 @@ static void m_track(int on) {
     was_act = on;
     if (!on || !h) return;
     for (size_t i = M.scan; i < n; i++) {
-        if (!M.running && M.armed) m_start(i, h[i].t);
+        if (!M.running && M.armed && counts_dmg(&h[i])) m_start(i, h[i].t);
         if (M.running) m_count(i, &h[i]);
     }
     M.scan = n;
@@ -295,19 +307,21 @@ static void fmt_share(double part, double total, char *o, size_t n) {
 }
 
 /* ---------------------------------------------------------------- the panel */
-typedef struct { DSLObj b, por, name, dmg, dps, sh, fill; int unit, on, por_ok, open; unsigned por_try; float y, fw;
-                 char tn[96], td[40], tp[40], ts[16]; } Row;
-typedef struct { DSLObj p, name, dmg, dps, hits; int on; float y; char tn[96], td[40], tp[40], th[24]; } SRow;
-static DSLObj p_root, p_body, p_fold, p_status, b_start, b_stop, b_reset, t_first, t_sw[3], b_restart, l_val[5], sc_rows, l_tail;
+typedef struct { DSLObj b, por, name, dmg, heal, dps, sh, fill; int unit, on, por_ok, open; unsigned por_try; float y, fw;
+                 char tn[96], td[40], th[40], tp[40], ts[16]; } Row;
+typedef struct { DSLObj p, name, dmg, heal, dps, hits; int on; float y; char tn[96], td[40], tl[40], tp[40], th[24]; } SRow;
+#define NSW 4
+#define NVAL 6
+static DSLObj p_root, p_body, p_fold, p_status, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail;
 static DSLObj s_root, s_btn;
-static char c_status[96], c_val[5][48];
+static char c_status[96], c_val[NVAL][48];
 static Row *rows; static int nrows; static SRow *srows; static int nsrows;
 static float rows_h = -1;
 static int folded, prefs_read, mode, en_start = -1, en_stop = -1, en_rst = -1, st_kind = -1, s_en = -1;
 static unsigned gen, last_ref;
-static const int sw_of[3] = { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG };
-static const char *const sw_name[3] = { "dps:speech", "dps:healnum", "dps:chatlog" };
-static const char *const val_name[5] = { "dps:time", "dps:total", "dps:dps", "dps:dps5", "dps:repaired" };
+static const int sw_of[NSW] = { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG, TFD_SW_EFFECTS };
+static const char *const sw_name[NSW] = { "dps:speech", "dps:healnum", "dps:chatlog", "dps:effects" };
+static const char *const val_name[NVAL] = { "dps:time", "dps:total", "dps:dps", "dps:dps5", "dps:repaired", "dps:absorbed" };
 
 static void refresh(void); static void place_now(void);
 static int title_up = 1;
@@ -396,21 +410,22 @@ static int build_full(void) {
     b_reset = cmw_named(U->button(p_body, PAD + 2 * (bw + 6), Y_BTN, bw, 30, TR("Reset"), reset_click, NULL), CMW_BUTTON, "dps:reset", reset_click, NULL, TR("Reset"));
     const char *lf = tf_dps_switch_label(TFD_SW_FIRSTHIT);
     t_first = cmw_named(U->toggle(p_body, PAD, Y_FIRST, RW, lf, tf_dps_switch(TFD_SW_FIRSTHIT), first_change, NULL), CMW_TOGGLE, "dps:firsthit", first_change, NULL, lf);
-    const char *lab[5] = { cm_gw("TEXTKEY_Shared_Time_NAME", TR_NOOP("Time")), cm_gw("TEXTKEY_STATUS_DamageDealtBonus_NAME", TR_NOOP("Damage dealt")),
-                           TR("DPS"), TR("DPS (last 5 s)"), TR("Repaired by the scarecrow") };
-    for (int i = 0; i < 5; i++) {
+    const char *lab[NVAL] = { cm_gw("TEXTKEY_Shared_Time_NAME", TR_NOOP("Time")), cm_gw("TEXTKEY_STATUS_DamageDealtBonus_NAME", TR_NOOP("Damage dealt")),
+                              TR("DPS"), TR("DPS (last 5 s)"), TR("Repaired by the scarecrow"), TR("Absorbed") };
+    for (int i = 0; i < NVAL; i++) {
         float y = Y_STATS + (float)i * LINE_H;
         txt(p_body, PAD, y, RW - 112, LINE_H, lab[i], 14, DSL_TXT_LEFT, SUB);
         l_val[i] = cmw_named(txt(p_body, PAD + RW - 110, y, 110, LINE_H, "", 15, DSL_TXT_RIGHT, i == 2 ? GOLD : MAIN), CMW_TEXT, val_name[i], NULL, NULL, "");
     }
     txt(p_body, PAD + C_NAME, Y_HEAD, W_NAME, 18, TR("Unit"), 12, DSL_TXT_LEFT, SUB);
     txt(p_body, PAD + C_DMG, Y_HEAD, W_DMG, 18, TR("Damage"), 12, DSL_TXT_RIGHT, SUB);
+    txt(p_body, PAD + C_HEAL, Y_HEAD, W_HEAL, 18, TR("Healing"), 12, DSL_TXT_RIGHT, SUB);
     txt(p_body, PAD + C_DPS, Y_HEAD, W_DPS, 18, TR("DPS"), 12, DSL_TXT_RIGHT, SUB);
     txt(p_body, PAD + C_SH, Y_HEAD, W_SH, 18, TR("Share"), 12, DSL_TXT_RIGHT, SUB);
     plate(p_body, PAD, Y_ROWS - 2, RW, 1, COPPER);
     sc_rows = U->scroll(p_body, PAD, Y_ROWS, RW, MIN_ROWS * ROW_H);
     l_tail = plate(p_body, PAD, Y_ROWS, RW, 1, COPPER);
-    for (int k = 0; k < 3; k++) {
+    for (int k = 0; k < NSW; k++) {
         const char *l = tf_dps_switch_label(sw_of[k]);
         t_sw[k] = cmw_named(U->toggle(p_body, PAD, Y_ROWS, RW, l, tf_dps_switch(sw_of[k]), sw_change, (void *)(intptr_t)sw_of[k]),
                             CMW_TOGGLE, sw_name[k], sw_change, (void *)(intptr_t)sw_of[k], l);
@@ -445,6 +460,7 @@ static Row *row_at(int k) {
         r->por = U->panel(r->b, 4, 2, 28, 28, 0xFFFFFFFFu); if (r->por) { cm_raycast(r->por, false); act(r->por, 0); }
         r->name = txt(r->b, C_NAME, 1, W_NAME - 4, 24, "", 14, DSL_TXT_LEFT, MAIN);
         r->dmg = txt(r->b, C_DMG, 1, W_DMG, 24, "", 14, DSL_TXT_RIGHT, MAIN);
+        r->heal = txt(r->b, C_HEAL, 1, W_HEAL, 24, "", 14, DSL_TXT_RIGHT, 0x7EC86BFFu);
         r->dps = txt(r->b, C_DPS, 1, W_DPS, 24, "", 14, DSL_TXT_RIGHT, MAIN);
         r->sh = txt(r->b, C_SH, 1, W_SH, 24, "", 14, DSL_TXT_RIGHT, GOLD);
         plate(r->b, C_NAME, 26, RW - C_NAME - 6, 3, TRACK);
@@ -463,6 +479,7 @@ static SRow *srow_at(int k) {
         if (!q->p) return NULL;
         q->name = txt(q->p, C_NAME + 8, 0, W_NAME - 10, SK_H, "", 13, DSL_TXT_LEFT, SUB);
         q->dmg = txt(q->p, C_DMG, 0, W_DMG, SK_H, "", 13, DSL_TXT_RIGHT, MAIN);
+        q->heal = txt(q->p, C_HEAL, 0, W_HEAL, SK_H, "", 13, DSL_TXT_RIGHT, 0x7EC86BFFu);
         q->dps = txt(q->p, C_DPS, 0, W_DPS, SK_H, "", 13, DSL_TXT_RIGHT, MAIN);
         q->hits = txt(q->p, C_SH, 0, W_SH, SK_H, "", 13, DSL_TXT_RIGHT, SUB);
         q->on = 1;
@@ -476,7 +493,7 @@ static int by_dmg(const Un *u, int a, int b) {            /* 1 = a before b */
 static int sorted_units(int *ord, int cap) {
     int n = 0;
     for (int i = 0; i < M.nu && n < cap; i++) {
-        if (!M.u[i].hits) continue;
+        if (!M.u[i].hits && !(M.u[i].heal > 0)) continue;
         int k = n++;
         while (k > 0 && by_dmg(M.u, i, ord[k - 1])) { ord[k] = ord[k - 1]; k--; }
         ord[k] = i;
@@ -517,6 +534,8 @@ static void rows_paint(double div) {
         set_if(r->name, r->tn, sizeof r->tn, t && t->name[0] ? t->name : "?");
         if (r->open != (ui == open_unit)) { r->open = ui == open_unit; txt_color(r->name, r->open ? GOLD : MAIN); }
         fmt_n(u->dmg, b, sizeof b); set_if(r->dmg, r->td, sizeof r->td, b);
+        if (u->heal > 0) fmt_n(u->heal, b, sizeof b); else b[0] = 0;
+        set_if(r->heal, r->th, sizeof r->th, b);
         fmt_rate(u->dmg / div, b, sizeof b); set_if(r->dps, r->tp, sizeof r->tp, b);
         fmt_share(u->dmg, M.total, b, sizeof b); set_if(r->sh, r->ts, sizeof r->ts, b);
         float fw = M.total > 0 ? (float)((RW - C_NAME - 6) * (u->dmg / M.total)) : 0;
@@ -533,6 +552,8 @@ static void rows_paint(double div) {
             if (q->y != y) { put(q->p, 0, y, RW, SK_H - 1); q->y = y; }
             set_if(q->name, q->tn, sizeof q->tn, s->name);
             fmt_n(s->dmg, b, sizeof b); set_if(q->dmg, q->td, sizeof q->td, b);
+            if (s->heal > 0) fmt_n(s->heal, b, sizeof b); else b[0] = 0;
+            set_if(q->heal, q->tl, sizeof q->tl, b);
             fmt_rate(s->dmg / div, b, sizeof b); set_if(q->dps, q->tp, sizeof q->tp, b);
             snprintf(b, sizeof b, "\xC3\x97%u", s->hits); set_if(q->hits, q->th, sizeof q->th, b);
             y += SK_H;
@@ -554,6 +575,7 @@ static void refresh(void) {
     fmt_rate(M.hits ? M.total / div : 0, b, sizeof b); named_if(l_val[2], c_val[2], sizeof c_val[2], b);
     fmt_rate(m_dps5(el), b, sizeof b); named_if(l_val[3], c_val[3], sizeof c_val[3], b);
     fmt_n(m_repaired(), b, sizeof b); named_if(l_val[4], c_val[4], sizeof c_val[4], b);
+    fmt_n(M.absorbed, b, sizeof b); named_if(l_val[5], c_val[5], sizeof c_val[5], b);
     int kind = M.running ? 0 : M.armed ? 1 : 2;
     named_if(p_status, c_status, sizeof c_status, kind == 0 ? TR("Running") : kind == 1 ? TR("Waiting for the first hit") : TR("Stopped"));
     if (kind != st_kind) { txt_color(p_status, kind == 0 ? GOLD : SUB); st_kind = kind; }
@@ -656,8 +678,8 @@ static void place_now(void) {
             put(p_body, 0, 0, MW, h);
             put(sc_rows, PAD, Y_ROWS, RW, vh);
             put(l_tail, PAD, ty - 3, RW, 1);
-            for (int k = 0; k < 3; k++) put(t_sw[k], PAD, ty + (float)k * TOG_H, RW, 36);
-            put(b_restart, PAD, ty + 3 * TOG_H + 2, RW, 32);
+            for (int k = 0; k < NSW; k++) put(t_sw[k], PAD, ty + (float)k * TOG_H, RW, 36);
+            put(b_restart, PAD, ty + NSW * TOG_H + 2, RW, 32);
             PL.x = x; PL.y = y; PL.s = s; PL.ph = ph; PL.avail = avail; m_layout = 0;
         }
     } else if (mode == 2 && s_root) {
@@ -696,7 +718,7 @@ static void tick(void *ud) {
         if (mode == 1) {
             if (en_rst != rr) U->set_enabled(b_restart, en_rst = rr);
             if (U->toggle_get(t_first) != tf_dps_switch(TFD_SW_FIRSTHIT)) U->toggle_set(t_first, tf_dps_switch(TFD_SW_FIRSTHIT));
-            for (int k = 0; k < 3; k++) if (U->toggle_get(t_sw[k]) != tf_dps_switch(sw_of[k])) U->toggle_set(t_sw[k], tf_dps_switch(sw_of[k]));
+            for (int k = 0; k < NSW; k++) if (U->toggle_get(t_sw[k]) != tf_dps_switch(sw_of[k])) U->toggle_set(t_sw[k], tf_dps_switch(sw_of[k]));
         } else if (s_en != rr) U->set_enabled(s_btn, s_en = rr);
         if (mode == 1) refresh();
         place_now();
@@ -752,8 +774,8 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
     if (t_rect && shown) t_rect(shown, r);
 #endif
     ADD("{\"shown\":%d,\"small\":%d,\"folded\":%d,\"running\":%d,\"armed\":%d,\"elapsed\":%.6f,\"total\":%.6f,\"dps\":%.6f,\"dps5\":%.6f,"
-        "\"repaired\":%.3f,\"base\":%zu,\"scan\":%zu,\"hits\":%u,\"open\":%d,\"spans\":[",
-        mode == 1, mode == 2, folded, M.running, M.armed, el, M.total, M.hits ? M.total / div : 0, m_dps5(el), m_repaired(),
+        "\"repaired\":%.3f,\"heal\":%.6f,\"absorbed\":%.6f,\"base\":%zu,\"scan\":%zu,\"hits\":%u,\"open\":%d,\"spans\":[",
+        mode == 1, mode == 2, folded, M.running, M.armed, el, M.total, M.hits ? M.total / div : 0, m_dps5(el), m_repaired(), M.heal, M.absorbed,
         M.nsp ? M.sp[0].a : M.scan, M.scan, M.hits, open_unit);
     for (int i = 0; i < M.nsp; i++) ADD("%s[%zu,%zu]", i ? "," : "", M.sp[i].a, M.sp[i].b == SIZE_MAX ? M.scan : M.sp[i].b);
     ADD("],\"units\":[");
@@ -761,10 +783,10 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
     for (int k = 0; k < n && o + 600 < cap; k++) {
         const Un *u = &M.u[ord[k]]; const tf_unit *t = tf_dps_unit(ord[k]); char e[200];
         jesc(e, sizeof e, t ? t->name : "");
-        ADD("%s{\"i\":%d,\"name\":\"%s\",\"dmg\":%.6f,\"hits\":%u,\"dps\":%.6f,\"share\":%.6f,\"skills\":[", k ? "," : "", ord[k], e, u->dmg, u->hits,
+        ADD("%s{\"i\":%d,\"name\":\"%s\",\"dmg\":%.6f,\"heal\":%.6f,\"hits\":%u,\"dps\":%.6f,\"share\":%.6f,\"skills\":[", k ? "," : "", ord[k], e, u->dmg, u->heal, u->hits,
             u->dmg / div, M.total > 0 ? u->dmg * 100 / M.total : 0);
         for (int j = 0; j < u->nsk && o + 300 < cap; j++) { jesc(e, sizeof e, u->sk[j].name);
-            ADD("%s{\"skill\":\"%s\",\"dmg\":%.6f,\"hits\":%u}", j ? "," : "", e, u->sk[j].dmg, u->sk[j].hits); }
+            ADD("%s{\"skill\":\"%s\",\"dmg\":%.6f,\"heal\":%.6f,\"hits\":%u}", j ? "," : "", e, u->sk[j].dmg, u->sk[j].heal, u->sk[j].hits); }
         ADD("]}");
     }
     ADD("],\"rect\":[%.0f,%.0f,%.0f,%.0f],\"game_rects\":{", r[0], r[1], r[2], r[3]);
