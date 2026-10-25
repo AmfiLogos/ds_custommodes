@@ -397,6 +397,7 @@ static int build_full(void) {
     il_init();
     p_root = cmw_flat(U->panel(NULL, 0, 0, MW, 400, 0), BODY);
     if (!p_root) return -1;
+    dsl_esc_push(U, p_root, NULL, NULL, DSL_ESC_HUD);                 /* a HUD panel (fold, no Close): never takes Escape (loader NOTES "Escape") */
     plate(p_root, 0, 0, MW, BAR, BAND);
     plate(p_root, 0, BAR, MW, 1, COPPER);
     p_fold = U->button(p_root, 4, 3, 26, 26, "\xE2\x80\xBA", fold_click, NULL);
@@ -442,6 +443,7 @@ static int build_small(void) {
     il_init();
     s_root = cmw_flat(U->panel(NULL, 0, 0, SW, SH, 0), BODY);
     if (!s_root) return -1;
+    dsl_esc_push(U, s_root, NULL, NULL, DSL_ESC_HUD);                 /* a HUD panel (no Close) */
     plate(s_root, 0, 0, SW, BAR, BAND);
     plate(s_root, 0, BAR, SW, 1, COPPER);
     txt(s_root, PAD + 4, 0, SW - 2 * PAD - 4, BAR, TR("Test Fights"), 17, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);

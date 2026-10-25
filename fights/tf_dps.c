@@ -553,6 +553,7 @@ static void fb_build(void) {
     if (!U) return;
     fb_root = cmw_flat(U->panel(NULL, 0, 0, FB_W, FB_H, 0), 0x222025E6u);
     if (!fb_root) return;
+    dsl_esc_push(U, fb_root, NULL, NULL, DSL_ESC_HUD);                /* the DPS log, a HUD panel (no Close): never takes Escape */
     float lw = 0, lh = 0; if (cm_rect_size(cm_parent(fb_root), &lw, &lh) || lh < 300) lh = 1080;
     U->place(fb_root, 130, lh - 130 - FB_H, FB_W, FB_H);   /* bottom-left above the build bar, where the multiplayer chat sits */
     cmw_flat(U->panel(fb_root, 0, 0, FB_W, 30, 0), 0x2D2A31FFu);
