@@ -106,9 +106,9 @@
   snapshot makes (mu_snapshot now uses it): the save import's build + the save's own skill bar as the builder's `quick`
   pick, so the save generator writes the save's bar (builder.js quickFor keeps the skills the build has). The test world's
   clan is the world's clan name when all picks come from one world.
-- Default names: a build named with a TEXTKEY_PLAYERNAME_ key got the key itself as its name in the fight (the generator
-  writes the template's DefaultUnitNameTextKey, so the game reads the key as a custom name). Start now gives such a build
-  the name the game shows for the key (tf_ui.c default_names_shown, every source).
+- Default names: a unit never renamed fights under its name key (TEXTKEY_PLAYERNAME_...); the generator wrote the
+  template's DefaultUnitNameTextKey, so the game showed the key itself (found by the game test here and by lane dsnames).
+  Fixed once, by lane dsnames (fights/sg_glue.js nameKeys: the key in both name fields); the game test checks the names.
 - Limit found: the wiki generator's templates have 4 skill bar slots; a save unit with 5 bar skills fights with the first
   4 (the 5th stays learned). The generator is the wiki's (savegen.js quickSlotCount); not changed here.
 - Tests: fights/test/run_saveunits.sh (saveunits_test.c: copies of real saves + the wiki base save, picks through

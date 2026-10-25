@@ -364,25 +364,6 @@ static char *builds_json(char *err, size_t errn) {
     o[k++] = ']'; o[k] = 0;
     return o;
 }
-/* a build named with the game's default-name text key (a unit taken from a save, a snapshot): the save generator writes it
-   as the unit's own name, and the game then shows the key itself in the fight ("TEXTKEY_PLAYERNAME_Human_Female_12": its
-   DefaultUnitNameTextKey is the template's, not this key; seen in the World units game test). The name the game shows for
-   that key goes in instead. Takes builds (malloc'd JSON array), returns the text to use. */
-static char *default_names_shown(char *builds) {
-    char e[200]; jv *a = jparse(builds, strlen(builds), e, sizeof e);
-    if (!a || a->t != JN_ARR) { jfree(a); return builds; }
-    int n = 0;
-    for (size_t i = 0; i < a->cnt; i++) {
-        jv *nm = jget(a->v[i], "name"); if (!nm || nm->t != JN_STR) continue;
-        char *raw = jstrdup_raw(nm), t[96], esc[300];
-        if (!strncmp(raw, "TEXTKEY_", 8) && !cm_gettext(raw, t, sizeof t)) { jesc(t, esc, sizeof esc); jset(a->v[i], "name", jstrv(esc)); n++; }
-        free(raw);
-    }
-    char *o = n ? jdump(a, 0, NULL) : NULL; jfree(a);
-    if (!o) return builds;
-    cmw_log("tf: %d default unit name(s) as the game shows them", n);
-    free(builds); return o;
-}
 /* World units: the world's clan name when every pick is from one world (the test world's clan), else none */
 static const char *save_team(void) {
     for (int i = 1; i < st.nsv; i++) if (strcmp(st.sv[i].world, st.sv[0].world)) return "";
@@ -395,7 +376,6 @@ static void start_click(void *ud, DSLObj w) {
     char e[300] = "";
     char *builds = builds_json(e, sizeof e);
     if (!builds) { snprintf(status, sizeof status, "%s", e); status_warn = 1; paint_all(); return; }
-    builds = default_names_shown(builds);
     if (!strcmp(mode_id(), "arena") && !st.nmon) { free(builds); snprintf(status, sizeof status, "%s", TR("Add at least one monster to the room.")); status_warn = 1; paint_all(); return; }
     size_t cap = strlen(builds) + 4096; char *o = malloc(cap); size_t k = 0;
     char team[300]; jesc(st.src == 1 ? st.gal_title : st.src == 2 ? save_team() : st.team, team, sizeof team);
