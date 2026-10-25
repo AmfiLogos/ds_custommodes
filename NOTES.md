@@ -339,6 +339,11 @@
   Fights) through cmw_open (`fit` 1: the size stays, the scale shrinks). My Units has no "Close" button and the Builder no
   "Cancel" button any more: their X does the same (the Builder still asks "Discard your changes?"). Test names kept:
   `mu:close`, `bld:cancel`, `<win>:close` are the X; `<win>:title` is the window.
+- The X is the kit's red X (DSLUi.close_x, kit bdcb603; mu_ui.c close_x reads it by its place after esc_drop, so the
+  multiplayer pin's older dsl_sdk.h copy still builds): a click runs the window's esc_push close, the same action as
+  Escape. So in the Gallery's Details page the X goes Back first, as Escape does (owner rule "Back one level first").
+  An older kit: a text "X" with the window's own close. UI Scale stays ours (mu_shell_open, mu_centre_scaled, gallery
+  win_size, markers KIT-SCALE): the kit's dsl_scale_follow is never called on these windows (double scale).
 - U1: My Units and the Builder remember whether they opened on the title screen; when the title goes away (a world loads,
   a soft restart) they close (checked about once a second in their poll; cmw_title_shown). A Builder opened in a world
   (Bring Units) is not affected.
