@@ -134,7 +134,7 @@
   copy's world, tick 2, Custom fight with one Weak Grey Rat, Start, the squad = the picked units by name with their save
   levels, combat, the rat killed, back to the title, test world removed; LANGTYPE = shots + card text fit only).
 
-## A Test Fight leaves the title and the player's records as they were (2026-10-25)
+## A Test Fight leaves the title and the player's records as they were (2026-10-25, 0.1.21)
 - Owner (v0.1.27, custom-modes 0.1.16): "when we do a test, we then have the homepage homescreen changed to the base of the
   save we imported our units to for the test - shouldn't be the case". Found on today's build (fights/test/title_test.py):
   - title background = the test world (TitleBasePreviewSaveSelector picks the newest save; the test world's saves are
