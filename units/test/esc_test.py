@@ -11,6 +11,8 @@ only. Fails when (the breaks this catches):
   - the name box (Rename team) or the paste box with the keyboard in its field: the 1st press must cancel that box only
     (My Units stays), the 2nd closes My Units; the Delete team box: 1st press closes the box only (nothing deleted);
   - a plain field (Builder name, Gallery search): the 1st press only leaves the field, the window stays;
+  - the Gallery's Details page: the 1st press = its Back (the list again, the Gallery stays), the 2nd closes the Gallery
+    (owner 2026-10-25: "Go Back one level");
   - the Builder with an unsaved change: Escape asks first (the game's notice), Escape on that notice = "Keep editing" (the
     Builder stays); a gear slot's item list: Escape closes the list only;
   - the test library or the owner's real library file changed (Escape must never save or delete).
@@ -312,6 +314,18 @@ def cases():
     check('11 Escape closes Test Fights, the home page stays', wins(s) == [] and home_on(s), (wins(s), s.get('esc')))
     s = press()
     check('11 next Escape closes the home page', not home_on(s), s.get('esc'))
+    # 12. the Gallery's Details page (owner 2026-10-25 "Go Back one level"): 1st Escape = its Back, 2nd closes the Gallery
+    gal = lambda s: cm(s, 'fights').get('gal') or {}
+    open_home(); click('home:Wiki Build Gallery', 1.5)
+    s = wait_for(lambda: (lambda s: s if gal(s).get('items', 0) > 0 else None)(st()), 40) or st()
+    check('12 the Gallery lists builds (the wiki answered)', gal(s).get('items', 0) > 0, gal(s).get('status'))
+    click('gallery:c0.card', 1.5); s = until(lambda s: gal(s).get('preview', -1) >= 0)
+    check('12 a build\'s Details page shows', gal(s).get('preview', -1) >= 0, gal(s).get('preview'))
+    s = press()
+    check('12 1st Escape = Back (the list again, the Gallery stays)', 'gallery' in wins(s) and gal(s).get('preview', -1) == -1, (wins(s), gal(s).get('preview')))
+    s = press()
+    check('12 2nd Escape closes the Gallery, the home page stays', 'gallery' not in wins(s) and home_on(s), (wins(s), home_on(s)))
+    press()
     check('the test library is unchanged (Escape never saves or deletes)', fstate(LIB) == lib0)
 
 
