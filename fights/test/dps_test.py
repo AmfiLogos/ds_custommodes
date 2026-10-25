@@ -17,7 +17,7 @@ Fails when (the breaks this catches):
                                 mods/custom-modes); LD_ROOT = a ds_modloader checkout (loader/test helpers; ~/ds_launcher);
                                 LANGTYPE = the game's language (3 de, 4 ru, 7 ja; default en)
 Output: DPS_OUT (default <HM_BUILD>/../test_env/dps/<time>): results.json, frames in drv/cap/."""
-import json, os, shutil, subprocess, sys, threading, time, traceback, zipfile
+import json, os, re, shutil, subprocess, sys, threading, time, traceback, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -38,6 +38,7 @@ LANG = os.environ.get('LANGTYPE')
 LIB = os.path.join(OUT, 'lib', 'library.json')
 COL_LAB = 5                                                   # Units Laboratory's child index in the title column
 BURST = 30
+NAMEKEY, NAMED = 'TEXTKEY_PLAYERNAME_Elf_Male_13', {None: 'Silvarion'}   # TextKeyTable_en
 REPAIR = 200.0
 
 
@@ -68,6 +69,7 @@ def make_library():
     for i, u in enumerate(units):                                 # the fixture units carry no weapon: a squad must hit
         u['id'] = f'{0xb0 + i:02x}' * 8
         u['build'].setdefault('eq', {})['Primary'] = ('ITEM_CopperSword', 'ITEM_CopperBow', 'ITEM_FireCopperStaff', 'ITEM_CopperSpear')[i]
+    units[0]['name'] = units[0]['build']['name'] = NAMEKEY                # a unit with the game's default name key (never renamed)
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
            'teams': [{'id': 'dd' * 8, 'name': 'DPS squad', 'unit_ids': [u['id'] for u in units]}]}
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
@@ -330,6 +332,9 @@ def run():
     mine = dlog(str(n0)).split('\n')[:n1 - n0]
     hl = [m for m in mine if m.startswith('<indent=')]
     check('(d) one indented line per hit over the burst, a header line per change of unit', len(hl) == hits and len(mine) - len(hl) == h1 - h0, (len(mine), len(hl), hits, h1 - h0))
+    heads = sorted({re.sub(r'<[^>]*>', '', m) for m in mine if not m.startswith('<indent=') and 'restart' not in m})
+    check('the log names each unit with the game\'s display name (a default name key shows as its name, never the key)',
+          heads and not any(h.startswith('TEXTKEY_') for h in heads) and (LANG or NAMED[None] in heads), heads)
     hd = hits_dump(rows[0][1])[:hits]
     rawkey = [h for h in hd if not h['skill'] or h['skill'].startswith(('SKILL_', 'AFFECTER_', 'TEXTKEY_'))]
     basic_ok = all(h['skill'] == BASIC.get(LANG, h['skill']) for h in hd if h['key'].startswith(('SKILL_Basic', 'SKILL_NPCBasic')))
