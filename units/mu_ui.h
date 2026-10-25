@@ -30,7 +30,8 @@ const DSLHost *mu_host(void);
 void mu_ui_init(const DSLHost *host, DSLPlugin *self);    /* cm_units_init */
 void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-/* the game's UI scale (Settings > UI scale), 1 when unknown */
+/* the game's UI scale (Settings > UI scale), 1 when unknown. KIT-SCALE: our windows apply it themselves (mu_shell_open,
+   mu_centre_scaled, gallery win_size); when the kit scales its own layer (lane dsuxld, L1) these stop multiplying */
 float mu_ui_scale(void);
 /* the one window of Units Laboratory (owner 2026-10-25, UX review U1 / U5): My Units, the Unit Builder, the Wiki Build
    Gallery and Test Fights look and close the same way, as the game's Load Campaign and Option windows: a dim backdrop over

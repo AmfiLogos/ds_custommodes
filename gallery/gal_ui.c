@@ -823,7 +823,7 @@ static void closed(void *ud) {
 }
 /* the window: as large as the screen allows at the game's UI scale (cmw_open draws it at that scale), up to 1200 x 820 */
 static void win_size(void) {
-    float lw = 0, lh = 0, sc = mu_ui_scale(); DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);
+    float lw = 0, lh = 0, sc = mu_ui_scale(); DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);   /* KIT-SCALE: see mu_ui.h */
     if (p) { if (cm_rect_size(cm_parent(p), &lw, &lh)) lw = lh = 0; U->destroy(p); }
     lw /= sc; lh /= sc;
     WW = lw >= 1000 ? (lw - 60 < 1200 ? lw - 60 : 1200) : 1040;
