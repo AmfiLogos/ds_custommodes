@@ -84,6 +84,13 @@ int  mu_source_of(const jv *lib, const char *id, mu_source *out);    /* 1 = the 
 /* a library unit as wk_build (wk_from_json, pvp_wiki.h) */
 int  mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t errn);
 
+/* The build JSON a library unit fights with in Test Fights (malloc'd; NULL = no such unit or no build): the stored build,
+ * with the My Units name when the unit was renamed there (mu_rename and the launcher change the entry's name, never the
+ * build's). Not a rename: the entry shows the build's own name; a default name key (TEXTKEY_...) and the entry shows the
+ * key's game text now (key_text = cm_gettext: 0 = found; NULL = no lookup), so the key stays and the game names the unit
+ * in each language; an unnamed build and the entry shows the "<Race> <level>" label My Units gave it. */
+char *mu_fight_build_json(const jv *lib, const char *id, int (*key_text)(const char *key, char *out, size_t cap), size_t *len);
+
 /* entries {closure, manifest} (pvp_build.c pb_entry) for these library ids, for PvP / the expedition hub: copies only.
    manifest.source stays "wiki" (same unit kind), plus manifest.library_id. NULL + err on the first unit that fails. */
 jv  *mu_entries(const jv *lib, char ids[][17], int n, const char *player_uid, char *notes, size_t notesn, char *err, size_t errn);

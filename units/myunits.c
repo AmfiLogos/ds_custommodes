@@ -349,6 +349,25 @@ int mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t 
     }
     return 0;
 }
+char *mu_fight_build_json(const jv *lib, const char *id, int (*key_text)(const char *key, char *out, size_t cap), size_t *len) {
+    const jv *u = mu_find(lib, id); jv *b = u ? jget(u, "build") : NULL;
+    if (!b || b->t != JN_OBJ) return NULL;
+    jv *ln = jget(u, "name"), *bn = jget(b, "name");
+    int renamed = 0;
+    if (ln && ln->t == JN_STR && ln->n && !(bn && jequal(ln, bn))) {
+        char L[200], B[200], t[200]; raw_cpy(L, sizeof L, ln); raw_cpy(B, sizeof B, bn);
+        if (!strncmp(B, "TEXTKEY_", 8)) renamed = !(key_text && !key_text(B, t, sizeof t) && !strcmp(t, L));
+        else if (!B[0]) {                                    /* mu_add_build / mu_add_team's label of an unnamed build */
+            char r[64]; raw_cpy(r, sizeof r, jget(b, "race"));
+            snprintf(t, sizeof t, "%s %d", !strncmp(r, "AFFECTER_", 9) ? r + 9 : r, (int)jnumv(jget(b, "lvl")));
+            renamed = strcmp(t, L) != 0;
+        } else renamed = 1;
+    }
+    if (!renamed) return jdump(b, 0, len);
+    jv *c = jcopy(b); jset(c, "name", jcopy(ln));
+    char *o = jdump(c, 0, len); jfree(c);
+    return o;
+}
 jv *mu_entries(const jv *lib, char ids[][17], int n, const char *player_uid, char *notes, size_t notesn, char *err, size_t errn) {
     if (notes && notesn) notes[0] = 0;
     if (n < 1) { snprintf(err, errn, "%s", TR("no units picked")); return NULL; }
