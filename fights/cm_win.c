@@ -195,6 +195,7 @@ int cmw_saves_changed(void) {
     cmw_log("cm_win: save list refreshed%s", pr ? ", title Continue refreshed" : " (no title presenter)");
     return pr ? 0 : -1;
 }
+void cmw_dirs_now(void) { if (!g_data[0]) dirs_read(); }
 int cmw_game_data(char *out, size_t n) { if (!g_data[0]) return -1; snprintf(out, n, "%s", g_data); return 0; }
 int cmw_saves_dir(char *out, size_t n) {
     if (g_saves[0]) { snprintf(out, n, "%s", g_saves); return 0; }

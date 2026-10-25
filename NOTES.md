@@ -133,8 +133,106 @@
   computed bar, checked by mutation). fights/test/saveunits_game_test.py (one hidden copy: World units tab, open the save
   copy's world, tick 2, Custom fight with one Weak Grey Rat, Start, the squad = the picked units by name with their save
   levels, combat, the rat killed, back to the title, test world removed; LANGTYPE = shots + card text fit only).
+- Renamed units in Test Fights (lead 2026-10-25, 0.1.21): Test Fights handed the wiki's generator the stored build, so a
+  unit renamed in My Units (mu_rename / the launcher change the entry's name, never the build's) fought under its old
+  name. Now fights/tf_ui.c takes myunits.c mu_fight_build_json: the build with the My Units name when the unit was
+  renamed. Not a rename: the entry shows the build's own name; a default name key whose entry shows the key's game text
+  (cm_gettext; the snapshot's case: the key stays, the game names it per language); an unnamed build whose entry shows
+  the "<Race> <level>" label. A snapshot taken in another language whose name text differs counts as renamed (it shows the
+  snapshot's text; the "language at snapshot time" point is left as it is). Bring Units unchanged (mu_build_of: the
+  library name always wins). Test: fights/test/rename_game_test.py (real Test Fights tab, My Units source, 4 units:
+  renamed key / not renamed key / renamed typed / typed; stock panel + multi-bar cards): main e5e1099 FAIL ("Old Name",
+  "R'dor"), this 11/11 en + de.
 
-## Escape closes our windows (owner 2026-10-25, 0.1.21: "make sure Escape works to close our custom windows")
+## A Test Fight leaves the title and the player's records as they were (2026-10-25, 0.1.22)
+- Owner (v0.1.27, custom-modes 0.1.16): "when we do a test, we then have the homepage homescreen changed to the base of the
+  save we imported our units to for the test - shouldn't be the case". Found on today's build (fights/test/title_test.py):
+  - title background = the test world (TitleBasePreviewSaveSelector picks the newest save; the test world's saves are
+    still in Saves when the title is drawn: MoveSceneToTitle draws it before our 30-frame tick removes them);
+  - OutGame.json gained the squad's gear in ItemObtainedSaveData.ObtainedItems (+6), and the game's memory kept them for
+    its next write. Continue, SaveHeaderCache.json and UserCampaignLog.json were right (the tick's refresh; only
+    PlayerApplicationMinute, the minutes the game was on, changes as in any session).
+- Pick: keep the game from using / writing them during a test (no byte copy + marker needed: nothing on disk changes):
+  - fights/tf_worlds.c title_init: hooks TitleBasePreviewSaveSelector.TryLoadCampaignSaveData (a test world answers
+    "cannot load": Select takes the next world) and LatestCampaignSaveSelector.TrySelect (a test world pick is replaced by
+    the next save of its sorted list that is no test world and exists). Read only; covers saves left by a crash too.
+  - og_init: CampaignSaveLoader.TryLoad (every world load) marks a test world loaded: the records in memory are copied
+    (OutGameRecordContainer.CreateSaveData) and SaveLoadHelper.SaveOutGameRecord is held; leaving it (title tick, or a
+    TryLoad of another world) runs each record container's .ctor again on the same objects with the copy.
+  - The tick's "our load is starting" wait now ends at the TryLoad of the test world (then the title gone), not at the
+    first frame without the title: a load from inside a world (Restart test) passes through the title scene first
+    (LoadCampaign: MoveSceneToTitle, then TryLoad), and the old rule could remove the world being loaded. tfw_write keeps
+    older test world GUIDs listed until the title removes them.
+  - New hook sites (loader docs/hooks.json needs `hooklist.py gen` at the next cm_pin): TitleBasePreviewSaveSelector.
+    TryLoadCampaignSaveData/4, LatestCampaignSaveSelector.TrySelect/3, CampaignSaveLoader.TryLoad/3,
+    SaveLoadHelper.SaveOutGameRecord/1. All have direct callers on Windows (win_callers.py), so none is inlined away.
+- Test: fights/test/title_test.py (one hidden copy; a copy of a real save as the newest world; DPS Check, then a Boss
+  fight on Downfall; Esc > Quit to title; then Continue pressed). The test module font-probe has a "title" read-out.
+
+## Test Fights: folded teams, bag and affecters from the save (2026-10-25, 0.1.23, lane dsfights)
+- Owner: "team units should be collapsed by default rather than extended". A team row in the squad picker is one line
+  (arrow, icon, name, n/4, box); its arrow (the kit's own chevron, turned down when open) lists its units. The box adds or
+  removes all its units while folded too. World units' world rows show the same arrow (a click on the row opens it).
+  Kept while the window is open (a language change keeps it); every open starts folded (tf_open, tf_open_with_builds).
+- Owner: "when loading units from save directly bring over the items they carry". mu_save.c mu_save_unit_carry reads the
+  unit's backpack (component Type 5): per filled slot the key, amount, AutoFixed, ItemAutoFixable and the item entity's
+  components. mu_worlds.c mu_save_fight_build puts it beside the build as "_cm". sg_glue.js carry() writes it into the
+  generated test world after the wiki's generator: the backpack slot for slot, each item a copy of the save's entity
+  (durability, rolls, its own holders) under a new guid, registered in ItemContainerSaveData. The generator's own fill
+  for that unit (the arrows it packs for a bow user) goes; ticked battle kits stay, in the free slots after.
+  Why in the save and not the game's add-item call after the load: the game builds the items from the save with its own
+  loader, nothing has to find the units after the load, and the copies keep durability and rolls (an add-item call makes
+  new items). The game test proves the game holds them (a save the game writes right after the load).
+- Owner: "Give the option to import their affecters from save as is (food buffs & others)". Switch "Bring buffs and
+  effects from the save", default off, World units only. On: the unit's AffecterHolders as the save holds them (Key,
+  Stack, Duration, InitialDuration); a holder the build also writes is replaced by the save's. Pick: the difficulty
+  holders (AFFECTER_PlayerDifficulty*, AFFECTER_PlayerManagementDifficulty*) stay the fight's, because the player picks
+  the difficulty in this window; a save's Very Hard holder next to a Normal fight would count twice.
+- Keys the game's tables do not know (DataSheetManager GetItemData / GetAffecterData; both end in GetValueOrDefault,
+  no exception) are left out and counted on one line under the switch before Start (tf_card.c tfc_known).
+- carry() finds a unit by its place (the generator writes the roster in build order) and checks its name; a mismatch or
+  a bag that does not fit is a problem: the test world is not made and the panel says why (English, as the generator's
+  own problems).
+- Tests: fights/test/run_saveunits.sh now also generates with the World units builds: bag slot by slot (key, amount,
+  AutoFixed, item components), switch off = the plain build's holders only, switch on = every save holder as is and the
+  fight's difficulty, kits on = bag + kit, an unknown key left out and counted (each fails by mutation: bag not brought,
+  effects not brought, save difficulty kept, effects sent with the switch off). saveunits_game_test.py: teams folded on
+  first open and after a reopen, the box adds 3 units while folded, the arrow opens / closes; fight 1 (switch off) and
+  fight 2 (switch on, two units with a bag): the game's own save of the running world (test call tf_test_save) holds each
+  unit's bag as in the save, no save affecter with the switch off, every save affecter within 1 s with it on.
+
+## Test Fights > DPS Check while it runs (2026-10-25, 0.1.24; fights/tf_dps.c)
+- Owner: the practice scarecrow's HP "997296 / 100000" wrapped its last "0" at 1,000,000; its HP stood still while the
+  mouse stayed on it; "a DPS display log logging the damages in the chat of the MP function", every hit.
+- Only in a world loaded from a DPS Check save (tf_wikisave.c tfw_dps_made, set in tf_worlds.c's load hook); every hook
+  passes straight through anywhere else. Nothing changes game state.
+- Panel (EntitySummaryUIView.UpdateBuildingEntityUI hook + the frame tick): "<now> / <max>" with the language's thousands
+  separator (as the Test Fights card), one line. A number that fits its 50-unit box stays as the game shows it; a longer one
+  grows away from the "/" (now right-aligned, max left-aligned) into the bar's free room; only if that is too narrow both
+  shrink alike (never under 60 %). en/de/ru/ja: 1,000,000 fits at the game's size. The panel follows the shown building's
+  durability every frame it changes (bar + texts through the game's own SetDurabilityUI).
+- Stock (decomp 25846389): a building's durability in that panel is set only when the panel is filled
+  (EntitySummaryUIPresenter.RefreshSummary); status changes refresh UNITS only. So every building's panel stands still in
+  the stock game; only the DPS Check's follows here. Measured: with our follow off the text stayed while durability fell.
+- Hit log (DamageSimulator.Simulate hook, one call per hit): target = BUILDING_DungeonScareCrow (the wiki's DPS target) ->
+  "<unit display name>: <skill / affecter name in the game's language> <TotalDamage as F0>[ Crit|Guard]", "Miss" / "Immune"
+  with no number (the game's VFXExecution words). Into the multiplayer chat (mp_api v3 chat_local: never sent, no rate
+  limit, shows in single player); without multiplayer (or "Chat: Off", or an older multiplayer) into our own panel
+  (bottom-left, 10 lines, wheel scrolls; without multiplayer the game's camera zoom is held while the pointer is on it:
+  not proven in game). All lines kept for the fight; a new DPS Check clears.
+- The scarecrow's self repair (AFFECTER_SelfRepair, 200) did NOT pause while it was hit: +200 about every second through a
+  30 s burst. The durability drop understates the squad's damage by that; the log does not.
+- New hook sites (docs/hooks.json at the next cm_pin): EntitySummaryUIView.UpdateBuildingEntityUI/1,
+  DamageSimulator.Simulate/4, UnityEngine.Input.get_mouseScrollDelta/0 (ONLY when multiplayer is not loaded; multiplayer
+  owns that site otherwise: sites.tsv note wanted). All have Windows callers or are virtual (Simulate): none inlined away.
+- Test: fights/test/dps_test.py (one hidden copy; 4 fixture units with weapons; Test Fights > DPS Check > Start; the
+  scarecrow clicked, the mouse kept on it; each unit right-clicks it). Checks (a) one line and inside the bar at 1,000,000
+  and 999,999 (TMP textBounds against the "/" and the bar box), (b) the panel follows, (c) per 0.25 s read the logged
+  damage = durability lost + whole repair steps, (d) one line per hit, all in the chat in order; our own panel forced on
+  shows the newest 10. --no-mp (multiplayer off) did not get past the title in a hidden copy (the title button click did
+  not open the lab: 3 tries), so the no-multiplayer path itself is only proven through the forced panel.
+
+## Escape closes our windows (owner 2026-10-25, 0.1.25: "make sure Escape works to close our custom windows")
 - The loader kit owns the key (kit 0.1.28, dsl_sdk.h `esc_push` / `esc_drop`, wrappers `dsl_esc_push` / `dsl_esc_drop`):
   each window pushes itself when it shows, one press calls the close of the top-most one that still shows, and the game
   never sees that press. Pushed here, close = the window's own button: the home page (Back), My Units (Close), its paste
@@ -149,9 +247,8 @@
   for one press. With an older loader My Units, the Builder and the home page have no Escape (as before 0.1.19).
 - Builds need the loader's sdk/ (kit 0.1.28): an older dsl_sdk.h stops the build (#error in home/cm_look.c), so a build
   can never ship without Escape. build.sh: `SDK=<ds_modloader>/loader/sdk` until the multiplayer pin's sdk/ has it.
-- Open (kit, reported to lane dsesc 2026-10-25): a field the Escape left stays the EventSystem's selection; when the
-  window survives the next Escape (Builder Cancel showing "Discard your changes?") the field gets the keyboard again, so
-  the 3rd Escape only leaves the field and the 4th answers the notice. A SetSelectedGameObject(null) in the close callback
-  does not help (TMP re-selects itself in that frame); the kit's "left a text field" branch can clear the selection.
+- A field the Escape left also lets go of the EventSystem selection (kit fix, dsesc 2026-10-25): before, when the window
+  survived the next Escape (Builder Cancel showing "Discard your changes?"), the field took the keyboard back and the 3rd
+  Escape only left it again. esc_test case 7 meets it in the player's order (unsaved change first, then the name field).
 - Test: units/test/esc_test.py (one hidden copy, title, real Escape key events through the test module font-probe, test
   library DSMP_UNITS_LIB; the owner's library checked unchanged). It fails with 0.1.18 on the same loader.

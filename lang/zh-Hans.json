@@ -3,6 +3,12 @@
   " %d 个单位会保留：它也在另一支队伍中。"
  ],
  "%d SP": "%d 技能点",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "%d 个游戏不认识的背包物品不会带入。"
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "%d 个游戏不认识的效果不会带入。"
+ ],
  "%d main SP": "%d 主技能点",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "发现 %d 个问题，测试世界未创建。"
@@ -83,6 +89,7 @@
  "Boss": "首领",
  "Boss fight": "首领战",
  "Bow": "弓",
+ "Bring buffs and effects from the save": "带入存档中的增益和效果",
  "Building your save file...": "正在构建你的存档文件……",
  "Builds by %s": "%s 的作品",
  "Can learn": "可学习",

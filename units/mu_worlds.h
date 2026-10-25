@@ -35,6 +35,12 @@ int  mu_world_header(const char *path, mu_world *w);
 /* unit `guid` of a save as a builder JSON build: what a snapshot stores in My Units and what Test Fights' World units
    hands the save generator (the same unit both ways). jfree it. NULL + err. */
 jv  *mu_save_build_obj(const char *path, const char *guid, char *err, size_t errn);
+/* the same build for Test Fights' World units, plus what the unit carries from the save, in "_cm" for the save generator's
+   glue (fights/sg_glue.js carry): {"bag": [mu_save_unit_carry bag entries], "aff": [its AffecterHolders]} ("aff" only with
+   aff != 0: the "bring buffs and effects" switch). known(kind 0 item / 1 affecter, key) = 0 leaves an entry out and counts
+   it in *skip_items / *skip_aff (the game's tables do not know the key); known NULL = all kept. jfree it. NULL + err. */
+typedef int (*mu_known_fn)(int kind, const char *key);
+jv  *mu_save_fight_build(const char *path, const char *guid, int aff, mu_known_fn known, int *skip_items, int *skip_aff, char *err, size_t errn);
 
 /* Game side (units/mu_window.c, main thread; not in the host tests): the one World units list, shared by My Units and
    Test Fights (owner 2026-10-25: "Test fights should allow to select directly people from one of your current saves").

@@ -169,6 +169,30 @@ jv *mu_save_build_obj(const char *path, const char *guid, char *err, size_t errn
     if (x.nbar) { jv *q = jarr(); for (int i = 0; i < x.nbar && i < 8; i++) jpush(q, jstrv(x.bar[i])); jset(o, "quick", q); }
     return o;
 }
+jv *mu_save_fight_build(const char *path, const char *guid, int aff, mu_known_fn known, int *skip_items, int *skip_aff, char *err, size_t errn) {
+    jv *b = mu_save_build_obj(path, guid, err, errn);
+    if (!b) return NULL;
+    jv *bag = NULL, *ah = NULL;
+    if (mu_save_unit_carry(path, guid, &bag, aff ? &ah : NULL, err, errn)) { jfree(b); return NULL; }
+    jv *cm = jobj(), *kb = jarr(), *ka = jarr();
+    for (size_t i = 0; bag && i < bag->cnt; i++) {
+        char *k = jstrdup_raw(jget(bag->v[i], "key"));
+        if (known && !known(0, k)) { if (skip_items) (*skip_items)++; }
+        else { jpush(kb, bag->v[i]); bag->v[i] = NULL; }                    /* moved, not copied */
+        free(k);
+    }
+    for (size_t i = 0; ah && i < ah->cnt; i++) {
+        char *k = jstrdup_raw(jget(ah->v[i], "Key"));
+        if (known && !known(1, k)) { if (skip_aff) (*skip_aff)++; }
+        else { jpush(ka, ah->v[i]); ah->v[i] = NULL; }
+        free(k);
+    }
+    jfree(bag); jfree(ah);
+    jset(cm, "bag", kb);
+    if (aff) jset(cm, "aff", ka); else jfree(ka);
+    jset(b, "_cm", cm);
+    return b;
+}
 int mu_snapshot(jv *lib, const mu_world *w, const char *guid, const char *name, char id_out[17], char *err, size_t errn) {
     jv *bj = mu_save_build_obj(w->path, guid, err, errn);
     if (!bj) return -1;

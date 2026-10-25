@@ -3,16 +3,23 @@
 saves") in one hidden loader test copy (background-only, small window, muted, notch fix off; never the owner's game, saves,
 library or screen) with multiplayer + custom-modes + the test module font-probe (the units test driver). The copy's game
 saves folder is a test folder holding a COPY of a real save (DSML_GAME_SAVES); its modded saves are its own; its My Units
-library is an empty test file (DSMP_UNITS_LIB).
+library is a test file (DSMP_UNITS_LIB) with 4 fixture units and one team of 3.
 Fails when (the breaks this catches):
-  - the World units tab does not list the save copy's world, or opening it does not show that save's units as cards;
-  - ticking two units does not put exactly those two in the squad;
-  - Start with them (Custom fight, one Weak Grey Rat) does not load the test world, the squad in the world is not the two
-    picked units (names), or a unit's level is not its level in the save;
-  - the fight does not start (HP changes) or does not end (the rat is not killed) within 4 minutes;
-  - back on the title the test world's saves are not removed;
+  - My Units: a team row shows its units on the first open, or again after the window opened again; its box does not add
+    all of its units while it is folded; its arrow does not open / close it;
+  - the World units tab does not list the save copy's world, a world is open when the window opens, or opening it does not
+    show that save's units as cards; ticking two units does not put exactly those two in the squad;
+  - fight 1 (effects switch off, its default; Custom fight, one Weak Grey Rat, no battle kits): the test world does not
+    load, the squad is not the two picked units (names) at their save levels, a unit's bag in the running game is not its
+    bag in the save (slot, key, amount), an affecter of the save that the build does not write shows up, the fight does not
+    start (HP changes) or end (the rat killed) within 4 minutes, or the test world's saves stay after the title;
+  - fight 2 (window opened again, effects switch on, two units that carry items): a bag differs, or an affecter of the save
+    is missing in the running game or has another stack / initial time / remaining time (more than 1 s off), or a
+    difficulty holder is not the fight's own (Normal);
   - the save copy, the source save or the owner's library change, or a window shows on a display. (The copy never sees the
     owner's save folders: its HOME, data folder and game saves folder are its own.)
+  The running game's units are read from a save the game itself writes of the test world right after the load, paused
+  (tf_test_save: the game's own CampaignSaveLoader.Save).
   saveunits_game_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer,
                                            mods/custom-modes)
                                 LD_ROOT = a ds_modloader checkout (its loader/test helpers; default ~/ds_launcher)
@@ -136,12 +143,53 @@ def save_levels(path):
     return out
 
 
+def units_carry(path):
+    """clan units of a save: guid -> {name key, bag [(slot, key, amount)], aff {key: (Stack, Duration, InitialDuration)}}"""
+    s = json.load(open(path, encoding='utf-8'))
+    ec = s['EntityComponentSaveData']['EntityComponents']; out = {}
+    for v in (s['EntityContainerSaveData'].get('UnitContainerSaveData') or {}).values():
+        for g in (v or {}).get('PlayerGuidList') or []:
+            cs = {c['Type']: c['Data'] for c in ec.get(g) or [] if c}
+            out[g.lower()] = {'name': (cs.get(10) or {}).get('UnitNameTextKey'),
+                              'bag': [(i, x['Key'], x['Amount']) for i, x in enumerate((cs.get(5) or {}).get('ItemSlots') or []) if x and x.get('Key')],
+                              'aff': {h['Key']: (h.get('Stack'), h.get('Duration'), h.get('InitialDuration')) for h in (cs.get(3) or {}).get('AffecterHolders') or []}}
+    return out
+
+
+def by_name(units, name):
+    return next((u for u in units.values() if u['name'] == name), None)
+
+
+def is_diff(k):
+    return k.startswith('AFFECTER_PlayerDifficulty') or k.startswith('AFFECTER_PlayerManagementDifficulty')
+
+
+def live_save(tag):
+    """the game writes the running test world right after the load, paused (Units Laboratory's test call tf_test_save =
+    the game's CampaignSaveLoader.Save): what the game holds"""
+    HP.c(X, cmd='set_speed', speed=0)
+    nm = f'mp_tfscheck_{tag}'; r = req('call', fn='tf_test_save', s=nm); log('test save', r.get('rc'), r.get('out'))
+    p = wait('the check save', lambda: next(iter(glob.glob(os.path.join(lrig.idir(X), 'data', 'Saves', nm + '.json'))), None), 30, 1)
+    log('live save', p)
+    return units_carry(p) if p else {}
+
+
+def test_world_file():
+    try:
+        tw = json.load(open(os.path.join(lrig.idir(X), 'data', 'Mods', 'custom-modes', 'test_worlds.json'))).get('worlds') or []
+    except (OSError, ValueError):
+        return None, []
+    f = next((p for p in glob.glob(os.path.join(lrig.idir(X), 'data', 'Saves', '*.json')) if any(g in p for g in tw)), None)
+    return f, tw
+
+
 def open_world(sv):
     """World units tab, the save copy's world opened: (index, unit guids) or (None, [])"""
     click('fights:l.src2', 2)
     s = tf(); rows = [w.split('|') for w in (s.get('worlds') or '').split(';') if w]
     gi = next((i for i, w in enumerate(rows) if w[0] == sv), None)
     check('the World units tab lists the save copy\'s world (game saves) and the modded saves\' world', s.get('src') == 2 and gi is not None and len(rows) >= 2, rows)
+    check('World units: every world starts folded when the window opens', s.get('wsel') == -1, s.get('wsel'))
     if gi is None:
         return None, []
     click(f'fights:l.world{gi}', 3)
@@ -149,15 +197,86 @@ def open_world(sv):
     return gi, us
 
 
+def folded():
+    click('fights:l.src0', 1.5)
+    return req('rect', target='fights:l.team0').get('rc', -1) > 0 and req('rect', target='fights:l.team0.u0').get('rc', -1) <= 0
+
+
+def teams_folded_part():
+    """task 2 (owner: "team units should be collapsed by default rather than extended")"""
+    check('My Units: a team row starts folded (its units not listed) on the first open', folded(), '')
+    click('fights:l.team0', 2)
+    s = tf()
+    check('the team box adds all its units while the team is folded', s.get('src') == 0 and s.get('squad') == 3 and req('rect', target='fights:l.team0.u0').get('rc', -1) <= 0, (s.get('src'), s.get('squad')))
+    click('fights:l.team0.open', 1.5)
+    shown = req('rect', target='fights:l.team0.u0').get('rc', -1) > 0
+    shot(f'team_open_{LANG or "en"}')
+    click('fights:l.team0.open', 1.5)
+    check('the arrow opens the team (its units listed) and closes it again', shown and req('rect', target='fights:l.team0.u0').get('rc', -1) <= 0, shown)
+    click('fights:l.team0', 1.5)                                  # its units out of the squad again
+
+
+def pick_rat():
+    for i in range(4):
+        if tf().get('mode') == 'arena':
+            break
+        cmf(cmd='set', name='fights:r.mode', index=i); time.sleep(0.8)
+    cmf(cmd='type', name='fights:r.monq', text=MONSTER); time.sleep(0.8)
+    cmf(cmd='set', name='fights:r.moncount', index=0); time.sleep(0.5)
+    ctl = cmf(cmd='state').get('controls') or {}
+    hit = next((n for n, c in ctl.items() if n.startswith('fights:r.hit') and c.get('t') == MONSTER), None)
+    if hit:
+        cmf(cmd='click', name=hit); time.sleep(0.8)
+    for i in range(8):                                            # the battle kits off: the bag must be the save's alone
+        k = ctl.get(f'fights:r.kit{i}')
+        if k and k.get('v') == 1:
+            cmf(cmd='click', name=f'fights:r.kit{i}'); time.sleep(0.5)
+    return hit
+
+
+def start_and_load():
+    t0 = time.time()
+    click('fights:start', 0.3)
+    ok = wait('test world loaded', lambda: HP.st(X).get('scene') == 2, 240, 0.5)
+    check('Start loads the test world', ok, f'{time.time() - t0:.0f} s; tf {tf() if not ok else ""}')
+    return ok
+
+
+def bag_check(tag, src_units, live, picked):
+    bad = []
+    for g in picked:
+        su = src_units.get(g.lower()); lu = by_name(live, su['name']) if su else None
+        if not su or not lu or lu['bag'] != su['bag']:
+            bad.append((su and su['name'], su and su['bag'], lu and lu['bag']))
+    check(f'[{tag}] each unit\'s bag in the fight = its bag in the save (slot, key, amount)', not bad and picked, bad[:2])
+
+
+def back_to_title():
+    f, tw = test_world_file()
+    HP.c(X, cmd='mpm_quit_title')
+    back = wait('title', lambda: HP.st(X).get('scene') == 1, 120, 2)
+    left = wait('test world removed', lambda: not [p for p in glob.glob(os.path.join(lrig.idir(X), 'data', 'Saves', '*.json')) if any(g in p for g in tw)], 30, 1) if tw else None
+    check('back on the title, the test world\'s saves are removed', back and tw and left, (back, tw))
+    time.sleep(4)
+
+
+def open_fights():
+    ok = click('title:' + (by_index(column(), COL_LAB) or 'Units Laboratory'), 3) and click('home:Test Fights', 4)
+    check('Units Laboratory > Test Fights opened', ok)
+    return ok
+
+
 def run():
     s = wait('Test Fights engine', lambda: (lambda t: t if t.get('engine') in (2, 3) else None)(tf()), 300, 2) or {}
     check('Test Fights opened and the wiki\'s fight maker is ready', s.get('engine') == 2, s)
+    teams_folded_part()
     sv = os.path.splitext(os.path.basename(SAVE))[0]
     gi, us = open_world(sv)
     check('the world shows its save\'s units as cards (read only), each with a tick', gi is not None and len(us) >= 2 and req('rect', target='fights:l.wcard0').get('rc', -1) > 0
           and req('rect', target='fights:l.wtick1').get('rc', -1) > 0, (gi, len(us)))
     if len(us) < 2:
         return
+    check('"Bring buffs and effects from the save" starts off', tf().get('waff') == 0 and req('rect', target='fights:l.waff').get('rc', -1) > 0, tf().get('waff'))
     pick = [0, 1]                                             # both cards in view (the list is 460 high)
     for k in pick:
         click(f'fights:l.wtick{k}', 2)
@@ -170,29 +289,24 @@ def run():
     shot(f'worlds_{LANG or "en"}')
     if LANG:                                                  # text fit shots only
         return
-    # ---- Custom fight, one Weak Grey Rat, in the boss room
-    for i in range(4):
-        if tf().get('mode') == 'arena':
-            break
-        cmf(cmd='set', name='fights:r.mode', index=i); time.sleep(0.8)
-    cmf(cmd='type', name='fights:r.monq', text=MONSTER); time.sleep(0.8)
-    cmf(cmd='set', name='fights:r.moncount', index=0); time.sleep(0.5)
-    ctl = cmf(cmd='state').get('controls') or {}
-    hit = next((n for n, c in ctl.items() if n.startswith('fights:r.hit') and c.get('t') == MONSTER), None)
-    if hit:
-        cmf(cmd='click', name=hit); time.sleep(0.8)
-    s = tf()
+    src = units_carry(os.path.join(GAME_SAVES, os.path.basename(SAVE)))
+    # ---- fight 1: effects off; Custom fight, one Weak Grey Rat, in the boss room, no battle kits
+    hit = pick_rat(); s = tf()
     check('Custom fight with one Weak Grey Rat chosen', s.get('mode') == 'arena' and hit is not None, (s.get('mode'), hit, s.get('status')))
     shot('before_start_en')
     levels = save_levels(os.path.join(GAME_SAVES, os.path.basename(SAVE)))
     want = {names[i]: levels.get(us[k].lower().replace('-', '')) for i, k in enumerate(pick)}
-    t0 = time.time()
-    click('fights:start', 0.5)
-    ok = wait('test world loaded', lambda: HP.st(X).get('scene') == 2, 240, 2)
-    check('Start loads the test world', ok, f'{time.time() - t0:.0f} s; tf {tf() if not ok else ""}')
-    if not ok:
+    if not start_and_load():
         return
-    time.sleep(6)
+    live = live_save('off')
+    bag_check('effects off', src, live, [us[k] for k in pick])
+    f, _ = test_world_file(); file_units = units_carry(f) if f else {}
+    leak = []
+    for k in pick:
+        su = src[us[k].lower()]; fu = by_name(file_units, su['name']); lu = by_name(live, su['name'])
+        only = set(su['aff']) - set((fu or {}).get('aff') or {})            # the save's own holders the build does not write
+        leak += [(su['name'], a) for a in only if not lu or a in lu['aff']]
+    check('[effects off] no affecter from the save shows up in the fight', file_units and live and not leak, leak[:4])
     ul = HP.c(X, cmd='list_units').get('units') or []
     pl = [u for u in ul if u.get('faction') == 1 and not u.get('dead')]
     foes = [u for u in ul if u.get('faction') != 1 and not u.get('dead') and u.get('x') is not None]
@@ -217,15 +331,39 @@ def run():
     check('the fight ends: the rat is killed, the squad stands', end is not None and len(alive) == len(pl), alive)
     HP.c(X, cmd='set_speed', speed=0)
     shot('fight_end_en')
-    tw = []
-    try:
-        tw = json.load(open(os.path.join(lrig.idir(X), 'data', 'Mods', 'custom-modes', 'test_worlds.json'))).get('worlds') or []
-    except (OSError, ValueError):
-        pass
-    HP.c(X, cmd='mpm_quit_title')
-    back = wait('title', lambda: HP.st(X).get('scene') == 1, 120, 2)
-    left = wait('test world removed', lambda: not [p for p in glob.glob(os.path.join(lrig.idir(X), 'data', 'Saves', '*.json')) if any(g in p for g in tw)], 30, 1) if tw else None
-    check('back on the title, the test world\'s saves are removed', back and tw and left, (back, tw))
+    back_to_title()
+    # ---- fight 2: the window opened again (folded again), effects on, two units that carry things
+    if not open_fights():
+        return
+    wait('Test Fights engine', lambda: tf().get('engine') == 2, 60, 1)
+    check('My Units: the team is folded again after the window opened again', folded(), '')
+    gi, us = open_world(sv)
+    for k in pick:
+        cmf(cmd='click', name=f'fights:l.wtick{k}'); time.sleep(0.5)
+    full = [k for k, g in enumerate(us) if src.get(g.lower(), {}).get('bag')][:2]
+    for k in full:
+        cmf(cmd='click', name=f'fights:l.wtick{k}'); time.sleep(0.5)
+    click('fights:l.waff', 1.5)
+    s = tf(); picks = [p.split('/')[1] for p in (s.get('spicks') or '').split(',') if '/' in p]
+    check('two units with a bag picked, effects switch on', len(full) == 2 and picks == [us[k] for k in full] and s.get('waff') == 1, (full, picks, s.get('waff')))
+    shot('effects_on_en')
+    if not start_and_load():
+        return
+    live = live_save('on')
+    bag_check('effects on', src, live, picks)
+    bad = []
+    for g in picks:
+        su = src[g.lower()]; lu = by_name(live, su['name'])
+        for a, (st_, du, ini) in su['aff'].items():
+            if is_diff(a):
+                continue
+            h = (lu or {}).get('aff', {}).get(a)
+            if not h or h[0] != st_ or h[2] != ini or abs((h[1] or 0) - (du or 0)) > 1.0:
+                bad.append((su['name'], a, (st_, du, ini), h))
+        if lu and [a for a in lu['aff'] if is_diff(a) and a not in ('AFFECTER_PlayerDifficultyNormal', 'AFFECTER_PlayerManagementDifficultyNormal')]:
+            bad.append((su['name'], 'difficulty', [a for a in lu['aff'] if is_diff(a)]))
+    check('[effects on] each unit has every affecter of the save (key, stack, remaining time within 1 s); difficulty = the fight\'s', picks and not bad, bad[:4])
+    back_to_title()
 
 
 def main():
@@ -233,8 +371,12 @@ def main():
     g = threading.Thread(target=HP.guard, daemon=True); g.start()
     res = {}
     try:
-        os.makedirs(os.path.dirname(LIB), exist_ok=True)
-        json.dump({'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': [], 'teams': []}, open(LIB, 'w'))
+        os.makedirs(os.path.dirname(LIB), exist_ok=True)              # 4 fixture units, team A = the first 3 (task 2)
+        units = json.load(open(os.path.join(REPO, 'units', 'test', 'data', 'launcher_library.json')))['units'][:4]
+        for i, u in enumerate(units):
+            u['id'] = f'{0xb0 + i:02x}' * 8; u['name'] = f'Team unit {i}'
+        json.dump({'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
+                   'teams': [{'id': 'cc' * 8, 'name': 'Team A', 'unit_ids': [u['id'] for u in units[:3]]}]}, open(LIB, 'w'))
         os.makedirs(GAME_SAVES, exist_ok=True)
         cp = os.path.join(GAME_SAVES, os.path.basename(SAVE)); shutil.copy2(SAVE, cp); c0 = fstate(cp)
         HP.make_copy(X)
@@ -250,8 +392,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB, 'DSML_GAME_SAVES': GAME_SAVES})
         lrig.wait_for(X, lambda s: s.get('scene') == 1 and not s.get('busy'), 'title', timeout=1500); time.sleep(6)
-        ok = click('title:' + (by_index(column(), COL_LAB) or 'Units Laboratory'), 3) and click('home:Test Fights', 4)
-        check('Units Laboratory > Test Fights opened', ok)
+        open_fights()
         run()
         check('the real save copy is unchanged', fstate(cp) == c0)
     except BaseException as e:

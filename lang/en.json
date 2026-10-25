@@ -1,6 +1,8 @@
 {
  " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.",
  "%d SP": "%d SP",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.",
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": "%d effect the game does not know is left out.||%d effects the game does not know are left out.",
  "%d main SP": "%d main SP",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.",
  "%d selected||%d selected": "%d selected||%d selected",
@@ -65,6 +67,7 @@
  "Boss": "Boss",
  "Boss fight": "Boss fight",
  "Bow": "Bow",
+ "Bring buffs and effects from the save": "Bring buffs and effects from the save",
  "Building your save file...": "Building your save file...",
  "Builds by %s": "Builds by %s",
  "Can learn": "Can learn",

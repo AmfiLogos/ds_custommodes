@@ -17,6 +17,7 @@
 #include "cm_prefs.h"
 #include "cm_gtip.h"
 #include "tf_card.h"
+#include "mu_save.h"
 #include <stdint.h>
 #include "i18n/ds_i18n.h"
 #include <stdio.h>
@@ -186,6 +187,7 @@ static struct {
     int src;                                    /* 0 My Units, 1 Gallery, 2 World units (a save's units) */
     char ids[8][17]; int nids; char team[96];   /* My Units picks; team = the picked team's name ("" = single units) */
     struct { char world[40], guid[40], name[96]; } sv[8]; int nsv;   /* World units picks: world (campaign guid) + unit guid */
+    int waff;                                   /* World units: bring the units' affecters from the save (default off) */
     int team_i;                                 /* the picked team's place in My Units, -1 = single units */
     char *gal_builds; char gal_title[160]; char gal_names[8][96]; int gal_n;
     int seeded;
@@ -326,13 +328,17 @@ static mu_world wl[TF_WMAX]; static int nwl, wsel = -1;              /* wsel = t
 static mu_save_unit wu[TF_WUMAX]; static int nwu, wu_for = -1; static char wu_err[400];   /* the open world's units */
 static const mu_world *world_of(const char *guid) { for (int i = 0; i < nwl; i++) if (!strcmp(wl[i].guid, guid)) return &wl[i]; return NULL; }
 /* the picks as builds, each built straight from its world's newest save, the way a snapshot is made (mu_save_build_obj):
-   the unit fights with the save's level, gear and skills */
+   the unit fights with the save's level, gear and skills. Beside the build ("_cm", mu_save_fight_build) go its bag (owner
+   2026-10-25: "bring over the items they carry") and, with the switch on, its affecters ("import their affecters from save
+   as is"); sg_glue.js carry() puts them into the test world. Keys the game's tables do not know are left out (tfc_known). */
 static char *save_builds_json(char *err, size_t errn) {
     if (!st.nsv) { snprintf(err, errn, "%s", TR("Pick at least one unit.")); return NULL; }
     jv *a = jarr();
     for (int i = 0; i < st.nsv && i < P.max_squad; i++) {
         const mu_world *w = world_of(st.sv[i].world); char e[400] = "";
-        jv *b = w ? mu_save_build_obj(w->path, st.sv[i].guid, e, sizeof e) : NULL;
+        int si = 0, sa = 0;
+        jv *b = w ? mu_save_fight_build(w->path, st.sv[i].guid, st.waff, tfc_known, &si, &sa, e, sizeof e) : NULL;
+        if (b && (si || sa)) cmw_log("tf: World units %s: %d bag item(s), %d affecter(s) the game does not know left out", st.sv[i].guid, si, sa);
         if (!b) {
             if (w) { snprintf(err, errn, TR("%s could not be read from the save: %s"), st.sv[i].name, e); dsi_utf8_fix_end(err); }
             else snprintf(err, errn, "%s", TR("A picked unit's world is no longer in your saves."));
@@ -354,8 +360,7 @@ static char *builds_json(char *err, size_t errn) {
     if (!st.nids) { snprintf(err, errn, "%s", TR("Pick at least one unit.")); return NULL; }
     size_t cap = 1024, k = 0; char *o = malloc(cap); o[k++] = '[';
     for (int i = 0; i < st.nids && i < P.max_squad; i++) {
-        const jv *u = lib ? mu_find(lib, st.ids[i]) : NULL; jv *b = u ? jget(u, "build") : NULL;
-        size_t n = 0; char *t = b ? jdump(b, 0, &n) : NULL;
+        size_t n = 0; char *t = lib ? mu_fight_build_json(lib, st.ids[i], cm_gettext, &n) : NULL;   /* with its My Units name */
         if (!t) { free(o); snprintf(err, errn, "%s", TR("A picked unit is no longer in My Units.")); return NULL; }
         if (k + n + 4 > cap) { cap = (k + n + 4) * 2; o = realloc(o, cap); }
         if (i) o[k++] = ',';
@@ -443,6 +448,22 @@ static void team_sync(void) {
         for (int k = 0; k < n && all; k++) all = picked_at(ids[k]) >= 0;
         if (all) { snprintf(st.team, sizeof st.team, "%s", name); st.team_i = (int)i; return; }
     }
+}
+/* Team rows (and World units' worlds) start folded (owner 2026-10-25: "team units should be collapsed by default rather than
+   extended"): one row per team; its arrow shows or hides its units. Kept while the window is open; every open starts folded. */
+static unsigned char team_open[128];
+static void team_fold_click(void *ud, DSLObj w) { (void)w; size_t i = (size_t)(intptr_t)ud; if (i < sizeof team_open) team_open[i] = !team_open[i]; paint_all(); }
+/* the fold arrow: the kit's own chevron (the value rows' next arrow), turned to point down while the list is open */
+static void chevron_down(DSLObj w) {
+    static cm_m m; static int tried; typedef struct { float x, y, z; } V3r;
+    if (!tried) { tried = 1; m = cm_il_method("UnityEngine", "Transform", "set_localEulerAngles", 1, NULL); }
+    Obj t = w ? cm_text_of(w) : NULL;
+    if (t && m.fn) CM_CALL(m, void, Obj, V3r, const void *)(cm_tr(t), (V3r){ 0, 0, -90 }, m.mi);
+}
+static DSLObj fold_arrow(DSLObj parent, float x, float y, int open, dsl_ui_cb cb, void *ud, const char *name) {
+    DSLObj b = cmw_named(U->button(parent, x, y, 28, 28, "\xE2\x80\xBA", cb, ud), CMW_BUTTON, name, cb, ud, open ? "open" : "folded");
+    if (b && open) chevron_down(b);
+    return b;
 }
 /* the team's tick: select all / none of its units (owner v0.1.12 #1: no more "the whole team at once" by default) */
 static void team_click(void *ud, DSLObj w) {
@@ -573,6 +594,7 @@ static void wunit_toggle(void *ud, DSLObj w) {
     paint_all();
 }
 int mu_window_is_open(void);
+static void waff_change(void *ud, DSLObj w) { (void)ud; st.waff = U->toggle_get(w); paint_all(); }
 /* the World units list (owner 2026-10-25): the worlds as rows (clan name, save time, how many of its units are picked); the
    open world shows its save's units as cards (read only), each with a tick */
 static void paint_worlds(float y, float lh, float ky) {
@@ -583,6 +605,22 @@ static void paint_worlds(float y, float lh, float ky) {
     if (sq[0]) { snprintf(line, sizeof line, TR("In the squad: %s"), sq); dsi_utf8_fix_end(line); }
     else snprintf(line, sizeof line, "%s", TR("Open a world and tick the units to send in. They fight as they are in that save."));
     sy += txt(sc, "fights:l.picked", 0, sy, uw, line, 15, sq[0] ? GOLD : SUB) + 8;
+    /* owner 2026-10-25: "Give the option to import their affecters from save as is (food buffs & others)": off by default */
+    const char *wl_aff = TR("Bring buffs and effects from the save");
+    cmw_named(U->toggle(sc, 0, sy, uw, wl_aff, st.waff, waff_change, NULL), CMW_TOGGLE, "fights:l.waff", waff_change, NULL, wl_aff);
+    sy += 44;
+    int ni = 0, na = 0;
+    for (int q = 0; q < st.nsv; q++) {                                 /* what the picks would leave out: said before Start */
+        const mu_world *w = world_of(st.sv[q].world); char e[300];
+        jv *b = w ? mu_save_fight_build(w->path, st.sv[q].guid, st.waff, tfc_known, &ni, &na, e, sizeof e) : NULL; jfree(b);
+    }
+    if (ni || na) {
+        char a[200] = "", b2[200] = "", l2[420];
+        if (ni) snprintf(a, sizeof a, TRN("%d bag item the game does not know is left out.", "%d bag items the game does not know are left out.", ni), ni);
+        if (na) snprintf(b2, sizeof b2, TRN("%d effect the game does not know is left out.", "%d effects the game does not know are left out.", na), na);
+        snprintf(l2, sizeof l2, "%s%s%s", a, a[0] && b2[0] ? " " : "", b2); dsi_utf8_fix_end(l2);
+        sy += txt(sc, "fights:l.wunknown", 0, sy, uw, l2, 14, WARN) + 6;
+    }
     if (!nwl) sy += txt(sc, "fights:l.wnone", 0, sy, uw, TR("No saves found."), 15, SUB);
     if (!mu_window_is_open()) mu_drawn_reset();                       /* the cards' test record (overflow check), unless My Units uses it */
     for (int i = 0; i < nwl; i++) {
@@ -593,8 +631,10 @@ static void paint_worlds(float y, float lh, float ky) {
         DSLObj b = cmw_named(U->button(sc, 0, sy, uw, 52, "", world_click, (void *)(intptr_t)i), CMW_BUTTON, nm, world_click, (void *)(intptr_t)i, wl[i].name);
         if (b) {
             snprintf(c, sizeof c, "%d", nin);
-            mu_text(b, 12, 4, uw - 24 - (nin ? 40 : 0), 24, wl[i].name, 15, DSL_TXT_LEFT, open || nin ? GOLD : MAIN);
-            mu_text(b, 12, 27, uw - 24, 20, when, 13, DSL_TXT_LEFT, SUB);
+            DSLObj ar = mu_text(b, 6, 12, 22, 28, "\xE2\x80\xBA", 18, DSL_TXT_CENTER, open ? GOLD : SUB);   /* folded / open, as a team row */
+            if (ar && open) chevron_down(ar);
+            mu_text(b, 32, 4, uw - 44 - (nin ? 40 : 0), 24, wl[i].name, 15, DSL_TXT_LEFT, open || nin ? GOLD : MAIN);
+            mu_text(b, 32, 27, uw - 44, 20, when, 13, DSL_TXT_LEFT, SUB);
             if (nin) mu_text(b, uw - 52, 4, 40, 24, c, 15, DSL_TXT_RIGHT, GOLD);
         }
         sy += 56;
@@ -668,7 +708,10 @@ static void paint_left(void) {
             int n = mu_team_at(lib, i, name, sizeof name, ids), nin = 0;
             for (int k = 0; k < n; k++) nin += picked_at(ids[k]) >= 0;
             mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
-            DSLObj ib = U->panel(sc, 0, sy, 40, 40, 0x1E1C21FFu);   /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
+            int open = i < sizeof team_open && team_open[i];
+            snprintf(nm, sizeof nm, "fights:l.team%zu.open", i);
+            fold_arrow(sc, 0, sy + 6, open, team_fold_click, (void *)(intptr_t)i, nm);
+            DSLObj ib = U->panel(sc, 32, sy, 40, 40, 0x1E1C21FFu);  /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
             Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
             if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
             if (ib && sp) cm_set_sprite(ib, sp, 0xFFFFFFFFu);
@@ -677,25 +720,27 @@ static void paint_left(void) {
             snprintf(nm, sizeof nm, "fights:l.team%zu", i);
             /* the name on one line at the unit rows' size (ends in "..."), the count apart before the tick box: as one kit
                label it wrapped to two smaller lines with "(0/4)" on the border */
-            DSLObj tg = cmw_named(U->toggle(sc, 46, sy + 2, uw - 46, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
+            const float tx = 78;
+            DSLObj tg = cmw_named(U->toggle(sc, tx, sy + 2, uw - tx, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
             if (tg) { char c[24]; snprintf(c, sizeof c, "%d/%d", nin, n);
                       /* the count measured, right-aligned 9 before the tick box; the name gets the row up to 10 before it */
-                      float ce = uw - 46 - 44; DSLObj ct = mu_text(tg, ce - 46, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB);
+                      float ce = uw - tx - 44; DSLObj ct = mu_text(tg, ce - 46, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB);
                       float cw = ct ? cm_text_preferred_w(ct) : -1; if (cw <= 0 || cw > 46) cw = 46;
                       ellipsis_fit(mu_text(tg, 12, 6, ce - cw - 10 - 12, 24, name, 16, DSL_TXT_LEFT, nin ? GOLD : MAIN), name, ce - cw - 10 - 12); }
             sy += 48;
             if (team_author(i, au, sizeof au)) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
                 snprintf(nm, sizeof nm, "fights:l.team%zu.by", i);
-                sy += txt(sc, nm, 46, sy - 2, uw - 46, by, 14, SUB);
+                sy += txt(sc, nm, tx, sy - 2, uw - tx, by, 14, SUB);
             }
             for (int k = 0; k < n; k++) {
                 mu_info in; size_t ui;
                 if (unit_info_by_id(ids[k], &in, &ui)) continue;
-                if (ui < sizeof in_team) in_team[ui] = 1;
+                if (ui < sizeof in_team) in_team[ui] = 1;                  /* folded too: a team's unit is never a single unit */
+                if (!open) continue;
                 int on = picked_at(in.id) >= 0;
                 snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.team%zu.u%d", i, k);
-                cmw_named(U->toggle(sc, 68, sy, uw - 68, lab, on, unit_toggle, (void *)(intptr_t)ui), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)ui, lab);
+                cmw_named(U->toggle(sc, tx + 22, sy, uw - tx - 22, lab, on, unit_toggle, (void *)(intptr_t)ui), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)ui, lab);
                 sy += 40;
             }
             sy += 10;
@@ -1047,7 +1092,8 @@ static void build_window(void) {
     engine_open();
     paint_all();
 }
-void tf_open(void) { build_window(); }
+static void fold_all(void) { memset(team_open, 0, sizeof team_open); wsel = -1; }   /* every open starts folded */
+void tf_open(void) { fold_all(); build_window(); }
 static void tf_relang(void) { if (cmw_is_open("fights")) build_window(); }   /* the language changed: drawn again */
 void tf_open_with_builds(const char *builds_json, const char *title, const char *const *names, int n) {
     free(st.gal_builds); st.gal_builds = builds_json ? strdup(builds_json) : NULL;
@@ -1055,7 +1101,7 @@ void tf_open_with_builds(const char *builds_json, const char *title, const char 
     st.gal_n = 0;
     for (int i = 0; i < n && i < 8; i++) snprintf(st.gal_names[st.gal_n++], 96, "%s", names[i] ? names[i] : "");
     st.src = 1; status[0] = 0;
-    build_window();
+    fold_all(); build_window();
 }
 extern void gal_open(void);
 static void gallery_open_click(void *ud, DSLObj w) { (void)ud; (void)w; gal_open(); }
@@ -1068,11 +1114,27 @@ static void test_state(char *out, size_t n) {
     for (int i = 0; i < st.nsv && c + 70 < sizeof ps; i++) c += (size_t)snprintf(ps + c, sizeof ps - c, "%s%s/%s", i ? "," : "", st.sv[i].world, st.sv[i].guid);
     for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
     snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
-             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\"}",
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d}",
              engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
              P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
-             P.max_squad, ws, wsel, us, wu_err, ps);
+             P.max_squad, ws, wsel, us, wu_err, ps, st.waff);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
+}
+
+/* test only (the units test driver's "call"; nothing in play calls it): the game writes the running world as save `s`
+   (CampaignSaveLoader.Save(name, false, name), the call behind its own Save), so a test reads what the game holds after a
+   Test Fights load: World units' bag and affecters (fights/test/saveunits_game_test.py). 0 ok. */
+__attribute__((visibility("default"))) int tf_test_save(const char *s, char *out, size_t cap) {
+    void *k_mf = cm_il_class("Refactor.Main", "MainFlow");
+    int32_t off = k_mf ? cm_il_field(k_mf, "_campaignSaveLoader") : -1;
+    cm_m sv = cm_il_method("Refactor", "CampaignSaveLoader", "Save", 3, NULL);
+    Obj mf = k_mf ? cm_find(k_mf, true) : NULL, ld = cm_alive(mf) && off >= 0 ? CM_AT(mf, off, Obj) : NULL;
+    if (!ld || !sv.fn || !s || !*s) { snprintf(out, cap, "no save loader (MainFlow %p, field %d, Save %p)", mf, off, sv.fn); return -1; }
+    Obj nm = cm_il_str(s);
+    bool ok = CM_CALL(sv, bool, Obj, Obj, bool, Obj, const void *)(ld, nm, false, nm, sv.mi);
+    snprintf(out, cap, "saved %d", ok);
+    cmw_log("tf: test save %s: %d", s, ok);
+    return ok ? 0 : -2;
 }
 
 /* ------------------------------------------------------------------ entry point (called by cm_module.c) */

@@ -4,7 +4,9 @@
  * Autosaves the game makes inside a test fight carry the same GUID, so they are hidden too.
  * Test worlds are throwaway copies made from the wiki's templates: back on the title after the fight their saves are
  * removed and the game refreshes its save list and the title's Continue (back to the player's own latest world). Writing a new test world also removes the files of older ones left over (game closed inside a fight).
- * Nothing of the player's own worlds is ever touched. */
+ * Nothing of the player's own worlds is ever touched. The title never picks a test world as its background or Continue
+ * save (also saves left by a crash), and while a test world is loaded the player's records (OutGame.json: tutorials,
+ * items obtained, credits, Downfall unlock) are not written and are set back in memory when the test is left. */
 #pragma once
 #include "dsl_sdk.h"
 #include <stddef.h>
@@ -25,5 +27,6 @@ void tfw_loading(void);                                 /* our load is starting:
  * At load: a hook on SaveLoadHelper.DeserializeCampaignSaveDataSafely(json, settings, path) hands the game the fixed
  * text (the file itself stays as it is). */
 int  tfw_wiki_made(const char *save_name);              /* 1 = a name only the wiki's save generator writes */
+int  tfw_dps_made(const char *save_name);               /* 1 = one of those, and a DPS Check (tf_dps.h) */
 struct jv;
 int  tfw_consecration_fix(struct jv *save);             /* off + acknowledged; 1 = something changed */

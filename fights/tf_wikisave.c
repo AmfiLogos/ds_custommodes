@@ -23,6 +23,12 @@ int tfw_wiki_made(const char *name) {
     return has_tok(name, n, "_BossRush-") || has_tok(name, n, "_Arena-") || has_tok(name, n, "_DPS Check_") ||
            has_tok(name, n, "_FinishedBase_") || has_tok(name, n, "DSBuilder+") || has_tok(name, n, "DSBuilder_");
 }
+/* a DPS Check save (tf_dps.h): wiki-made and its stem is "DPS Check_<difficulty>" or "<team>_DPS Check_<difficulty>" */
+int tfw_dps_made(const char *name) {
+    if (!tfw_wiki_made(name)) return 0;
+    const char *a = strstr(name, "__AutoSave_");
+    return !strncmp(name, "DPS Check_", 10) || has_tok(name, (size_t)(a - name), "_DPS Check_");
+}
 int tfw_consecration_fix(jv *save) {
     jv *css = jpath(save, "CampaignSettingSaveData.CampaignStartSettingSaveData");
     if (!css || css->t != JN_OBJ) return 0;

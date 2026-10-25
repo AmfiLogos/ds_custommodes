@@ -3,6 +3,12 @@
   " %d개의 유닛은 다른 팀에도 있어 남습니다."
  ],
  "%d SP": "%d SP",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "게임이 모르는 가방 아이템 %d개는 제외됩니다."
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "게임이 모르는 효과 %d개는 제외됩니다."
+ ],
  "%d main SP": "%d 주요 SP",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "문제 %d개 발견 - 테스트 월드가 만들어지지 않았습니다."
@@ -83,6 +89,7 @@
  "Boss": "보스",
  "Boss fight": "보스전",
  "Bow": "활",
+ "Bring buffs and effects from the save": "세이브의 버프와 효과 가져오기",
  "Building your save file...": "세이브 파일을 만드는 중...",
  "Builds by %s": "%s의 빌드",
  "Can learn": "습득 가능",
