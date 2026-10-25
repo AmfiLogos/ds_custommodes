@@ -259,19 +259,20 @@ def cases():
     check('6 the Unit Builder opens over My Units', bld_on(s) and mu_on(s), s.get('esc'))
     s = press()
     check('6 Escape closes the Builder only (My Units stays)', not bld_on(s) and mu_on(s), (bld_on(s), mu_on(s), s.get('esc')))
-    # 7. the Builder's name field (no flag): the 1st press only leaves it. Then an unsaved change (a race picked: that click
-    #    moves the selection off the field, see NOTES.md "Escape"): Escape = Cancel -> the game's notice; Escape there =
-    #    "Keep editing"
+    # 7. the Builder's name field (no flag) after an unsaved change (a race picked), the order a player meets: the 1st press
+    #    only leaves the field; Escape = Cancel -> the game's notice; Escape there = "Keep editing" (the field that lost the
+    #    keyboard must not take it back when the notice shows: the kit clears its selection)
     click('mu:new', 1.5)
     wait_for(lambda: (lambda s: s if cm(s, 'bld').get('engine') == 2 and not cm(s, 'bld').get('busy') else None)(st()), 40)
+    click('bld:race:AFFECTER_Elf', 1.5); s = until(lambda s: cm(s, 'bld').get('dirty') == 1)
+    check('7 a race picked: an unsaved change', cm(s, 'bld').get('dirty') == 1, cm(s, 'bld'))
     click('bld:name'); s = until(lambda s: s.get('typing') == 1)
     check('7 the Builder\'s name field has the keyboard', s.get('typing') == 1 and bld_on(s), s.get('typing'))
     s = press()
     check('7 1st Escape only leaves the Builder\'s name field (the Builder stays, no notice)', bld_on(s) and s.get('typing') == 0 and not notice_on(), (bld_on(s), s.get('typing'), s.get('esc')))
-    click('bld:race:AFFECTER_Elf', 1.5); s = until(lambda s: cm(s, 'bld').get('dirty') == 1)
-    check('7 a race picked: an unsaved change', cm(s, 'bld').get('dirty') == 1, cm(s, 'bld'))
     s = press(); nt = notice_on()
     check('7 Escape = Cancel: the game\'s notice asks (unsaved change), the Builder stays', nt and bld_on(s), (nt, bld_on(s), s.get('esc')))
+    check('7 the name field did not take the keyboard back', s.get('typing') == 0, s.get('typing'))
     s = press(); nt = notice_on()
     check('7 Escape on the notice = Keep editing (the Builder stays)', not nt and bld_on(s), (nt, bld_on(s), s.get('esc')))
     press(); wait_for(notice_on, 4); click('notice_ok', 1.5); s = st()   # Discard: closes the Builder the button's way
