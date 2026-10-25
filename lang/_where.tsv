@@ -1,11 +1,11 @@
-" %d unit stays: it is also in another team.|| %d units stay: they are also in another team."	units/mu_window.c:380
-" (%.0f over)"	fights/tf_dps.c:402
+" %d unit stays: it is also in another team.|| %d units stay: they are also in another team."	units/mu_window.c:385
+" (%.0f over)"	fights/tf_dps.c:418
 "%d SP"	builder/bld_ui.c:945
-"%d bag item the game does not know is left out.||%d bag items the game does not know are left out."	fights/tf_ui.c:652
-"%d effect the game does not know is left out.||%d effects the game does not know are left out."	fights/tf_ui.c:653
+"%d bag item the game does not know is left out.||%d bag items the game does not know are left out."	fights/tf_ui.c:651
+"%d effect the game does not know is left out.||%d effects the game does not know are left out."	fights/tf_ui.c:652
 "%d main SP"	builder/bld_ui.c:946
 "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made."	fights/tf_ui.c:299
-"%d selected||%d selected"	units/mu_window.c:561
+"%d selected||%d selected"	units/mu_window.c:571
 "%d slot and %s weight per character.||%d slots and %s weight per character."	fights/tf_ui.c:1089
 "%d sub SP"	builder/bld_ui.c:946
 "%d unit||%d units"	gallery/gal_ui.c:469
@@ -17,7 +17,7 @@
 "%s  -  weapon tree, Main SP, from an inscription"	builder/bld_ui.c:927
 "%s  Lv %d"	gallery/gal_ui.c:267 gallery/gal_ui.c:581 fights/tf_ui.c:789 fights/tf_ui.c:801
 "%s %.*s is not in this game version"	units/pvp_wiki.c:278
-"%s (basic)"	fights/tf_dps.c:314
+"%s (basic)"	fights/tf_dps.c:315
 "%s cannot go in the %s slot"	units/pvp_build.c:207
 "%s could not be read from the save: %s"	fights/tf_ui.c:344
 "%s is not in one of this unit's skill trees"	units/pvp_build.c:219
@@ -35,15 +35,15 @@
 "A picked unit is no longer in My Units."	fights/tf_ui.c:365
 "A picked unit's world is no longer in your saves."	fights/tf_ui.c:345
 "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does."	fights/tf_ui.c:993
-"A team holds %d unit at most.||A team holds %d units at most."	units/mu_window.c:268
+"A team holds %d unit at most.||A team holds %d units at most."	units/mu_window.c:271
 "A unit holds one soul stone: picking another replaces it."	builder/bld_ui.c:788
 "Absorbed"	fights/tf_meter.c:415
 "Acquired Traits"	builder/bld_ui.c:783
 "Active"	builder/bld_ui.c:653
-"Add"	units/mu_window.c:601
+"Add"	units/mu_window.c:610
 "Add a Shield (One-Handed Weapons)"	builder/bld_ui.c:1052
 "Add at least one monster to the room."	fights/tf_ui.c:385
-"Add from Wiki Link"	units/mu_window.c:589 units/mu_window.c:591
+"Add from Wiki Link"	units/mu_window.c:598 units/mu_window.c:600
 "Added %d unit to My Units as the team %s||Added %d units to My Units as the team %s"	units/mu_link.c:109
 "Added 1 unit to My Units: %s"	units/mu_link.c:108
 "Added by default so every unit has enough carry weight for the battle kits."	fights/tf_ui.c:1101
@@ -51,31 +51,31 @@
 "Aid Kit"	fights/tf_ui.c:181
 "All"	builder/bld_ui.c:583
 "All %s"	builder/bld_ui.c:839 builder/bld_ui.c:839 builder/bld_ui.c:839
-"All Units (%zu)"	units/mu_window.c:420
+"All Units (%zu)"	units/mu_window.c:425
 "An expedition holds %d unit: untick one first.||An expedition holds %d units: untick one first."	fights/tf_ui.c:443
 "Any"	gallery/gal_ui.c:768 gallery/gal_ui.c:768 builder/bld_ui.c:555
-"Arrow"	units/mu_ui.c:191
+"Arrow"	units/mu_ui.c:218
 "Attack"	builder/bld_ui.c:676
 "Auxiliary Trees"	builder/bld_ui.c:631 builder/bld_ui.c:1030
 "Average"	builder/bld_ui.c:823
-"Axe"	units/mu_ui.c:192
+"Axe"	units/mu_ui.c:219
 "Back"	home/cm_home.c:98 gallery/gal_ui.c:718 gallery/gal_ui.c:718
 "Background"	builder/bld_ui.c:33
 "Basic Camping Kit"	fights/tf_ui.c:181
 "Basic Supply Kit"	fights/tf_ui.c:181
 "Battle Kits"	fights/tf_ui.c:1060
 "Best"	builder/bld_ui.c:823
-"Blunt"	units/mu_ui.c:185
-"Body Armor"	units/mu_ui.c:190
+"Blunt"	units/mu_ui.c:212
+"Body Armor"	units/mu_ui.c:217
 "Bonus"	builder/bld_ui.c:632
 "Boss"	fights/tf_ui.c:1003
 "Boss Fight"	fights/tf_ui.c:990
-"Bow"	units/mu_ui.c:186
-"Bring Buffs and Effects from the Save"	fights/tf_ui.c:642
+"Bow"	units/mu_ui.c:213
+"Bring Buffs and Effects from the Save"	fights/tf_ui.c:641
 "Building your save file..."	fights/tf_ui.c:399
 "Builds by %s"	gallery/gal_ui.c:185
 "Can Learn"	builder/bld_ui.c:653
-"Cancel"	units/mu_window.c:332 units/mu_window.c:385 units/mu_window.c:602 units/mu_window.c:639
+"Cancel"	units/mu_window.c:335 units/mu_window.c:390 units/mu_window.c:611 units/mu_window.c:648
 "Choose Management Difficulty Separately"	fights/tf_ui.c:1054 fights/tf_ui.c:1054
 "Choose a build, open its Details, then press \"Use This Unit\"."	gallery/gal_ui.c:93 gallery/gal_ui.c:858 gallery/gal_ui.c:860
 "Clear"	gallery/gal_ui.c:851 gallery/gal_ui.c:851
@@ -84,29 +84,29 @@
 "Compact Plus"	gallery/gal_ui.c:758
 "Complete Only"	gallery/gal_ui.c:775 gallery/gal_ui.c:775
 "Copies"	gallery/gal_ui.c:463
-"Copies the ticked units into My Units as they are in this save. Your save is not changed."	units/mu_window.c:629
+"Copies the ticked units into My Units as they are in this save. Your save is not changed."	units/mu_window.c:638
 "Copy a team or unit link on the wiki builder, or paste it here."	units/mu_link.c:60
-"Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."	units/mu_window.c:591
+"Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."	units/mu_window.c:600
 "Could not add to My Units: %s"	units/mu_link.c:103
 "Could not load the gallery. Try again later."	gallery/gal_ui.c:107
 "Could not load this team. Try again later."	gallery/gal_ui.c:231 gallery/gal_ui.c:256
 "Could not read My Units: %s"	builder/bld_ui.c:193
 "Could not save My Units: %s"	units/mu_window.c:82 builder/bld_ui.c:208
-"Could not save the snapshot: %s"	units/mu_window.c:259
+"Could not save the snapshot: %s"	units/mu_window.c:262
 "Custom Fight"	fights/tf_ui.c:990
 "DPS"	fights/tf_meter.c:415 fights/tf_meter.c:424
 "DPS (Last 5 s)"	fights/tf_meter.c:415
-"DPS Check"	fights/tf_dps.c:605 fights/tf_meter.c:404 fights/tf_ui.c:990
-"DPS Log in Chat"	fights/tf_dps.c:203
-"Dagger"	units/mu_ui.c:187
+"DPS Check"	fights/tf_dps.c:621 fights/tf_meter.c:404 fights/tf_ui.c:990
+"DPS Log in Chat"	fights/tf_dps.c:204
+"Dagger"	units/mu_ui.c:214
 "Damage"	fights/tf_meter.c:422
 "Damage Dealt"	fights/tf_meter.c:414
 "Day %d"	fights/tf_ui.c:1008
-"Delete"	units/mu_window.c:332 units/mu_window.c:617
-"Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed."	units/mu_window.c:330
-"Delete Team"	units/mu_window.c:376 units/mu_window.c:619
-"Delete the team \"%s\"?"	units/mu_window.c:378
-"Deleted %d unit.||Deleted %d units."	units/mu_window.c:325
+"Delete"	units/mu_window.c:335 units/mu_window.c:626
+"Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed."	units/mu_window.c:333
+"Delete Team"	units/mu_window.c:380 units/mu_window.c:628
+"Delete the team \"%s\"?"	units/mu_window.c:383
+"Deleted %d unit.||Deleted %d units."	units/mu_window.c:328
 "Details"	gallery/gal_ui.c:616
 "Difficulty"	fights/tf_ui.c:1044
 "Discard"	builder/bld_ui.c:166
@@ -114,25 +114,25 @@
 "Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken."	builder/bld_ui.c:883
 "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest."	builder/bld_ui.c:833
 "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."	fights/tf_ui.c:1061
-"Edit"	units/mu_window.c:616
-"Effects in Log"	fights/tf_dps.c:204
+"Edit"	units/mu_window.c:625
+"Effects in Log"	fights/tf_dps.c:205
 "Every character gains %s so the load is carryable."	fights/tf_ui.c:1102
 "Extra Skill Trees"	builder/bld_ui.c:1029
 "Female"	builder/bld_ui.c:748
 "Finished Base"	fights/tf_ui.c:990
-"Fire Staff"	units/mu_ui.c:187
+"Fire Staff"	units/mu_ui.c:214
 "Focus: %s"	gallery/gal_ui.c:471
 "From Lv %d"	gallery/gal_ui.c:470
 "Gear"	builder/bld_ui.c:33
 "Gear Quick Sets"	builder/bld_ui.c:1040
 "Getting the wiki's Test Fights files..."	fights/tf_ui.c:978
 "Grant %s on Custom Saves"	fights/tf_ui.c:1092
-"Greatsword"	units/mu_ui.c:184
+"Greatsword"	units/mu_ui.c:211
 "Healing"	fights/tf_meter.c:423
-"Helmet"	units/mu_ui.c:192
-"Hood"	units/mu_ui.c:192
+"Helmet"	units/mu_ui.c:219
+"Hood"	units/mu_ui.c:219
 "How Many"	fights/tf_ui.c:1018
-"In the squad: %s"	fights/tf_ui.c:638 fights/tf_ui.c:744
+"In the squad: %s"	fights/tf_ui.c:637 fights/tf_ui.c:743
 "Incomplete"	gallery/gal_ui.c:473
 "Inscription off. Units may be overweight if you keep the kits packed."	fights/tf_ui.c:1103
 "Inscriptions"	gallery/gal_ui.c:697 builder/bld_ui.c:33 builder/bld_ui.c:1034
@@ -142,7 +142,7 @@
 "Learned"	builder/bld_ui.c:653 builder/bld_ui.c:954
 "Left off, the economy matches the combat difficulty (%s)."	fights/tf_ui.c:1056
 "Left out of the kits: %s (%s)."	fights/tf_ui.c:137
-"Level"	builder/bld_ui.c:1240 builder/bld_ui.c:1277
+"Level"	builder/bld_ui.c:1240 builder/bld_ui.c:1276
 "Level-Ups"	builder/bld_ui.c:34
 "Likes"	gallery/gal_ui.c:463
 "List"	gallery/gal_ui.c:758
@@ -151,22 +151,22 @@
 "Loading the wiki's Unit Builder..."	builder/bld_ui.c:1198
 "Loading..."	fights/tf_ui.c:314
 "Locked: %s"	builder/bld_ui.c:953
-"Lv %d"	gallery/gal_ui.c:511 units/mu_ui.c:271 builder/bld_ui.c:942
+"Lv %d"	gallery/gal_ui.c:511 units/mu_ui.c:301 builder/bld_ui.c:942
 "Magic Saturation"	fights/tf_ui.c:1009
-"Main Accessory"	units/mu_ui.c:189
+"Main Accessory"	units/mu_ui.c:216
 "Main SP Left"	builder/bld_ui.c:1153
 "Main SP left %d of %d    Sub SP left %d of %d"	builder/bld_ui.c:655
 "Male"	builder/bld_ui.c:748
 "Mana stones spent to reach it: %s"	builder/bld_ui.c:803
 "Management"	fights/tf_ui.c:1051
 "Most Popular"	gallery/gal_ui.c:758
-"My Units"	units/mu_init.c:27 units/mu_window.c:581 fights/tf_ui.c:713
-"My Units could not be read."	fights/tf_ui.c:731
+"My Units"	units/mu_init.c:27 units/mu_window.c:591 fights/tf_ui.c:712
+"My Units could not be read."	fights/tf_ui.c:730
 "My Units could not be written."	gallery/gal_ui.c:295
-"My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."	fights/tf_ui.c:734
-"Name"	units/mu_window.c:636 builder/bld_ui.c:1275
-"Nature Staff"	units/mu_ui.c:188
-"New Unit"	units/mu_window.c:593
+"My Units is empty. Add units there (wiki link, Unit Builder) or pick a build in the Wiki Build Gallery."	fights/tf_ui.c:733
+"Name"	units/mu_window.c:645 builder/bld_ui.c:1274
+"Nature Staff"	units/mu_ui.c:215
+"New Unit"	units/mu_window.c:602
 "Newest"	gallery/gal_ui.c:758
 "No kit ticked: the squad walks in with only its gear."	fights/tf_ui.c:1088
 "No link. Copy a team or unit link on the wiki builder first."	units/wk_link.c:150
@@ -174,17 +174,17 @@
 "No portraits for this race in the wiki's data yet."	builder/bld_ui.c:742
 "No public builds match these filters yet."	gallery/gal_ui.c:105
 "No public builds match this search."	gallery/gal_ui.c:106 gallery/gal_ui.c:127
-"No saves found."	units/mu_window.c:446 fights/tf_ui.c:657
-"No units of your clan are stored in this save."	units/mu_save.c:361 units/mu_window.c:469 fights/tf_ui.c:618 fights/tf_ui.c:683
-"No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from Wiki Link\"."	units/mu_window.c:495
-"No wiki link on the clipboard. Paste one below."	units/mu_window.c:201
+"No saves found."	units/mu_window.c:451 fights/tf_ui.c:656
+"No units of your clan are stored in this save."	units/mu_save.c:361 units/mu_window.c:474 fights/tf_ui.c:617 fights/tf_ui.c:682
+"No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from Wiki Link\"."	units/mu_window.c:502
+"No wiki link on the clipboard. Paste one below."	units/mu_window.c:200
 "None"	builder/bld_ui.c:753
 "Nothing matches the search and filters."	builder/bld_ui.c:732 builder/bld_ui.c:964 builder/bld_ui.c:1019
 "Off"	fights/tf_ui.c:1008
 "Offering at Each Level-Up"	builder/bld_ui.c:806
 "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free."	builder/bld_ui.c:664
 "One-handed."	builder/bld_ui.c:1048
-"Open a world and tick the units to send in. They fight as they are in that save."	fights/tf_ui.c:639
+"Open a world and tick the units to send in. They fight as they are in that save."	fights/tf_ui.c:638
 "Open the Wiki Build Gallery"	fights/tf_ui.c:815 fights/tf_ui.c:815
 "Opening the build..."	gallery/gal_ui.c:304 gallery/gal_ui.c:315
 "Opens"	gallery/gal_ui.c:463
@@ -193,8 +193,8 @@
 "Page %d / %d"	gallery/gal_ui.c:800
 "Page %d / %d+"	gallery/gal_ui.c:800
 "Passive"	builder/bld_ui.c:653
-"Paste a wiki builder link"	units/mu_window.c:600
-"Pick 1-4"	fights/tf_ui.c:671
+"Paste a wiki builder link"	units/mu_window.c:609
+"Pick 1-4"	fights/tf_ui.c:670
 "Pick a background first. It decides which skill trees this unit has."	builder/bld_ui.c:916
 "Pick a build in the Wiki Build Gallery first."	fights/tf_ui.c:358
 "Pick a team or a unit in the Wiki Build Gallery, then press Test Fight there."	fights/tf_ui.c:814
@@ -207,67 +207,67 @@
 "Race"	builder/bld_ui.c:33
 "Races"	gallery/gal_ui.c:772
 "Randomize"	builder/bld_ui.c:838
-"Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units."	units/mu_window.c:230
-"Reading the link..."	units/mu_window.c:199
+"Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units."	units/mu_window.c:229
+"Reading the link..."	units/mu_window.c:198
 "Remove"	fights/tf_ui.c:1037 fights/tf_ui.c:1037
-"Rename"	units/mu_window.c:615
-"Rename Team"	units/mu_window.c:618
-"Renamed."	units/mu_window.c:317
+"Rename"	units/mu_window.c:624
+"Rename Team"	units/mu_window.c:627
+"Renamed."	units/mu_window.c:320
 "Repaired by the Scarecrow"	fights/tf_meter.c:415
 "Reset"	fights/tf_meter.c:411 fights/tf_meter.c:411
 "Restart Test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
 "Roll %zu"	builder/bld_ui.c:993
 "Running"	fights/tf_meter.c:582
-"Save"	units/mu_window.c:638 builder/bld_ui.c:1278 builder/bld_ui.c:1282
-"Save Snapshot"	units/mu_window.c:627 units/mu_window.c:629
-"Save as Team"	units/mu_window.c:614
+"Save"	units/mu_window.c:647 builder/bld_ui.c:1277 builder/bld_ui.c:1281
+"Save Snapshot"	units/mu_window.c:636 units/mu_window.c:638
+"Save as Team"	units/mu_window.c:623
 "Save to My Units"	gallery/gal_ui.c:616 gallery/gal_ui.c:722 gallery/gal_ui.c:722
-"Saved %d unit as %s.||Saved %d units as %s."	units/mu_window.c:273
-"Saved %s"	units/mu_window.c:450 fights/tf_ui.c:663
-"Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units."	units/mu_window.c:261
-"Saved to My Units."	units/mu_window.c:217
+"Saved %d unit as %s.||Saved %d units as %s."	units/mu_window.c:276
+"Saved %s"	units/mu_window.c:455 fights/tf_ui.c:662
+"Saved a snapshot of %d unit to My Units.||Saved a snapshot of %d units to My Units."	units/mu_window.c:264
+"Saved to My Units."	units/mu_window.c:216
 "Saved to My Units: %s"	gallery/gal_ui.c:294
-"Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1282
+"Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1281
 "Saving..."	gallery/gal_ui.c:304 builder/bld_ui.c:224
-"Scarecrow Heal Numbers"	fights/tf_dps.c:202
-"Scarecrow Speech"	fights/tf_dps.c:202
+"Scarecrow Heal Numbers"	fights/tf_dps.c:203
+"Scarecrow Speech"	fights/tf_dps.c:203
 "Search"	gallery/gal_ui.c:850 gallery/gal_ui.c:850
 "Search monsters by name..."	fights/tf_ui.c:1015
 "Search: name, author, race, background or weapon"	gallery/gal_ui.c:848
 "Searching..."	gallery/gal_ui.c:216
 "Share"	fights/tf_meter.c:425
 "Shared %.10s"	gallery/gal_ui.c:472
-"Shield"	units/mu_ui.c:186
+"Shield"	units/mu_ui.c:213
 "Skill Trees"	gallery/gal_ui.c:695
 "Skill trees: %s"	builder/bld_ui.c:726
 "Skills"	builder/bld_ui.c:33
-"Snapshot"	units/mu_ui.c:253
-"Spear"	units/mu_ui.c:185
+"Snapshot"	units/mu_ui.c:283
+"Spear"	units/mu_ui.c:212
 "Special"	builder/bld_ui.c:676
-"Squad"	fights/tf_ui.c:710
+"Squad"	fights/tf_ui.c:709
 "Squad: %d / %d"	fights/tf_ui.c:1115
 "Start"	fights/tf_meter.c:408 fights/tf_ui.c:1132 fights/tf_ui.c:1160 fights/tf_ui.c:1160
 "Start from a Gallery Build"	builder/bld_ui.c:1072 builder/bld_ui.c:1074
-"Start on First Hit"	fights/tf_dps.c:203
+"Start on First Hit"	fights/tf_dps.c:204
 "Stat Elixirs"	builder/bld_ui.c:882
 "Stat Gain per Level"	builder/bld_ui.c:821
 "Stop"	fights/tf_meter.c:410 fights/tf_meter.c:410
 "Stopped"	fights/tf_meter.c:582
-"Sub Accessory"	units/mu_ui.c:189
+"Sub Accessory"	units/mu_ui.c:216
 "Sub SP Left"	builder/bld_ui.c:1154
 "Survival"	builder/bld_ui.c:676
-"Sword"	units/mu_ui.c:184
+"Sword"	units/mu_ui.c:211
 "Talent sum: %d. A recruit rolls a sum from %d to %d."	builder/bld_ui.c:877
-"Team %zu"	units/mu_window.c:270
-"Team Only"	units/mu_window.c:386
-"Team and Units"	units/mu_window.c:387
-"Team and units: %d unit goes.||Team and units: %d units go."	units/mu_window.c:379
-"Team deleted with %d unit.||Team deleted with %d units."	units/mu_window.c:345
-"Team deleted. Its units stay in My Units."	units/mu_window.c:346
-"Team name"	units/mu_window.c:292 units/mu_window.c:637
-"Team only: the units stay in My Units."	units/mu_window.c:381
-"Team renamed."	units/mu_window.c:316
-"Team: %s||Teams: %s"	units/mu_ui.c:233 units/mu_ui.c:240
+"Team %zu"	units/mu_window.c:273
+"Team Only"	units/mu_window.c:391
+"Team and Units"	units/mu_window.c:392
+"Team and units: %d unit goes.||Team and units: %d units go."	units/mu_window.c:384
+"Team deleted with %d unit.||Team deleted with %d units."	units/mu_window.c:348
+"Team deleted. Its units stay in My Units."	units/mu_window.c:349
+"Team name"	units/mu_window.c:295 units/mu_window.c:646
+"Team only: the units stay in My Units."	units/mu_window.c:386
+"Team renamed."	units/mu_window.c:319
+"Team: %s||Teams: %s"	units/mu_ui.c:260 units/mu_ui.c:267
 "Teams"	gallery/gal_ui.c:758
 "Test"	fights/tf_ui.c:991
 "Test Fight"	gallery/gal_ui.c:616 gallery/gal_ui.c:721 gallery/gal_ui.c:721
@@ -275,8 +275,8 @@
 "Test Fights could not start the wiki's fight maker. Try again later."	fights/tf_ui.c:251 fights/tf_ui.c:260
 "Test Fights needs the wiki's files once (dungeonsettlers.wiki), and they could not be downloaded: %s"	fights/tf_ui.c:246
 "That is not a wiki builder link. Copy a team or unit link on the wiki builder, or paste it here."	units/mu_link.c:59
-"That is not a wiki builder link. Copy the link from the wiki's Unit Builder."	units/mu_window.c:209
-"That unit is not in My Units any more: a new unit starts here."	builder/bld_ui.c:1345
+"That is not a wiki builder link. Copy the link from the wiki's Unit Builder."	units/mu_window.c:208
+"That unit is not in My Units any more: a new unit starts here."	builder/bld_ui.c:1344
 "The My Units file comes from a newer version of this mod. Update the mod."	units/myunits.c:86
 "The My Units file is damaged and could not be read: %s"	units/myunits.c:84
 "The My Units file is not in the right format: %s"	units/myunits.c:85
@@ -312,51 +312,51 @@
 "This short link needs the internet (%s). Or open it on the wiki and copy the long link."	units/wk_link.c:165
 "This short link needs the internet. Or open it on the wiki and copy the long link."	units/wk_link.c:153
 "This short link was removed on the wiki."	units/wk_link.c:169
-"This team has no units."	units/mu_window.c:496
+"This team has no units."	units/mu_window.c:503
 "This unit cannot be saved: %s"	builder/bld_ui.c:198 builder/bld_ui.c:206
-"This unit cannot be shown."	units/mu_window.c:485 fights/tf_ui.c:696
+"This unit cannot be shown."	units/mu_window.c:491 fights/tf_ui.c:694
 "This unit could not be read: %s"	units/mu_save.c:326
 "This unit is not in the save."	units/mu_save.c:169
 "This unit is not one of your clan's units in this save."	units/mu_save.c:372 units/mu_save.c:394
-"Tick the units to send in. A team's tick adds or removes all its units."	fights/tf_ui.c:745
+"Tick the units to send in. A team's tick adds or removes all its units."	fights/tf_ui.c:744
 "Time"	fights/tf_meter.c:414
-"Torch"	units/mu_ui.c:190
+"Torch"	units/mu_ui.c:217
 "Traits"	builder/bld_ui.c:33
 "Traits (%d of %d)"	builder/bld_ui.c:778
 "Traits a unit gains in play by using an item. Add the ones this unit has taken: the stats include them."	builder/bld_ui.c:784
 "Try Again"	fights/tf_ui.c:1162 fights/tf_ui.c:1162
 "Two-handed: no shield."	builder/bld_ui.c:1048
 "Type"	builder/bld_ui.c:646
-"Type a name first."	units/mu_window.c:314
-"Unit"	units/mu_ui.c:284 units/mu_window.c:122 fights/tf_meter.c:421
+"Type a name first."	units/mu_window.c:317
+"Unit"	units/mu_ui.c:314 units/mu_window.c:122 fights/tf_meter.c:421
 "Unit Builder"	builder/bld_init.c:12 builder/bld_ui.c:1262
 "Unit Builder - Edit"	builder/bld_ui.c:1262
-"Unit name"	units/mu_window.c:292 units/mu_window.c:637 builder/bld_ui.c:1276
+"Unit name"	units/mu_window.c:295 units/mu_window.c:646 builder/bld_ui.c:1275
 "Units"	gallery/gal_ui.c:758
 "Units Laboratory"	home/cm_home.c:203 home/cm_home.c:210
 "Units Not in a Team"	fights/tf_ui.c:799
 "Use This Unit"	gallery/gal_ui.c:658 gallery/gal_ui.c:658
 "Waiting for the first hit"	fights/tf_meter.c:582
-"Water Staff"	units/mu_ui.c:188
+"Water Staff"	units/mu_ui.c:215
 "Weapon Trees"	gallery/gal_ui.c:773 builder/bld_ui.c:630 builder/bld_ui.c:1030
 "What to Test"	fights/tf_ui.c:987
 "Which Fight"	fights/tf_ui.c:1001
 "Which Room"	fights/tf_ui.c:1001
 "Whole Units"	builder/bld_ui.c:1071
-"Wiki Build Gallery"	gallery/gal_ui.c:840 gallery/gal_ui.c:912 fights/tf_ui.c:713
+"Wiki Build Gallery"	gallery/gal_ui.c:840 gallery/gal_ui.c:912 fights/tf_ui.c:712
 "Working..."	fights/tf_ui.c:1132
-"World Units"	units/mu_window.c:445 fights/tf_ui.c:713
+"World Units"	units/mu_window.c:450 fights/tf_ui.c:712
 "Worst"	builder/bld_ui.c:823
 "XP to reach level %d: %d"	builder/bld_ui.c:795
 "Your squad standing at a boss door, boss alive and never beaten."	fights/tf_ui.c:994
 "a file from the wiki arrived incomplete"	fights/sg_cache.c:190
 "a team holds 1 to %d units"	units/myunits.c:157 units/myunits.c:219
-"absorbed"	fights/tf_dps.c:386
+"absorbed"	fights/tf_dps.c:402
 "acquired trait"	units/pvp_wiki.c:351
 "background %.*s is not in this game version"	units/pvp_wiki.c:292
 "bad gallery id"	gallery/gallery.c:227
 "bad url"	units/wk_http.c:26 units/wk_http.c:135 fights/cm_http.c:58
-"by %s"	gallery/gal_ui.c:603 gallery/gal_ui.c:726 units/mu_window.c:439 fights/tf_ui.c:778
+"by %s"	gallery/gal_ui.c:603 gallery/gal_ui.c:726 units/mu_window.c:444 fights/tf_ui.c:777
 "choose below"	builder/bld_ui.c:982
 "click to change"	builder/bld_ui.c:982
 "connection error"	fights/cm_http.c:134

@@ -389,3 +389,12 @@
   My Units' cards and Test Fights' world cards and team rows use the kit's card template (dsl_card_toggle on a holder
   with the card and its box) instead of an invisible button. Builds need the loader's sdk/ (build.sh stops on an older
   dsl_sdk.h copy). ux_test fails on any UI-RULE line (title part / test world part) and on CLOSE-TEXT-X.
+- 0.1.41 (lead 2026-10-25, owner rule "existing places move onto the template"): the four windows ARE the kit's window
+  template: mu_shell_open calls dsl_window_std (DSL_WIN_MODAL, band 72 = MU_SHELL_BAND = CMW_BAND, DSL_WIN_OWN_SCALE: UI
+  Scale stays ours, KIT-SCALE). The shell owns the red X and Escape: close(ud) = the window's Close (My Units close_win,
+  Builder Cancel, cm_win win_destroy), back(ud) = a sub-page's Back first (cm_win: the Gallery's Details page); callers no
+  longer push the window themselves (their boxes still push on top). The red X never goes Back (the template). An older kit
+  (no template): our own frame with the template's layout, its own Escape, the red X or a text X. mu_shell_close ends with
+  dsl_window_close (window, backdrop, Escape entry). Kit bug worked around: the template's backdrop came out of
+  dsl_ui_flat with its clicks off (a click beside My Units reached the title page): cm_raycast(backdrop, true) right after
+  (reported to lane dskit). Window heights +8 for the 72 header (My Units 746, Builder 806, Test Fights 728).

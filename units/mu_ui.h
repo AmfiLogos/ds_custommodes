@@ -35,17 +35,18 @@ void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
    scale is opt-in per window (dsl_scale_follow, kit bdcb603): never call it on these windows (it would scale them twice) */
 float mu_ui_scale(void);
 /* the one window of Units Laboratory (owner 2026-10-25, UX review U1 / U5): My Units, the Unit Builder, the Wiki Build
-   Gallery and Test Fights look and close the same way, as the game's Load Campaign and Option windows: a dim backdrop over
-   the whole screen that takes every click (nothing behind the window answers), the window centred at the game's UI scale,
-   the game's frame, one body colour, the title centred in the game's title font over a copper line, and the game's red X
-   top right as the only close control. The X is the kit's copy of the game's red X: its click runs the close the caller
-   registers for the window with esc_push in the same frame (= Escape); on_x(ud, x) only runs on an older kit's text "X".
-   Content goes below MU_SHELL_BAND.
-   fit 0: the size shrinks to the screen layer (the caller lays out from *w / *h); fit 1: the size stays, the scale shrinks.
-   Returns the window panel (NULL = kit not ready); mu_shell_close destroys the window and its backdrop. */
-#define MU_SHELL_BAND 64.f
-typedef struct mu_shell { DSLObj back, win, x; } mu_shell;
-DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud);
+   Gallery and Test Fights are the kit's window template (dsl_window_std DSL_WIN_MODAL, owner rule "existing places move onto
+   the template"): a dim backdrop over the whole screen that takes every click, the window centred, the header (the title in
+   the game's title font over the copper line), the game's red X and Escape. close(ud) = the window's Close (the red X;
+   Escape when back(ud) did not go Back one level; it ends with mu_shell_close); back may be NULL. The shell owns the X and
+   Escape: callers never push the window themselves (its boxes go on top of it). UI Scale stays ours (DSL_WIN_OWN_SCALE,
+   KIT-SCALE): fit 0: the size shrinks to the screen layer (the caller lays out from *w / *h); fit 1: the size stays, the
+   scale shrinks. An older kit (no template): our own frame with the same layout, the red X or a text X, our own Escape.
+   Content goes below MU_SHELL_BAND. Returns the window panel (NULL = kit not ready). */
+#define MU_SHELL_BAND 72.f                                 /* the template's header band */
+typedef struct mu_shell { DSLObj back, win, x; int std, esc_ok; void (*close)(void *); int (*back_fn)(void *); void *ud; } mu_shell;
+DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h,
+                     void (*close)(void *ud), int (*back)(void *ud), void *ud);
 void   mu_shell_close(mu_shell *s);
 int    mu_shell_count(void);                               /* shells open now (test) */
 /* a backdrop over the whole kit screen layer: dims what is under it and takes its clicks (the game's notice look) */
