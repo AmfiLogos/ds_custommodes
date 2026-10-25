@@ -30,10 +30,24 @@ const DSLHost *mu_host(void);
 void mu_ui_init(const DSLHost *host, DSLPlugin *self);    /* cm_units_init */
 void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-/* the window: a panel centred on the kit's screen layer, w x h clamped to the layer minus a margin. title in Cinzel.
-   Returns the panel (NULL = kit not ready); *w / *h get the size used. */
+/* the game's UI scale (Settings > UI scale), 1 when unknown */
 float mu_ui_scale(void);
-DSLObj mu_window(const char *title, float want_w, float want_h, float *w, float *h);
+/* the one window of Units Laboratory (owner 2026-10-25, UX review U1 / U5): My Units, the Unit Builder, the Wiki Build
+   Gallery and Test Fights look and close the same way, as the game's Load Campaign and Option windows: a dim backdrop over
+   the whole screen that takes every click (nothing behind the window answers), the window centred at the game's UI scale,
+   the game's frame, one body colour, the title centred in the game's title font over a copper line, and the game's red X
+   top right as the only close control (on_x(ud, x) runs on it). Content goes below MU_SHELL_BAND.
+   fit 0: the size shrinks to the screen layer (the caller lays out from *w / *h); fit 1: the size stays, the scale shrinks.
+   Returns the window panel (NULL = kit not ready); mu_shell_close destroys the window and its backdrop. */
+#define MU_SHELL_BAND 64.f
+typedef struct mu_shell { DSLObj back, win, x; } mu_shell;
+DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud);
+void   mu_shell_close(mu_shell *s);
+int    mu_shell_count(void);                               /* shells open now (test) */
+/* a backdrop over the whole kit screen layer: dims what is under it and takes its clicks (the game's notice look) */
+DSLObj mu_backdrop(uint32_t rgba);
+/* place w at the game's UI scale, centred on the screen layer (a widget made on the layer, design size bw x bh) */
+void   mu_centre_scaled(DSLObj w, float bw, float bh);
 /* a plain colour rect, no sprite, clicks through (rgba 0: invisible, a holder for other widgets) */
 DSLObj mu_plate(DSLObj parent, float x, float y, float w, float h, uint32_t rgba);
 /* a single-line text that ends in "..." when it does not fit (never spills); flags DSL_TXT_*; WRAP = a wrapping box

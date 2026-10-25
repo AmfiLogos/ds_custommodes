@@ -1,5 +1,6 @@
-/* cm_win.c - see cm_win.h. Same look as the loader's Mods window (loader/ui/dsl_win.c): dim backdrop, body 0x222025,
- * band 0x2D2A31 with a copper line, title in Cinzel, X top right. No game address: Unity and game calls by name. */
+/* cm_win.c - see cm_win.h. The window is Units Laboratory's one shell (mu_ui.h mu_shell_open, owner 2026-10-25 UX U5: as
+ * My Units and the Unit Builder): dim click-blocking backdrop, body 0x222025, title centred in Cinzel over a copper line,
+ * the game's red X top right. No game address: Unity and game calls by name. */
 #include "cm_win.h"
 #include "../fe/fe_json.h"
 #include "cm_home.h"
@@ -110,18 +111,6 @@ DSLObj cmw_flat(DSLObj panel, uint32_t c) {
     }
     return panel;
 }
-static void centre(DSLObj rt) {
-    if (!rt || !m_amin || !m_amax || !m_pivot || !m_pos) return;
-    V2 h = { 0.5f, 0.5f }, z = { 0, 0 };
-    CALL(m_amin, void, Obj, V2)(rt, h, m_amin); CALL(m_amax, void, Obj, V2)(rt, h, m_amax);
-    CALL(m_pivot, void, Obj, V2)(rt, h, m_pivot); CALL(m_pos, void, Obj, V2)(rt, z, m_pos);
-}
-static void fill_parent(DSLObj rt) {
-    if (!rt || !m_amin || !m_amax || !m_pivot || !m_pos || !m_size) return;
-    V2 z = { 0, 0 }, o = { 1, 1 }, h = { 0.5f, 0.5f };
-    CALL(m_amin, void, Obj, V2)(rt, z, m_amin); CALL(m_amax, void, Obj, V2)(rt, o, m_amax); CALL(m_pivot, void, Obj, V2)(rt, h, m_pivot);
-    CALL(m_size, void, Obj, V2)(rt, z, m_size); CALL(m_pos, void, Obj, V2)(rt, z, m_pos);
-}
 static int esc_down(void) { return m_key && CALL(m_key, int8_t, int32_t)(27, m_key) != 0; }
 static int typing(void) {
     Obj es = m_cur_es ? CALL0(m_cur_es, Obj)(m_cur_es) : NULL;
@@ -221,7 +210,7 @@ static void h_disp_update(Obj self, const void *mi) {
 }
 
 /* ---------------------------------------------------------------- windows */
-typedef struct { char id[24]; DSLObj back, win, body; void (*closed)(void *); void *ud; unsigned seq; int kit_esc; int (*sub_back)(void *); void *sub_ud; } Win;
+typedef struct { char id[24]; mu_shell sh; DSLObj win, body; void (*closed)(void *); void *ud; unsigned seq; int kit_esc; int (*sub_back)(void *); void *sub_ud; } Win;
 #define NWIN 4
 static Win wins[NWIN]; static unsigned win_seq;
 static Win *win_of(const char *id) { for (int i = 0; i < NWIN; i++) if (wins[i].win && !strcmp(wins[i].id, id)) return &wins[i]; return NULL; }
@@ -230,7 +219,7 @@ static Win *top_win(void) { Win *t = NULL; for (int i = 0; i < NWIN; i++) if (wi
 static void win_destroy(Win *w) {
     if (!w || !w->win) return;
     void (*closed)(void *) = w->closed; void *ud = w->ud;
-    U->destroy(w->win); U->destroy(w->back);
+    mu_shell_close(&w->sh);
     char pre[32]; snprintf(pre, sizeof pre, "%s:", w->id); cmw_forget(pre);
     memset(w, 0, sizeof *w);
     if (closed) closed(ud);
@@ -249,30 +238,15 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     cmw_close(id);
     Win *v = NULL; for (int i = 0; i < NWIN; i++) if (!wins[i].win) { v = &wins[i]; break; }
     if (!v) return NULL;
-    v->back = cmw_flat(U->panel(NULL, 0, 0, 100, 100, 0), 0x0000009E);   /* dims the title and takes its clicks */
-    fill_parent(v->back);
-    v->win = U->panel(NULL, 0, 0, w, h, 0);
-    if (!v->win) { U->destroy(v->back); memset(v, 0, sizeof *v); return NULL; }
-    centre(v->win);
-    /* the game's UI scale, as My Units and the Unit Builder (mu_window): drawn at w x h x scale, smaller when that would
-       not fit the screen layer (never cut) */
-    { float lw = 0, lh = 0, sc = mu_ui_scale(); typedef struct { float x, y, z; } V3;
-      if (!cm_rect_size(cm_parent(v->win), &lw, &lh) && lw >= 100 && lh >= 100) {
-          if (sc * w > lw - 40) sc = (lw - 40) / w;
-          if (sc * h > lh - 40) sc = (lh - 40) / h;
-      }
-      static cm_m ls; if (!ls.fn) ls = cm_il_method("UnityEngine", "Transform", "set_localScale", 1, NULL);
-      if (ls.fn && sc > 0.1f) CM_CALL(ls, void, Obj, V3, const void *)(v->win, (V3){ sc, sc, 1 }, ls.mi); }
-    cmw_flat(U->panel(v->win, 4, 4, w - 8, h - 8, 0), 0x222025FF);
-    cmw_flat(U->panel(v->win, 4, 4, w - 8, CMW_BAND - 4, 0), 0x2D2A31FF);
-    cmw_flat(U->panel(v->win, 4, CMW_BAND, w - 8, 1, 0), 0xB6835AFF);
+    /* the shell at the game's UI scale (its size stays, the scale goes down when it would not fit the screen layer) */
+    v->win = mu_shell_open(&v->sh, title, w, h, 1, NULL, NULL, x_click, v);
+    if (!v->win) { memset(v, 0, sizeof *v); return NULL; }
     snprintf(v->id, sizeof v->id, "%s", id);
     char nm[48];
     snprintf(nm, sizeof nm, "%s:title", id);
-    cmw_named(U->text(v->win, 28, 4, w - 120, CMW_BAND - 4, title, 30, DSL_TXT_LEFT | DSL_TXT_TITLE, 0), CMW_TEXT, nm, NULL, NULL, title);
+    cmw_named(v->win, CMW_TEXT, nm, NULL, NULL, title);
     snprintf(nm, sizeof nm, "%s:close", id);
-    DSLObj x = cmw_named(U->button(v->win, w - 62, 12, 42, 42, "X", x_click, v), CMW_BUTTON, nm, x_click, v, "X");
-    U->tooltip(x, NULL, TR("Close (Esc)"));
+    cmw_named(v->sh.x, CMW_BUTTON, nm, x_click, v, "X");
     v->body = cmw_flat(U->panel(v->win, 0, CMW_BAND + 1, w, h - CMW_BAND - 1, 0), 0x00000000);
     v->closed = closed; v->ud = ud; v->seq = ++win_seq;
     v->kit_esc = dsl_esc_push(U, v->win, esc_close, v, 0) == 0;

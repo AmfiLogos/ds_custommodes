@@ -273,6 +273,14 @@ static void worlds(const char *tmp, const char *real) {
         CHECK(w[2].group == 1 && !strcmp(w[2].name, "Clan C"), "worlds: a modded-only world, by time (%s)", w[2].name);
         CHECK(w[3].group == 0 && !strcmp(w[3].name, "Clan B") && !strcmp(w[3].save, "My own save"), "worlds: a save with any name is found by its header (%s)", w[3].name);
     }
+    /* UX U11: a copied / synced save whose file time is not its save time: the list follows the save times it shows
+       (Load Campaign's order), not the file times (it showed "Moonlight 10-22" above "Ironhold 10-24") */
+    { char c[1100]; snprintf(c, sizeof c, "%s/w/copied", tmp); mkdir(c, 0755);
+      put_save(c, "Moonlight__AutoSave_99999999999999999999999999999999_0", "99999999-9999-9999-9999-999999999999", "Moonlight", "2026-10-22 18:40:51", T - 5);
+      put_save(c, "Ironhold__AutoSave_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_0", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Ironhold", "2026-10-24 21:14:03", T - 400);
+      const char *cd[1] = { c }; mu_world cw[4]; int nc = mu_worlds_list(cd, 1, cw, 4, NULL);
+      CHECK(nc == 2 && !strcmp(cw[0].name, "Ironhold") && !strcmp(cw[1].name, "Moonlight"),
+            "worlds: newest SAVE TIME first, not file time (got %s %s / %s %s)", nc > 0 ? cw[0].name : "-", nc > 0 ? cw[0].when : "", nc > 1 ? cw[1].name : "-", nc > 1 ? cw[1].when : ""); }
     /* snapshot of a real save (a copy) */
     char sd[1100], sp[1300], lp[1300], e[400]; snprintf(sd, sizeof sd, "%s/w/snap", tmp); mkdir(sd, 0755);
     const char *bn = strrchr(real, '/'); bn = bn ? bn + 1 : real;

@@ -95,8 +95,8 @@ int mu_world_header(const char *path, mu_world *w) {
             norm_guid(g->s, g->n, w->guid);
             raw_txt(w->name, sizeof w->name, jget(o, "ClanName"));
             char st[64]; raw_txt(st, sizeof st, jget(o, "SaveTime"));    /* "2026-10-24 23:52:45" (the game's local time) */
-            if (strlen(st) >= 16 && st[4] == '-' && st[10] == ' ') snprintf(w->when, sizeof w->when, "%.16s", st);
-            else w->when[0] = 0;
+            if (strlen(st) >= 16 && st[4] == '-' && st[10] == ' ') { snprintf(w->when, sizeof w->when, "%.16s", st); snprintf(w->sort, sizeof w->sort, "%.19s", st); }
+            else w->when[0] = w->sort[0] = 0;
             rc = strlen(w->guid) == 32 ? 0 : -1;
         }
         jfree(o);
@@ -106,6 +106,10 @@ int mu_world_header(const char *path, mu_world *w) {
 }
 
 typedef struct { char path[1024], file[256], guid[40]; long long mt; int group; } fent;
+static int by_save_time(const void *a, const void *b) {             /* newest first; the same time: the newer file first */
+    const mu_world *x = a, *y = b; int c = strcmp(y->sort, x->sort);
+    return c ? c : x->mtime < y->mtime ? 1 : x->mtime > y->mtime ? -1 : 0;
+}
 static int by_time(const void *a, const void *b) {
     long long x = ((const fent *)a)->mt, y = ((const fent *)b)->mt;
     return x < y ? 1 : x > y ? -1 : 0;
@@ -142,11 +146,13 @@ int mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, m
         if (seen || our_guid(w.guid) || (skip && skip(w.guid, x->file))) continue;
         snprintf(w.path, sizeof w.path, "%s", x->path); snprintf(w.save, sizeof w.save, "%s", x->file);
         if (!w.name[0]) snprintf(w.name, sizeof w.name, "%s", x->file);
-        if (!w.when[0]) { time_t t = (time_t)x->mt; struct tm *tm = localtime(&t); if (tm) strftime(w.when, sizeof w.when, "%Y-%m-%d %H:%M", tm); }
+        if (!w.when[0]) { time_t t = (time_t)x->mt; struct tm *tm = localtime(&t);
+                          if (tm) { strftime(w.when, sizeof w.when, "%Y-%m-%d %H:%M", tm); strftime(w.sort, sizeof w.sort, "%Y-%m-%d %H:%M:%S", tm); } }
         w.group = x->group; w.mtime = x->mt;
         out[n++] = w;
     }
     free(fs);
+    qsort(out, (size_t)n, sizeof *out, by_save_time);                    /* the order the times on the rows say (UX U11) */
     return n;
 }
 
