@@ -241,7 +241,8 @@
   the Unit Builder (Cancel: unsaved changes -> the game's notice, which the kit pushes itself: Escape there = "Keep
   editing"), a gear slot's item list in the Builder (closes the list), the Gallery and Test Fights (cm_win X).
   Plain fields (Builder name / search, Gallery and Test Fights search): the 1st press only leaves the field.
-  Gallery Details: Escape closes the whole window (as before).
+  Gallery Details: Escape = its Back first, the next press closes the Gallery (owner 2026-10-25 "Go Back one level";
+  cm_win.c cmw_set_back: a window's sub-page Back runs before the window closes, so the window keeps its place on the stack).
 - A window rebuilt (screen size, UI scale, language) is pushed again with its open boxes after it. Hidden with
   set_active = esc_drop; destroyed = the kit drops it.
 - cm_win's own Escape polling (win_tick) runs only for a window the kit did not take (an older loader): never two closes
