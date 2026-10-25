@@ -28,6 +28,9 @@ from hostmods_pair import lrig, log, check  # noqa: E402
 
 X = 'DPS'; HP.H = HP.G = X
 NO_MP = '--no-mp' in sys.argv
+PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
+UISCALE = os.environ.get('DPS_UISCALE')
+WIN = os.environ.get('DPS_WIN')                                # e.g. 1920x1080
 OUT = os.environ.get('DPS_OUT') or os.path.join(os.path.dirname(HP.BUILD), 'test_env', 'dps', time.strftime('%Y%m%d-%H%M%S'))
 os.makedirs(OUT, exist_ok=True)
 DRV = os.path.join(OUT, 'drv'); os.makedirs(os.path.join(DRV, 'cap'), exist_ok=True)
@@ -200,9 +203,54 @@ def order_attack(at):
     return n
 
 
+def meter(cmd='state'):
+    r = req('call', fn='tf_meter_test', s=cmd)
+    try:
+        return json.loads(r.get('out') or '{}')
+    except ValueError:
+        log('tf_meter_test answer not JSON', cmd, (r.get('out') or '')[:300]); return {}
+
+
+def hits_dump(frm=0):
+    out = []
+    for l in dlog(f'hits {frm}').split('\n'):
+        if l.strip():
+            i, d, res, u, rest = l.split(' ', 4); k, _, nm = rest.partition('|')
+            out.append({'i': int(i), 'dmg': float(d), 'res': int(res), 'unit': int(u), 'key': k, 'skill': nm})
+    return out
+
+
+def overlap(a, b):
+    return bool(a and b and len(a) == 4 and len(b) == 4 and a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3])
+
+
+def placement(tag):
+    m = meter(); r, g = m.get('rect'), m.get('game_rects') or {}
+    log('meter placement', tag, json.dumps({'rect': r, 'game': g, 'place': m.get('place')})[:600])
+    check(f'(placement {tag}) the DPS meter shows on the left and covers neither the resource list nor the unit panel',
+          m.get('shown') and r and r[2] > r[0] and not overlap(r, g.get('resources')) and not overlap(r, g.get('unitpanel')),
+          json.dumps({'rect': r, 'game': g}))
+    shot(f'meter_{tag}')
+
+
+def unit_spots():
+    p = dps('pos').get('b', [])
+    return sorted((round(x['w'][0], 2), round(x['w'][1], 2)) for x in p if x.get('u') == 1 and x.get('on')), \
+        (sum(1 for x in p if x.get('u') == 0), sum(1 for x in p if x.get('u') == 1))
+
+
+def chat_lines():
+    chat = dlog('chat').split('\n')
+    return int(chat[0] or 0), int(chat[1] or 0), chat[2:2 + int(chat[1] or 0)]
+
+
+BASIC = {None: 'Basic Attack', '3': 'Grundangriff', '4': 'Базовая атака', '7': '基本攻撃'}
+
+
 def run():
     start_fight()
     shot(f'world_{LANG or "en"}')
+    spots0, counts0 = unit_spots()
     at = select_dummy()
     check('the scarecrow selected by a click, the mouse kept on it (inspect panel shows it)', at is not None)
     if not at:
@@ -210,22 +258,24 @@ def run():
     s = dps('state'); log('state', json.dumps(s, ensure_ascii=False)[:800])
     lay = req('call', fn='tf_dps_test', s='layout').get('out') or ''
     open(os.path.join(OUT, 'layout.json'), 'w').write(lay)
-    # (a) text fit at the dummy's max, both ways round
+    # (a) text fit at the dummy's max, both ways round: the FULL numbers
     fits(dps('fit 1000000 1000000'), f'(a) "{fmt(1000000)} / {fmt(1000000)}" one line each ({LANG or "en"})')
     shot(f'panel_full_{LANG or "en"}')
     r = dps('fit 999999 1000000'); fits(r, f'(a) "{fmt(999999)} / {fmt(1000000)}" one line each ({LANG or "en"})')
-    check('(a) the texts are the numbers with the language\'s separator', (r.get('cur') or {}).get('text') == fmt(999999) and (r.get('max') or {}).get('text') == fmt(1000000),
+    check('(a) the texts are the full numbers with the language\'s separator', (r.get('cur') or {}).get('text') == fmt(999999) and (r.get('max') or {}).get('text') == fmt(1000000),
           ((r.get('cur') or {}).get('text'), (r.get('max') or {}).get('text')))
     shot(f'panel_999999_{LANG or "en"}')
-    # (b) stock: the panel stands still while the mouse stays on it; ours follows
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow (right click, as a player)', n >= 1, n)
     until(lambda: dps('state').get('hits', 0) > 5, 'the squad hits the scarecrow', 120, 1)
     s = dps('state'); check('the scarecrow selected again, the mouse kept on it', s.get('same') and s.get('bpanel_on'), json.dumps(s)[:300])
+    if PLACE:
+        time.sleep(4); placement(PLACE); return
+    placement(f'{LANG or "en"}_1.0_960')
+    # (b) stock: the panel stands still while the mouse stays on it; ours follows
     dps('live 0'); s0 = dps('state'); time.sleep(4); s1 = dps('state')
-    stock_still = (s0.get('cur') or {}).get('text') == (s1.get('cur') or {}).get('text') and s1.get('dur') < s0.get('dur')
+    info['stock_panel_still'] = (s0.get('cur') or {}).get('text') == (s1.get('cur') or {}).get('text') and s1.get('dur') < s0.get('dur')
     log('stock (follow off): panel', (s0.get('cur') or {}).get('text'), '->', (s1.get('cur') or {}).get('text'), 'while durability', s0.get('dur'), '->', s1.get('dur'))
-    info['stock_panel_still'] = stock_still
     dps('live 1'); time.sleep(0.5)
     ok, seen = True, []
     for _ in range(8):                                            # the read is between frames: the text may be one frame behind
@@ -235,46 +285,123 @@ def run():
             ok = False
     check('(b) the hovered panel follows the durability (8 reads over 4 s, each the building\'s durability now, at most a frame behind)', ok and len({t for t, _ in seen}) >= 3, seen)
     shot(f'panel_live_{LANG or "en"}')
-    # (c) + (d): a 30 s burst
-    s0 = dps('state'); rows = [(time.time(), s0['hits'], s0['sum'], s0['dur'])]; n0 = s0['lines']
-    t0 = time.time()
-    while time.time() - t0 < BURST:
-        time.sleep(0.25); s = dps('state'); rows.append((time.time(), s['hits'], s['sum'], s['dur']))
-    n1 = s['lines']                                               # the same read as the last row
-    json.dump(rows, open(os.path.join(OUT, 'burst.json'), 'w'))
-    lost = rows[0][3] - rows[-1][3]; dealt = rows[-1][2] - rows[0][2]; hits = rows[-1][1] - rows[0][1]
-    rises = [(round(b[0] - rows[0][0], 2), round(b[3] - a[3], 3)) for a, b in zip(rows, rows[1:]) if b[3] > a[3] + 1e-3]
-    # per read: logged damage - durability lost = what the self repair gave back, a whole number of its steps (game table
-    # AFFECTER_SelfRepair FloatValues [200]: 200 a step); a hit missing from the log or a wrong logged value breaks that
-    gaps = [((b[2] - a[2]) - (a[3] - b[3]), b[1] - a[1]) for a, b in zip(rows, rows[1:])]
-    bad = [(round(g, 3), h) for g, h in gaps if abs(g - REPAIR * round(g / REPAIR)) > 0.07 * max(1, h) + 0.07 or g < -0.07 * max(1, h) - 0.07]
-    repair = sum(REPAIR * round(g / REPAIR) for g, _ in gaps)
-    info.update({'burst_hits': hits, 'burst_dealt': dealt, 'burst_lost': lost, 'repair_rises': rises, 'repair_total': repair})
-    check(f'(c) {hits} hits in {BURST} s; their sum = the durability lost + the self repair\'s whole steps (every 0.25 s read)', hits > 20 and not bad,
-          json.dumps({'dealt': dealt, 'lost': lost, 'repair': repair, 'rises': rises[:5], 'bad_reads': bad[:5]}))
-    mine = dlog(str(n0)).split('\n')[:n1 - n0]
-    check('(d) one log line per hit over the burst', n1 - n0 == hits and len(mine) == hits, (n1 - n0, hits, len(mine)))
-    if NO_MP:
-        s = dps('state')
-        check('(d) no multiplayer mod: our own log panel shows them', s.get('fb') == 1 and s.get('fb_on') == 1, json.dumps(s)[:300])
-        shot(f'fallback_panel_{LANG or "en"}')
+    # (b2) the Inspect window (the button above the unit panel) follows too
+    btn = next((x for x in json.loads(req('call', fn='tf_dps_test', s='summary').get('out') or '[]') if x.get('text') in ('Inspect', 'Untersuchen', 'Осмотреть', '調査')), None)
+    log('inspect button', btn)
+    if btn:
+        r = btn['r']; req('click_xy', x=(r[0] + r[2]) / 2, y=(r[1] + r[3]) / 2); time.sleep(2.0)
+        ok, seen = True, []
+        for _ in range(8):
+            time.sleep(0.5); s = dps('state'); t = s.get('ins_txt') or ''; seen.append((t, s.get('dur')))
+            v = int(''.join(ch for ch in t if ch.isdigit()) or -1)
+            if not s.get('ins') or abs(v - int(s.get('dur', -1))) > 5000:
+                ok = False
+        check('(b2) the Inspect window\'s durability follows the scarecrow (8 reads over 4 s, full number form)', ok and len({t for t, _ in seen}) >= 3 and any(',' in t or '.' in t or ' ' in t for t, _ in seen), seen)
+        mi = meter(); time.sleep(1.2); mi = meter()                 # the meter moves right of the window within 30 frames
+        check('(b2) the DPS meter does not cover the open Inspect window', mi.get('rect') and (mi.get('game_rects') or {}).get('inspect') and not overlap(mi['rect'], mi['game_rects']['inspect']),
+              json.dumps({'meter': mi.get('rect'), 'inspect': (mi.get('game_rects') or {}).get('inspect')}))
+        shot(f'inspect_live_{LANG or "en"}')
+        req('click_xy', x=(r[0] + r[2]) / 2, y=(r[1] + r[3]) / 2); time.sleep(1.0)
     else:
-        chat = dlog('chat').split('\n')
-        total, inhist, cl = int(chat[0] or 0), int(chat[1] or 0), chat[2:2 + int(chat[1] or 0)]
-        mine_esc = [m.replace('<', '<​') for m in mine]            # the chat shows tags as typed (escaped)
-        tail = cl[n0:n1]                                              # the chat's local lines = this fight's log from its start
-        same = [a for a, b in zip(mine_esc, tail) if a != b]
-        check('(d) every burst line is in the multiplayer chat, in order (its local lines)', total >= n1 and inhist == total and len(tail) == len(mine) and not same,
-              json.dumps({'chat_total': total, 'in_history': inhist, 'log': n1, 'first_diff': same[:2], 'esc_hint': mine_esc[:1]}, ensure_ascii=False))
-        req('key', code=36); time.sleep(1.5); shot(f'chat_open_{LANG or "en"}')      # Enter: the box with the history
-        req('key', code=53); time.sleep(0.5)
-    if not NO_MP:                                                 # our own panel (no chat / "Chat: Off"), forced on here
-        dps('fb 1'); time.sleep(1.5); f = dps('fb_state'); t = (f.get('text') or {}).get('text', '')
-        last = dlog(str(max(0, f.get('lines', 1) - 1))).strip().replace('"', "'").replace('\\', "'")
-        check('our own log panel (forced on): shown, 10 lines, the newest = the log\'s newest', f.get('fb_on') == 1 and len(t.split('|')) == 10 and t.split('|')[-1] == last,
-              json.dumps({'fb': f, 'last': last}, ensure_ascii=False)[:600])
-        shot(f'fallback_panel_{LANG or "en"}')
-        dps('fb 0')
+        check('(b2) the Inspect button found above the unit panel', False)
+    req('click_xy', x=at[0], y=at[1]); time.sleep(1.0); req('hover_xy', x=at[0], y=at[1]); time.sleep(0.5)
+    # (c) + (d) + speech / heal numbers off: a 30 s burst (defaults: speech off, heal numbers off, log in chat on)
+    s0 = dps('state')
+    check('switch defaults: speech off, heal numbers off, log in chat on, start on first hit on', s0.get('sw') == [0, 0, 1, 1], s0.get('sw'))
+    rows = [(time.time(), s0['hits'], s0['sum'], s0['dur'], s0['repaired'])]; n0 = s0['lines']; h0 = s0['heads']
+    t0 = time.time(); fx_bad = []; k = 0
+    while time.time() - t0 < BURST:
+        time.sleep(0.25); s = dps('state'); rows.append((time.time(), s['hits'], s['sum'], s['dur'], s['repaired'])); k += 1
+        if k % 6 == 0:
+            v = dps('vfx')
+            if v.get('speech') or any(x.strip().lstrip('+') == '200' for x in v.get('texts', [])):
+                fx_bad.append(v)
+    n1, h1 = s['lines'], s['heads']                               # the same read as the last row
+    json.dump(rows, open(os.path.join(OUT, 'burst.json'), 'w'))
+    lost = rows[0][3] - rows[-1][3]; dealt = rows[-1][2] - rows[0][2]; hits = rows[-1][1] - rows[0][1]; rep = rows[-1][4] - rows[0][4]
+    # per read: logged damage - durability lost = what the self repair added in that read (counted on its own path)
+    bad = [(round((b[2] - a[2]) - (a[3] - b[3]), 3), round(b[4] - a[4], 3)) for a, b in zip(rows, rows[1:])
+           if abs((b[2] - a[2]) - (a[3] - b[3]) - (b[4] - a[4])) > 0.07 * max(1, b[1] - a[1]) + 0.07]
+    info.update({'burst_hits': hits, 'burst_dealt': dealt, 'burst_lost': lost, 'burst_repaired': rep})
+    check(f'(c) {hits} hits in {BURST} s; their sum = the durability lost + what the self repair added (every 0.25 s read)', hits > 20 and rep > 0 and not bad,
+          json.dumps({'dealt': dealt, 'lost': lost, 'repaired': rep, 'bad_reads': bad[:5]}))
+    check('speech + heal numbers off: no speech bubble and no "200" over the scarecrow in 30 s of hits (the repair went on)', not fx_bad and rep > 0,
+          json.dumps({'bad': fx_bad[:3], 'counters': {k2: s.get(k2) for k2 in ('speech_shown', 'speech_hidden', 'heal_shown', 'heal_hidden')}}))
+    mine = dlog(str(n0)).split('\n')[:n1 - n0]
+    hl = [m for m in mine if m.startswith('<indent=')]
+    check('(d) one indented line per hit over the burst, a header line per change of unit', len(hl) == hits and len(mine) - len(hl) == h1 - h0, (len(mine), len(hl), hits, h1 - h0))
+    hd = hits_dump(rows[0][1])[:hits]
+    rawkey = [h for h in hd if not h['skill'] or h['skill'].startswith(('SKILL_', 'AFFECTER_', 'TEXTKEY_'))]
+    basic_ok = all(h['skill'] == BASIC.get(LANG, h['skill']) for h in hd if h['key'].startswith(('SKILL_Basic', 'SKILL_NPCBasic')))
+    check('each hit names its skill, auto attacks as the game\'s "Basic attack", never a raw key', not rawkey and basic_ok and any(h['key'].startswith('SKILL_Basic') for h in hd),
+          json.dumps({'raw': rawkey[:3], 'skills': sorted({(h['key'], h['skill']) for h in hd})[:8]}, ensure_ascii=False))
+    total, inhist, cl = chat_lines()
+    tail = cl[n0:n1]                                              # the chat's local lines = this fight's log from its start
+    same = [a for a, b in zip(mine, tail) if a != b]
+    check('(d) every burst line is in the multiplayer chat, in order (its local lines)', total >= n1 and inhist == total and len(tail) == len(mine) and not same,
+          json.dumps({'chat_total': total, 'in_history': inhist, 'log': n1, 'first_diff': same[:2]}, ensure_ascii=False))
+    req('key', code=36); time.sleep(1.5); shot(f'chat_open_{LANG or "en"}')      # Enter: the box with the history
+    req('key', code=53); time.sleep(0.5)
+    # (e) (f) (g) the DPS meter: Reset (armed: the next hit starts it), 8 s, Stop
+    click('dps:firsthit', 0.5); click('dps:reset', 1.0); m = meter(); time.sleep(2); m_b = meter()   # "Start on first hit" off: Reset stays at 0
+    check('(f) Reset clears the meter (and it stays at 0 with "Start on first hit" off)', m.get('total') == 0 and m.get('elapsed') == 0 and not m.get('running') and m_b.get('total') == 0 and not m_b.get('running'),
+          json.dumps({'after': [m.get('total'), m.get('elapsed'), m.get('running')], '2s': [m_b.get('total'), m_b.get('running')], 'sw': dps('state').get('sw')}))
+    click('dps:firsthit', 0.5); click('dps:reset', 0.5)            # back on: the next hit starts it
+    time.sleep(8); click('dps:unit0', 1.0); shot(f'meter_skills_{LANG or "en"}')
+    click('dps:stop', 0.5); m1 = meter(); h_a = dps('state')['hits']; time.sleep(4); m2 = meter(); h_b = dps('state')['hits']
+    check('(f) Stop freezes the numbers while the squad goes on hitting', m1.get('total', 0) > 0 and m1.get('total') == m2.get('total') and m1.get('elapsed') == m2.get('elapsed') and h_b > h_a,
+          json.dumps({'m1': [m1.get('total'), m1.get('elapsed')], 'm2': [m2.get('total'), m2.get('elapsed')], 'hits': [h_a, h_b]}))
+    cnt, frm = [], 0
+    while True:                                                   # the counted hits, a page at a time
+        pg = json.loads(req('call', fn='tf_meter_test', s=f'counted {frm}').get('out') or '{}')
+        cnt += pg.get('hits') or []; frm = len(cnt)
+        if not pg.get('more') or not pg.get('hits'):
+            break
+    byi = {h['i']: h for h in hits_dump(0)}
+    idx = [c[0] for c in cnt]
+    sums_ok = abs(sum(c[1] for c in cnt) - m2.get('total', -1)) < 1e-3 and all(abs(byi[i]['dmg'] - d) < 1e-3 for i, d in cnt if i in byi) and all(i in byi for i in idx)
+    contiguous = idx == list(range(idx[0], idx[0] + len(idx))) if idx else False
+    check('(e) the meter\'s total = the sum of the logged hits it counted (the same hits, one run of the log)', sums_ok and contiguous and len(cnt) > 3,
+          json.dumps({'n': len(cnt), 'total': m2.get('total'), 'sum': sum(c[1] for c in cnt), 'first': idx[:3], 'last': idx[-3:]}))
+    gbad = []
+    for u in m2.get('units') or []:
+        sk = u.get('skills') or []
+        if abs(sum(x['dmg'] for x in sk) - u['dmg']) > 1e-3 or sum(x['hits'] for x in sk) != u['hits']:
+            gbad.append(u)
+    check('(g) each unit\'s per-skill rows add up to its row', m2.get('units') and not gbad, json.dumps(gbad[:2], ensure_ascii=False)[:400])
+    check('the meter shows the self repair on its own line', m2.get('repaired', -1) >= 0, m2.get('repaired'))
+    click('dps:start', 0.5)
+    # "DPS log in chat" off: no chat line, the meter counts on
+    click('dps:chatlog', 0.5); c0 = chat_lines()[0]; ma = meter().get('total', 0); time.sleep(15); c1 = chat_lines()[0]; mb = meter().get('total', 0)
+    check('"DPS log in chat" off: 0 new chat lines in 15 s of hits, the meter still counts', c1 == c0 and mb > ma and not dps('state')['sw'][2], (c0, c1, ma, mb))
+    click('dps:chatlog', 0.5)
+    # speech + heal numbers on: they show again
+    click('dps:speech', 0.3); click('dps:healnum', 0.3); seen_sp = seen_heal = False
+    for _ in range(24):
+        time.sleep(0.5); v = dps('vfx')
+        seen_sp = seen_sp or v.get('speech', 0) > 0
+        seen_heal = seen_heal or any(x.strip().lstrip('+') == '200' for x in v.get('texts', []))
+        if seen_sp and seen_heal:
+            break
+    shot(f'speech_on_{LANG or "en"}')
+    check('speech + heal numbers on: a bubble and a "200" show over the scarecrow (12 s)', seen_sp and seen_heal, (seen_sp, seen_heal, dps('state').get('sw')))
+    click('dps:speech', 0.3); click('dps:healnum', 0.3)
+    # our own panel (no chat / "Chat: Off"), forced on here
+    dps('fb 1'); time.sleep(1.5); f = dps('fb_state'); t = (f.get('text') or {}).get('text', '')
+    check('our own log panel (forced on): shown, 10 lines', f.get('fb_on') == 1 and len(t.split('|')) == 10, json.dumps(f, ensure_ascii=False)[:400])
+    shot(f'fallback_panel_{LANG or "en"}'); dps('fb 0')
+    # Restart test, twice: a fresh world (scarecrow full, the squad at its start spots, the same objects), the meter at 0
+    for r_i in (1, 2):
+        click('dps:restart', 0.5)
+        until(lambda: (lambda s: s.get('on') == 1 and s.get('title') == 0 and s.get('hits', 9) < 3)(dps('state')), f'the restarted world ({r_i})', 300, 2)
+        time.sleep(8)
+        spots, counts = unit_spots(); m = meter(); total, inhist, cl = chat_lines()
+        at2 = select_dummy(); s = dps('state')
+        check(f'Restart test #{r_i}: the scarecrow full, the squad at its start spots, the same objects, the meter at 0, "--- restart ---" in the chat',
+              at2 is not None and s.get('dur') == s.get('dmax') == 1000000.0 and spots == spots0 and counts == counts0 and m.get('total') == 0 and cl[:1] and 'restart' in cl[0],
+              json.dumps({'dur': s.get('dur'), 'spots_same': spots == spots0, 'counts': [counts, counts0], 'meter': m.get('total'), 'chat0': cl[:1]}, ensure_ascii=False))
+        if r_i == 1:
+            shot(f'restarted_{LANG or "en"}')
     log('last lines', json.dumps(dps('state').get('last'), ensure_ascii=False))
 
 
@@ -287,13 +414,29 @@ def main():
         HP.make_copy(X)
         pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg()}
         HP.kit(X, pk, ['custom-modes', 'font-probe'], (['custom-modes', 'font-probe'] if NO_MP else ['multiplayer', 'custom-modes', 'font-probe']))
-        if LANG:
+        if WIN:                                                   # another window size: the copy's settings and its start arguments
+            ww, wh = (int(v) for v in WIN.split('x'))
+            lrig.win_size = lambda: (ww, wh)
+            popen = HP.subprocess.Popen
+            def popen_size(args, *a, **kw):
+                if '-screen-width' in args:
+                    args = list(args); args[args.index('-screen-width') + 1] = str(ww); args[args.index('-screen-height') + 1] = str(wh)
+                return popen(args, *a, **kw)
+            HP.subprocess.Popen = popen_size
+        if LANG or UISCALE:
             prep = lrig.prepare_data
             def prep_lang(x):
                 prep(x); us = os.path.join(lrig.idir(x), 'data', 'UserSetting.json'); s = json.load(open(us))
-                s['GeneralSettingData']['SaveCurrentLanguageType'] = int(LANG); json.dump(s, open(us, 'w'), indent=1)
+                if LANG:
+                    s['GeneralSettingData']['SaveCurrentLanguageType'] = int(LANG)
+                if UISCALE:
+                    s['GraphicSettingData']['UIScale'] = float(UISCALE)
+                json.dump(s, open(us, 'w'), indent=1)
             lrig.prepare_data = prep_lang
         crash = os.path.join(OUT, 'crash'); os.makedirs(crash, exist_ok=True); open(os.path.join(crash, 'answer'), 'w').write('no')
+        cmset = os.path.join(lrig.idir(X), 'data', 'Mods', 'custom-modes', 'settings.json')   # the lab's switches: fresh defaults
+        if os.path.exists(cmset):
+            os.replace(cmset, os.path.join(OUT, 'old_settings.json'))
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
