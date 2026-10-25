@@ -2,6 +2,7 @@
  " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
   " %d개의 유닛은 다른 팀에도 있어 남습니다."
  ],
+ " (%.0f over)": " (초과 %.0f)",
  "%d SP": "%d SP",
  "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
   "게임이 모르는 가방 아이템 %d개는 제외됩니다."
@@ -33,6 +34,7 @@
  "%s  -  weapon tree, Main SP, from an inscription": "%s  -  무기 트리, 주요 SP, 각인으로 얻음",
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*s은(는) 이 게임 버전에 없습니다",
+ "%s (basic)": "%s (기본)",
  "%s cannot go in the %s slot": "%s은(는) %s 슬롯에 들어갈 수 없습니다",
  "%s could not be read from the save: %s": "세이브에서 %s 유닛을 읽을 수 없습니다: %s",
  "%s is not in one of this unit's skill trees": "%s은(는) 이 유닛의 스킬 트리에 없습니다",
@@ -54,6 +56,7 @@
   "한 팀에는 유닛이 최대 %d개까지 들어갑니다."
  ],
  "A unit holds one soul stone: picking another replaces it.": "유닛은 영혼석을 하나만 가질 수 있습니다. 다른 것을 고르면 교체됩니다.",
+ "Absorbed": "흡수",
  "Acquired Traits": "획득한 특성",
  "Active": "액티브",
  "Add": "추가",
@@ -139,6 +142,7 @@
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "레벨업마다 각 능력치가 재능 등급의 범위 안에서 무작위로 오릅니다 (%s: 레벨당 %s~%s). 최저는 매번 가장 낮은 값, 평균은 중간, 최고는 가장 높은 값을 받습니다.",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "체크한 키트는 들어가는 모든 캐릭터의 개인 배낭에 담겨, 분대가 들고 들어갑니다.",
  "Edit": "편집",
+ "Effects in log": "기록에 효과 표시",
  "Every character gains %s so the load is carryable.": "모든 캐릭터가 짐을 들 수 있도록 %s을(를) 얻습니다.",
  "Extra Skill Trees": "추가 스킬 트리",
  "Female": "여성",
@@ -151,6 +155,7 @@
  "Getting the wiki's Test Fights files...": "위키의 테스트 전투 파일을 가져오는 중...",
  "Grant %s on Custom Saves": "커스텀 세이브에 %s 부여",
  "Greatsword": "대검",
+ "Healing": "회복",
  "Helmet": "머리 방어구",
  "Hood": "두건",
  "How Many": "개수",
@@ -382,6 +387,7 @@
  "Your squad standing at a boss door, boss alive and never beaten.": "보스 문 앞에 선 분대. 보스는 살아 있고 아직 한 번도 처치되지 않았습니다.",
  "a file from the wiki arrived incomplete": "위키에서 받은 파일이 불완전하게 도착했습니다",
  "a team holds 1 to %d units": "한 팀에는 유닛이 1~%d개 들어갑니다",
+ "absorbed": "흡수",
  "acquired trait": "획득 특성",
  "background %.*s is not in this game version": "배경 %.*s은(는) 이 게임 버전에 없습니다",
  "bad gallery id": "잘못된 갤러리 ID",

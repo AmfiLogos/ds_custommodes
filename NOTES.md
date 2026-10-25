@@ -240,7 +240,8 @@
   the Unit Builder (Cancel: unsaved changes -> the game's notice, which the kit pushes itself: Escape there = "Keep
   editing"), a gear slot's item list in the Builder (closes the list), the Gallery and Test Fights (cm_win X).
   Plain fields (Builder name / search, Gallery and Test Fights search): the 1st press only leaves the field.
-  Gallery Details: Escape closes the whole window (as before).
+  Gallery Details: Escape = its Back first, the next press closes the Gallery (owner 2026-10-25 "Go Back one level";
+  cm_win.c cmw_set_back: a window's sub-page Back runs before the window closes, so the window keeps its place on the stack).
 - A window rebuilt (screen size, UI scale, language) is pushed again with its open boxes after it. Hidden with
   set_active = esc_drop; destroyed = the kit drops it.
 - cm_win's own Escape polling (win_tick) runs only for a window the kit did not take (an older loader): never two closes
@@ -273,3 +274,14 @@
 - Restart test (tf_worlds.c tf_restart, in every test world; a small panel with only that button outside DPS Check): the
   start save kept by tfw_write is written and loaded again by the Start path. A restart passes through the title scene
   (the title background world loads first): the "--- restart ---" chat line waits until the world shows 30 frames.
+- 0.1.27 (owner ask 10 + answers, 2026-10-25): the log shows every damage, heal, shield absorb and effect put on where a
+  squad unit or the scarecrow takes part (hooks DamageSimulator / HealSimulator / AffecterSimulator / StatusSimulator.Simulate,
+  read only). One indented line per source and game tick (TimeHandler._currentTick), parts joined by " · ": "<source>[ ×n]
+  » <targets>: -X[ Crit]" (damage), "+X" (heal, green), "<shield> (<owner>): absorbed X" (StatType Barrier before - after;
+  the absorbed part is no damage), "<effect> » <targets>" (quiet; only effects the game names; switch "Effects in log", on).
+  The arrow is "»": the chat's fonts have no "→" (it showed "?"). Basic attacks (SkillTableData.IsBasicAttackSkill, class
+  Util.Sheet) read "<name> (basic)". A source with no skill behind it (an item such as a torch) is named by its key.
+  Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
+  max health and max health + the added part only), so "(n over)" never shows yet.
+- Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
+- With the Fix mod live-hp loaded, our panel/Inspect follow steps aside (live-hp makes every building follow).

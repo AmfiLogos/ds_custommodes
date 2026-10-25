@@ -2,6 +2,7 @@
  " %d unit stays: it is also in another team.|| %d units stay: they are also in another team.": [
   " %d体のユニットは、別のチームにも入っているため残ります。"
  ],
+ " (%.0f over)": "（超過 %.0f）",
  "%d SP": "SP %d",
  "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
   "ゲームが知らないバッグのアイテム%d個は持ち込まれません。"
@@ -33,6 +34,7 @@
  "%s  -  weapon tree, Main SP, from an inscription": "%s  -  武器ツリー、メインSP、刻印から",
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*sはこのゲームバージョンにありません",
+ "%s (basic)": "%s（基本）",
  "%s cannot go in the %s slot": "%sは%sスロットに入れられません",
  "%s could not be read from the save: %s": "%sをセーブから読み込めませんでした：%s",
  "%s is not in one of this unit's skill trees": "%sはこのユニットのスキルツリーのどれにもありません",
@@ -54,6 +56,7 @@
   "1つのチームには最大%d体のユニットを入れられます。"
  ],
  "A unit holds one soul stone: picking another replaces it.": "ユニットが持てる魂石は1つです。別の魂石を選ぶと置き換わります。",
+ "Absorbed": "吸収",
  "Acquired Traits": "獲得した特性",
  "Active": "アクティブ",
  "Add": "追加",
@@ -139,6 +142,7 @@
  "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest.": "レベルアップごとに、各能力値は才能の段階の範囲内でランダムに上がります（%s：レベルごとに%s～%s）。最低は毎回最小値、平均は中間、最高は最大値を取ります。",
  "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it.": "チェックしたキットは、入る各キャラクターの個人バックパックに詰められます。部隊はそれを持って入ります。",
  "Edit": "編集",
+ "Effects in log": "効果をログに表示",
  "Every character gains %s so the load is carryable.": "荷物を運べるよう、各キャラクターは%sを得ます。",
  "Extra Skill Trees": "追加スキルツリー",
  "Female": "女性",
@@ -151,6 +155,7 @@
  "Getting the wiki's Test Fights files...": "Wikiのテスト戦闘ファイルを取得中...",
  "Grant %s on Custom Saves": "カスタムセーブで%sを付与",
  "Greatsword": "大剣",
+ "Healing": "回復",
  "Helmet": "ヘルメット",
  "Hood": "フード",
  "How Many": "数",
@@ -382,6 +387,7 @@
  "Your squad standing at a boss door, boss alive and never beaten.": "ボスの扉の前に立つ部隊。ボスは生存しており、一度も倒されていません。",
  "a file from the wiki arrived incomplete": "Wikiからのファイルが不完全な状態で届きました",
  "a team holds 1 to %d units": "チームには1〜%d体入ります",
+ "absorbed": "吸収",
  "acquired trait": "取得した特性",
  "background %.*s is not in this game version": "背景 %.*sはこのゲームバージョンにありません",
  "bad gallery id": "ギャラリーIDが不正です",

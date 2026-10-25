@@ -644,6 +644,7 @@ static float card(DSLObj p, int i, float x, float y) {
 /* ---- the preview (a build's Details): every unit with its gear, skills, trees, inscriptions and traits, the game's own
    hover cards on each icon; Save to My Units / Test Fight from there */
 static void back_click(void *ud, DSLObj w) { (void)ud; (void)w; pv = -1; paint(); }
+static int esc_back(void *ud) { if (pv < 0) return 0; back_click(ud, NULL); return 1; }   /* Escape in Details = its Back */
 static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, int u) {
     const gal_unit *g = &it->units[u]; char t[900];
     DSLObj c = K(U->panel(p, x, y, w, 100, 0));
@@ -833,6 +834,7 @@ void gal_open(void) {
     { char v[32]; if (!cm_pref_get("gallery.view", v, sizeof v)) view = !strcmp(v, "list"); }
     win_size();
     body = cmw_open("gallery", TR("Wiki Build Gallery"), WW, WH, closed, NULL);
+    cmw_set_back("gallery", esc_back, NULL);                          /* Escape in Details = Back first, then the window */
     if (!body) return;
     grid_holder = NULL; ntrk = 0; pv = -1; vpage = 0;
     /* the search row (made once per window, so typing is never cut by a page that arrives) */
