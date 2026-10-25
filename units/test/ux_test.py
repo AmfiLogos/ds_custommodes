@@ -12,6 +12,7 @@ this catches):
     whole screen dimmed);
   - U5: a window's close control is not the one square X in its top right corner (My Units had a "Close" button, the
     Builder a "Cancel" button);
+  - U5 (kit 83636d0+): the loader logs CLOSE-TEXT-X: one of our windows closes with a text "X", not the game's red X;
   - U6: a talent tier name does not fit its chip (de "Außergewöhnli / ch"); U7: a boss stat name does not fit (de / ru);
     U8: a text is cut in the Gallery's Details while picking for the Builder ("... Life S...").
   ux_test.py [out] [--lang de|ru|en] [--no-build] [--no-world]     env: as esc_test.py (LD_ROOT, ESC_CM, DSL_TEST_COPY)
@@ -204,6 +205,9 @@ def main():
         for p in E.game_pids(): os.kill(p, signal.SIGKILL)
         for f in ('dsload.log', 'player.log'):
             if os.path.exists(os.path.join(E.I, f)): shutil.copy2(os.path.join(E.I, f), os.path.join(E.OUT, f))
+    log_txt = open(os.path.join(E.OUT, 'dsload.log'), encoding='utf-8', errors='replace').read() if os.path.exists(os.path.join(E.OUT, 'dsload.log')) else ''
+    tx = [l for l in log_txt.splitlines() if 'CLOSE-TEXT-X' in l]
+    check('U5 every window closes with the game\'s red X (no CLOSE-TEXT-X in dsload.log)', not tx, tx[:3])
     check('the owner\'s real library file is unchanged', E.fstate(E.OWNER_LIB) == owner0, E.OWNER_LIB)
     check('copy never on screen / frontmost', not E.violations, E.violations)
     E_exit()
