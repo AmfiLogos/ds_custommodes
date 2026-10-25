@@ -222,7 +222,9 @@
   grows away from the "/" (now right-aligned, max left-aligned) into the bar's free room; only if that is too narrow both
   shrink alike (never under 60 %). en/de/ru/ja: 1,000,000 fits at the game's size. The panel follows the shown building's
   durability through the loader's Fix live-hp ("Live building HP", every building; it calls UpdateBuildingEntityUI on each
-  change, so this hook's number form runs each time). Until 0.1.26 the frame tick here did that for the scarecrow only.
+  change, so this hook's number form runs each time). Without live-hp (not installed, switched off, failed) the frame tick
+  here keeps the scarecrow's panel current itself (live_tick; `live_hp` asked every 30 frames, not at init: live-hp's own
+  init runs after ours).
 - Stock (decomp 25846389): a building's durability in that panel is set only when the panel is filled
   (EntitySummaryUIPresenter.RefreshSummary); status changes refresh UNITS only. So every building's panel stands still in
   the stock game; the Fix live-hp makes them all follow. Measured: with no follow the text stayed while durability fell.
@@ -268,8 +270,8 @@
 - 0.1.26 (owner asks 1-9, 2026-10-25, task file LANE_TASKS_dsdps): the full numbers stay (no "997.3K"). The Inspect window
   (SubUI_EntityInspectionStatus.SetBuildingStatus hook) follows too: the Fix live-hp calls SetBuildingStatus again on
   each change (with the entity's own StatusReader); this hook writes the rows in the thousands form, with the bottom
-  panel's StatusReader, through DASText.SetText (a TMP set_text on a DASText is replaced by its own copy). The per-frame
-  follow that was here (live_tick / ins_tick, the "live" test switch) moved to live-hp (dshpfix, 2026-10-25).
+  panel's StatusReader, through DASText.SetText (a TMP set_text on a DASText is replaced by its own copy). Without
+  live-hp, ins_tick does the window's follow here.
 - DPS meter (fights/tf_meter.c): left side, folds, Start / Stop / Reset, "Start on first hit"; time, damage dealt, DPS,
   DPS last 5 s, what the scarecrow repaired (StatusSimulator.Simulate hook: Stat Durability on it, the log's Amount);
   one row per unit (portrait, name, damage, DPS, share, bar), a click shows its skills. The ONE hit list (tf_dps_hits)
@@ -297,5 +299,7 @@
   Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
   max health and max health + the added part only), so "(n over)" never shows yet.
 - Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
-- The panel / Inspect follow is the Fix live-hp only (it makes every building follow; our own copy was removed): without it the
-  DPS Check panel stands still, as every building in the stock game.
+- Who follows (lead 2026-10-25: "the DPS Check is a test tool and must always show live HP"): with the Fix live-hp running,
+  live-hp only (every building; our hooks add the number form); without it, our own live_tick / ins_tick (scarecrow only).
+  One owner per hook site holds: ours is a frame poll, live-hp's is EntitySummaryUIPresenter.RefreshOnFrame. Units
+  Laboratory 0.1.28 / 0.1.29 (7a77697, a97607e) had no own follow: dps_test --no-live-hp fails there ((b), (b2)), passes on 0.1.31.

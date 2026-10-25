@@ -8,8 +8,10 @@
  * (InitBuildingUI, then UpdateBuildingEntityUI -> EntitySummaryBuildingStatusUI.SetDurabilityUI: fillAmount, and the
  * two texts as ((int)value).ToString()). Nothing else sets them: UpdateOnStatusChanged refreshes UNITS only (their
  * UpdateUnitStatusUI), so the durability of ANY building stays as it was when the panel was filled. That is the stock
- * game for every building. The Fix live-hp (ds_modloader, "Live building HP") calls UpdateBuildingEntityUI and
- * SetBuildingStatus again on every change; the two hooks here put the DPS Check's number form (and fit) on what it draws. */
+ * game for every building. The Fix live-hp (ds_modloader, "Live building HP") makes every building follow: it calls
+ * UpdateBuildingEntityUI and SetBuildingStatus again on each change, and the two hooks here put the DPS Check's number
+ * form (and fit) on what it draws. When live-hp does not run (not installed, switched off, failed), the frame tick here
+ * keeps the DPS Check's panel and Inspect window current itself (a test tool always shows live HP; lead 2026-10-25). */
 #include "tf_dps.h"
 #include "tf_worlds.h"
 #include "cm_win.h"
@@ -94,6 +96,8 @@ static void fmt_sep(double v, char *o, size_t n) {
 /* ---------------------------------------------------------------- the inspect panel's durability */
 static uintptr_t h_view, h_sr;                           /* the panel and the StatusReader of the building it shows */
 static uint8_t shown_g[16]; static float shown_c = -1, shown_m = -1;
+static int live = 1;                                     /* test switch: 0 = the stock panel (no follow) */
+static int live_hp = -1;                                 /* the Fix mod live-hp runs (1): it makes every building's panel follow (asked each 30 frames) */
 static struct { uintptr_t h; float orig; int al; } fsz[4];   /* the two texts' own font size and alignment (before ours) */
 static cm_m m_align, m_align_set;
 static int orig_slot(Obj t) {
@@ -168,6 +172,16 @@ static void h_upd(Obj view, Obj sr, const void *mi) {
     memcpy(shown_g, (char *)view + f_v_guid, 16);
     shown_c = bstat(sr, ST_DURABILITY); shown_m = bstat(sr, ST_MAX_DURABILITY);
     show(view, shown_c, shown_m, 0);
+}
+static void live_tick(void) {
+    Obj view = cm_il_hget(h_view), sr = cm_il_hget(h_sr);
+    if (!live || !sr || !cm_alive(view) || !go_on(view, 1)) return;
+    Obj bp = f_v_bpanel >= 0 ? FLD(view, f_v_bpanel, Obj) : NULL;
+    if (!go_on(bp, 0) || memcmp((char *)view + f_v_guid, shown_g, 16)) return;   /* another kind of entity / building now */
+    float c = bstat(sr, ST_DURABILITY), m = bstat(sr, ST_MAX_DURABILITY);
+    if (c == shown_c && m == shown_m) return;
+    shown_c = c; shown_m = m;
+    show(view, c, m, 1);
 }
 
 /* ---------------------------------------------------------------- switches (cm_prefs) */
@@ -574,9 +588,9 @@ static void fb_tick(void) {
 }
 
 /* ---------------------------------------------------------------- the Inspect window (SubUI_EntityInspectionStatus):
-   a building's Durability / Max Durability rows are written on open / selection change only (stock); the Fix live-hp
-   writes them again on every change; in a DPS Check this hook puts the language's thousands form on them */
-static uintptr_t h_ins; static float ins_c = -1, ins_m = -1; static int32_t f_ins_el = -1, f_el_amt = -1;
+   a building's Durability / Max Durability rows are written on open / selection change only (stock); in a DPS Check they
+   follow the building's StatusReader while the window shows, in the language's thousands form */
+static uintptr_t h_ins, h_ins_sr; static int ins_q; static float ins_c = -1, ins_m = -1; static int32_t f_ins_el = -1, f_el_amt = -1;
 static void (*o_setbs)(Obj self, Obj sr, int quality, const void *mi);
 static void ins_rows(Obj ui, float c, float m) {         /* _buildingElements: Dictionary<StatType, FinalStatElementUI> */
     Obj d = ui && f_ins_el >= 0 ? FLD(ui, f_ins_el, Obj) : NULL;
@@ -598,10 +612,19 @@ static Obj ins_values(Obj sr) { Obj v = cm_il_hget(h_sr); return v ? v : sr; }
 static void h_setbs(Obj self, Obj sr, int quality, const void *mi) {
     o_setbs(self, sr, quality, mi);
     if (!dps_on || !self || !sr) return;
-    cm_il_hset(&h_ins, self);
+    cm_il_hset(&h_ins, self); cm_il_hset(&h_ins_sr, sr); ins_q = quality;
     Obj v = ins_values(sr); ins_c = bstat(v, ST_DURABILITY); ins_m = bstat(v, ST_MAX_DURABILITY);
     ins_rows(self, ins_c, ins_m);
     static int said_world = -1; if (said_world != (int)nworld) { said_world = (int)nworld; cmw_log("tf: Inspect window: durability %.0f / %.0f (its own reader: %.0f)", ins_c, ins_m, bstat(sr, ST_DURABILITY)); }
+}
+static void ins_tick(void) {                            /* the window's own reader is a short-lived object: the panel's is kept */
+    Obj ui = cm_il_hget(h_ins), v = ins_values(cm_il_hget(h_ins_sr));
+    if (!live || !v || !cm_alive(ui) || !go_on(ui, 1)) return;
+    float c = bstat(v, ST_DURABILITY), m = bstat(v, ST_MAX_DURABILITY);
+    if (c == ins_c && m == ins_m) return;
+    ins_c = c; ins_m = m;
+    o_setbs(ui, v, ins_q, NULL);                         /* the stock rows (and its look) again, then our number form */
+    ins_rows(ui, c, m);
 }
 double tf_dps_durability(double *max) {
     Obj sr = cm_il_hget(h_sr);
@@ -614,12 +637,17 @@ static void tick(void *ud) {
     (void)ud;
     static unsigned fr;
     if (!dps_on) { if (fb_root && fb_on) { U->set_active(fb_root, 0); fb_on = 0; } return; }
-    if (fr++ % 30 == 0) title_up = cmw_title_shown();
+    if (fr++ % 30 == 0) {
+        title_up = cmw_title_shown();
+        int lh = H->module_loaded && H->module_loaded("live-hp");   /* asked here, not at init: live-hp's own init runs after ours */
+        if (lh != live_hp) cmw_log("tf: DPS Check: %s", lh ? "live-hp runs: the panels follow through it" : "no live-hp: our own panel follow");
+        live_hp = lh;
+    }
     if (restart_line) {                                  /* a restart passes through the title scene (the chat clears there) */
         if (cmw_title_shown()) restart_line = 30;
         else if (!--restart_line) add_line("<color=" C_SUB ">--- restart ---</color>");
     }
-    if (!title_up) { finalize(0, game_tick()); flush(); }
+    if (!title_up) { finalize(0, game_tick()); flush(); if (live_hp != 1) { live_tick(); ins_tick(); } }
     fb_tick();
 }
 
@@ -630,7 +658,7 @@ void tf_dps_world(const char *stem) {
     if (on) { log_clear(); fb_off = 0; fb_n = (size_t)-1; restart_line = restarting ? 30 : 0; restarting = 0; }   /* the line once the world shows */
                                                          /* (a restart also loads the title's background world first: not that one) */
     cm_il_hset(&h_view, NULL); cm_il_hset(&h_sr, NULL); shown_c = shown_m = -1;
-    cm_il_hset(&h_ins, NULL); ins_c = ins_m = -1;
+    cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1;
     dps_on = on;
 }
 void tf_dps_restarting(void) { restarting = dps_on; }
@@ -777,13 +805,14 @@ static const char *ins_text(void) {                      /* the Inspect window's
     for (char *q = r; *q; q++) if (*q == '"' || *q == '\\') *q = ' ';
     return r;
 }
-/* s: "state" | "fb 0|1" (our own log panel instead of the chat) | "fb_state" | "fit <now> <max>" (the shown panel at those values, until the durability changes) | "pos" (building objects on screen)
+/* s: "state" | "live 0|1" | "fb 0|1" (our own log panel instead of the chat) | "fb_state" | "fit <now> <max>" (the shown panel at those values, until the durability changes) | "pos" (building objects on screen)
       | "layout" (the panel's status part: every child's name, screen rect, text) */
 __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out, size_t cap) {
     if (!out || cap < 64) return -1;
     if (!t_rect) *(void **)&t_rect = test_sym("dsl_ui_test_rect");
     size_t o = 0; out[0] = 0;
     Obj view = cm_il_hget(h_view), bs = cm_alive(view) && f_v_bsui >= 0 ? FLD(view, f_v_bsui, Obj) : NULL;
+    if (!strncmp(s, "live ", 5)) { live = atoi(s + 5); snprintf(out, cap, "{\"live\":%d}", live); return 0; }
     if (!strncmp(s, "sw ", 3)) { int k = -1, v = 0; if (sscanf(s + 3, "%d %d", &k, &v) == 2) tf_dps_switch_set(k, v); snprintf(out, cap, "{\"sw\":%d}", tf_dps_switch(k)); return 0; }
     if (!strcmp(s, "vfx")) {                             /* speech bubbles and floating numbers on screen now */
         void *ksp = cm_il_class("Refactor.FX", "VFX_Speech"), *kdt = cm_il_class("Refactor.FX", "VFX_DataText"), *ktx = cm_il_class("TMPro", "TMP_Text");
@@ -898,19 +927,19 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
     }
     /* state */
     Obj sr = cm_il_hget(h_sr), bp = cm_alive(view) && f_v_bpanel >= 0 ? FLD(view, f_v_bpanel, Obj) : NULL;
-    o += (size_t)snprintf(out + o, cap - o, "{\"on\":%d,\"title\":%d,\"hits\":%lu,\"sum\":%.3f,\"crit\":%lu,\"miss\":%lu,\"lines\":%zu,\"sent\":%zu,\"mp\":%d,\"fb\":%d,\"fb_on\":%d,"
+    o += (size_t)snprintf(out + o, cap - o, "{\"on\":%d,\"title\":%d,\"live\":%d,\"hits\":%lu,\"sum\":%.3f,\"crit\":%lu,\"miss\":%lu,\"lines\":%zu,\"sent\":%zu,\"mp\":%d,\"fb\":%d,\"fb_on\":%d,"
                             "\"view\":%d,\"view_on\":%d,\"bpanel_on\":%d,\"same\":%d,\"sr\":%d,\"dur\":%.3f,\"dmax\":%.3f,\"shown_c\":%.3f,",
-                            dps_on, title_up, hits, dmg_sum, n_crit, n_miss, nl, sent, mp_ok(), fb_use, fb_on,
+                            dps_on, title_up, live, hits, dmg_sum, n_crit, n_miss, nl, sent, mp_ok(), fb_use, fb_on,
                             cm_alive(view), cm_alive(view) && go_on(view, 1), go_on(bp, 0), cm_alive(view) && f_v_guid >= 0 && !memcmp((char *)view + f_v_guid, shown_g, 16),
                             sr != NULL, sr ? bstat(sr, ST_DURABILITY) : -1, sr ? bstat(sr, ST_MAX_DURABILITY) : -1, shown_c);
     if (cm_alive(bs)) { o += text_json(out + o, cap - o, "cur", FLD(bs, f_s_cur, Obj)); o += (size_t)snprintf(out + o, cap - o, ",");
                         o += text_json(out + o, cap - o, "max", FLD(bs, f_s_max, Obj)); o += (size_t)snprintf(out + o, cap - o, ","); }
     o += (size_t)snprintf(out + o, cap - o, "\"repaired\":%.3f,\"heads\":%d,\"units\":%d,\"clock\":%.3f,\"speech_shown\":%lu,\"speech_hidden\":%lu,\"heal_shown\":%lu,\"heal_hidden\":%lu,"
                             "\"sw\":[%d,%d,%d,%d,%d],\"ins\":%d,\"ins_c\":%.3f,\"ins_txt\":\"%s\",\"restart_ready\":%d,"
-                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu},",
+                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu},\"live_hp\":%d,",
                             repaired, nheads, nunit, tf_dps_clock(), n_speech_shown, n_speech_hidden, n_heal_shown, n_heal_hidden,
                             tf_dps_switch(0), tf_dps_switch(1), tf_dps_switch(2), tf_dps_switch(3), tf_dps_switch(4), cm_alive(cm_il_hget(h_ins)) && go_on(cm_il_hget(h_ins), 1), ins_c, ins_text(), tf_restart_ready(),
-                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen);
+                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, live_hp);
     o += (size_t)snprintf(out + o, cap - o, "\"last\":[");
     for (size_t i = nl > 8 ? nl - 8 : 0; i < nl && o + 300 < cap; i++) {
         char e[260]; size_t k = 0; for (const char *p = lines[i]; *p && k + 2 < sizeof e; p++) { if (*p == '"' || *p == '\\') e[k++] = '\\'; e[k++] = *p; } e[k] = 0;
