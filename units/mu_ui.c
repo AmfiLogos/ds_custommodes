@@ -136,17 +136,11 @@ static void title_icons(int show) {
         if (g && act_self.fn && CM_CALL(act_self, bool, Obj, const void *)(g, act_self.mi)) { cm_set_active(g, false); cm_il_hset(&h_icon[i], g); }
     }
 }
-/* the red X: the kit's copy of the game's close button (DSLUi.close_x, kit bdcb603+); its click runs the close that `win`
-   registered with esc_push, the same action as Escape (every caller pushes the window in the frame it opens it). Read by
-   its place in the loader's own table (appended right after esc_drop) with the wrappers' size check: U is cm_look's copy,
-   cut at the size of the dsl_sdk.h this was built with, and a build with an older copy (the multiplayer pin's) must still
-   get it. NULL (an older kit, or the game's button not found): a kit button "X" */
-static DSLObj close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_cb cb, void *ud) {
-    typedef DSLObj (*xfn)(DSLObj, float, float, float, DSLObj);
-    const DSLUi *k = H ? dsl_ui(H) : NULL;
-    size_t off = offsetof(DSLUi, esc_drop) + sizeof k->esc_drop;
-    xfn f = k && k->size >= off + sizeof(xfn) ? *(const xfn *)(const void *)((const char *)k + off) : NULL;
-    DSLObj b = f ? f(parent, x, y, s, win) : NULL;
+/* the red X: the kit's copy of the game's close button (dsl_close_x, kit bdcb603+); its click runs the close that `win`
+   registered with esc_push, the same action as Escape (every caller pushes the window in the frame it opens it). NULL (an
+   older kit, or the game's button not found): a kit button "X" */
+DSLObj mu_close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_cb cb, void *ud) {
+    DSLObj b = dsl_close_x(U, parent, x, y, s, win);
     return b ? b : U->button(parent, x, y, s, s, "X", cb, ud);
 }
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud) {
@@ -172,7 +166,8 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
     if (t) { cm_text_ellipsis(t); cm_raycast(t, false); }
     mu_plate(p, 12, MU_SHELL_BAND - 1, ww - 24, 2, MU_C_COPPER);
     float xs = 38;
-    s->x = close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, p, on_x, ud);
+    s->x = mu_close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, p, on_x, ud);
+    dsl_rules_own(U, p, DSL_RULE_SCALE);                               /* KIT-SCALE: UI Scale is ours (the UI-RULE guard) */
     s->win = p;
     if (w) *w = ww;
     if (h) *h = hh;

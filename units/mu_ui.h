@@ -50,6 +50,8 @@ void   mu_shell_close(mu_shell *s);
 int    mu_shell_count(void);                               /* shells open now (test) */
 /* a backdrop over the whole kit screen layer: dims what is under it and takes its clicks (the game's notice look) */
 DSLObj mu_backdrop(uint32_t rgba);
+/* the game's red X (kit), a text "X" running cb(ud) on an older kit; win = the window pushed with esc_push */
+DSLObj mu_close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_cb cb, void *ud);
 /* place w at the game's UI scale, centred on the screen layer (a widget made on the layer, design size bw x bh) */
 void   mu_centre_scaled(DSLObj w, float bw, float bh);
 /* a plain colour rect, no sprite, clicks through (rgba 0: invisible, a holder for other widgets) */

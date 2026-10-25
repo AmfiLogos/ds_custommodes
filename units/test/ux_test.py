@@ -13,6 +13,8 @@ this catches):
   - U5: a window's close control is not the one square X in its top right corner (My Units had a "Close" button, the
     Builder a "Cancel" button);
   - U5 (kit 83636d0+): the loader logs CLOSE-TEXT-X: one of our windows closes with a text "X", not the game's red X;
+  - the kit's UI-RULE guard (ds_modloader d529f52+) logs a line: a window of ours breaks an owner rule (red X, UI Scale,
+    move, card click, font); split into the title part (our windows) and the test world (in-game panels);
   - U6: a talent tier name does not fit its chip (de "Außergewöhnli / ch"); U7: a boss stat name does not fit (de / ru);
     U8: a text is cut in the Gallery's Details while picking for the Builder ("... Life S...").
   ux_test.py [out] [--lang de|ru|en] [--no-build] [--no-world]     env: as esc_test.py (LD_ROOT, ESC_CM, DSL_TEST_COPY)
@@ -102,6 +104,9 @@ def x_ok(name, xt, wt):
           abs(xw - xh) <= 2 and w[2] - x[2] < ww * 0.06 and w[3] - x[3] < wh * 0.08, (x, w))
 
 
+WORLD_AT = [None]                                                     # dsload.log size when the test world part starts
+
+
 def corner(name):
     """the title's corner buttons shown now (Roadmap, Discord: TitleMenuUI/EtcButtonHolderTransform), from the active texts"""
     req('fonts', name=name, all=0); f = os.path.join(E.DRV, f'fonts_{name}.jsonl')
@@ -128,8 +133,11 @@ def cases():
     check('U4 the Delete Team box dims the whole screen (not only the window)', bool(d and w) and d[0] < w[0] - 5 and d[2] > w[2] + 5, (d, w))
     c, o, u = rect('mu:dlg_cancel'), rect('mu:dlg_only'), rect('mu:dlg_units')
     check('U4 the game\'s order: Cancel, Team Only, Team and Units', bool(c and o and u) and c[0] < o[0] < u[0], (c, o, u))
-    click('mu:dlg_cancel', 1.0); s = st()
-    check('U4 Cancel deletes nothing', cm(s, 'mu').get('dlg') == 0 and cm(s, 'mu').get('teams') == 1 and E.fstate(E.LIB) == lib0, cm(s, 'mu').get('teams'))
+    click('mu:dlg_x', 1.0); s = st()
+    check('U4 the box\'s red X = Cancel: the box closes, nothing deleted', cm(s, 'mu').get('dlg') == 0 and cm(s, 'mu').get('teams') == 1 and E.fstate(E.LIB) == lib0, (cm(s, 'mu').get('dlg'), cm(s, 'mu').get('teams')))
+    # CARD RULE (kit template dsl_card_toggle): a click on a card's text ticks it, a second click unticks it
+    click('mu:all', 1.0); t0 = cm(st(), 'mu').get('ticked'); click('mu:card0', 1.0); t1 = cm(st(), 'mu').get('ticked'); click('mu:card0', 1.0); t2 = cm(st(), 'mu').get('ticked')
+    check('a click on a My Units card ticks it, a second click unticks it', (t0, t1, t2) == (0, 1, 0), (t0, t1, t2))
     # U5 + U6: the Unit Builder (X = Cancel; the Level-Ups page's talent chips)
     click('mu:new', 1.5); s = until(bld_on)
     x_ok('Unit Builder', 'bld:cancel', 'bld:win')
@@ -168,6 +176,7 @@ def cases():
     req('call', fn='cmf_test', s='{"cmd":"set","name":"fights:r.mode","index":0}'); time.sleep(1.0)
     check('the test library is unchanged', E.fstate(E.LIB) == lib0)
     if '--no-world' in sys.argv: return
+    WORLD_AT[0] = os.path.getsize(os.path.join(E.I, 'dsload.log')) if os.path.exists(os.path.join(E.I, 'dsload.log')) else 0
     # U1: the title goes away (a world loads: Test Fights' Start under My Units here) = My Units closes with it
     req('call', fn='cmf_test', s='{"cmd":"close","win":"fights"}'); time.sleep(1.0)
     E.open_mu()
@@ -208,6 +217,11 @@ def main():
     log_txt = open(os.path.join(E.OUT, 'dsload.log'), encoding='utf-8', errors='replace').read() if os.path.exists(os.path.join(E.OUT, 'dsload.log')) else ''
     tx = [l for l in log_txt.splitlines() if 'CLOSE-TEXT-X' in l]
     check('U5 every window closes with the game\'s red X (no CLOSE-TEXT-X in dsload.log)', not tx, tx[:3])
+    cut = WORLD_AT[0] if WORLD_AT[0] is not None else len(log_txt.encode('utf-8'))
+    raw = log_txt.encode('utf-8'); title_part, world_part = raw[:cut].decode('utf-8', 'replace'), raw[cut:].decode('utf-8', 'replace')
+    r1 = [l for l in title_part.splitlines() if 'UI-RULE' in l]; r2 = [l for l in world_part.splitlines() if 'UI-RULE' in l]
+    check('no UI-RULE line for our windows on the title (kit guard: red X, UI Scale, card click, font)', not r1, r1[:4])
+    if WORLD_AT[0] is not None: check('no UI-RULE line in the test world (in-game panels)', not r2, r2[:4])
     check('the owner\'s real library file is unchanged', E.fstate(E.OWNER_LIB) == owner0, E.OWNER_LIB)
     check('copy never on screen / frontmost', not E.violations, E.violations)
     E_exit()
