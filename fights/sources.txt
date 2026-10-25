@@ -16,3 +16,4 @@ fights/cm_prefs.c
 fights/cm_gtip.c
 fights/tf_card.c
 fights/tf_wikisave.c
+fights/tf_dps.c

@@ -1,5 +1,6 @@
 /* tf_worlds.c - see tf_worlds.h */
 #include "tf_worlds.h"
+#include "tf_dps.h"
 #include "cm_win.h"
 #include "../fe/fe_json.h"
 #include "cm_il.h"
@@ -198,6 +199,7 @@ static CampaignSaveData h_deser(Obj json, Obj settings, Obj path, const void *mi
     char stem[300]; snprintf(stem, sizeof stem, "%s", b);
     size_t l = strlen(stem); if (l > 5 && !strcmp(stem + l - 5, ".json")) stem[l - 5] = 0;
     if (tfw_wiki_made(stem)) { Obj f = fix_text(json, stem); if (f) json = f; }
+    tf_dps_world(stem);                                  /* the DPS Check's panel and hit log: on in its world only */
     return o_deser(json, settings, path, mi);
 }
 
@@ -385,5 +387,6 @@ int tfw_init(const DSLHost *host, DSLPlugin *self) {
     if (sz != sizeof(CampaignSaveData)) { cmw_log("tf: CampaignSaveData is %#x bytes, not %#zx: wiki-made save fix off", sz, sizeof(CampaignSaveData)); return r; }
     int hr = host->hook_method ? host->hook_method(self, "Refactor", "SaveLoadHelper", "DeserializeCampaignSaveDataSafely", 3, (void *)h_deser, (void **)&o_deser) : -1;
     cmw_log("tf: wiki-made saves load without the Lock Consecration box: %s (%d)", hr ? "hook refused" : "on", hr);
+    if (!hr) tf_dps_init(host, self);                    /* knows a DPS Check world from this hook */
     return r;
 }

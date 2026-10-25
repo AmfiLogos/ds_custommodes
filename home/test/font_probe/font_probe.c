@@ -4,6 +4,7 @@
 //   "title:<label>" a title column button, "home:<label>" a home page button, "<prefix>:<name>" any registered part.
 // DSL_UNITS_TEST=<dir>: <dir>/req.json {"seq":n,"cmd":...} -> <dir>/resp.json {"seq":n,...}
 //   cmd state | click {target} | hover {target} | key {code} | type {target,text} | wheel {target,dy} | capture {name}
+//       | hover_xy / click_xy {x, y[, button 1 = right]}  (a screen point; hover stays until "mouse_off")
 //       | call {fn, s}  (a Units Laboratory test function "int fn(const char *s, char *out, size_t cap)" by name)
 //       | fonts {name, all}  (every TMP text -> <dir>/fonts_<name>.jsonl, see fonts_dump)
 //       | title  (the title's background world, the Continue save, the world loaded now: see title_state)
@@ -59,18 +60,18 @@ static void send_ev(id w, id ev) {
    scripted values while a fake action runs. The stock StandaloneInputModule -> raycast -> OnPointerClick chain decides. */
 typedef struct { float x, y, z; } V3; typedef struct { float x, y; } V2;
 static int (*frame_now)(const void *);
-static int fk_on, fk_down = -1, fk_until, fk_wheel_at = -1; static float fk_x, fk_y, fk_wy;
+static int fk_on, fk_down = -1, fk_until, fk_wheel_at = -1, fk_btn; static float fk_x, fk_y, fk_wy;
 static bool (*o_mb)(int, const void *), (*o_mbd)(int, const void *), (*o_mbu)(int, const void *);
 static V3 (*o_mpos)(const void *); static V2 (*o_wheel)(Obj, const void *);
 static int fnow(void) { return frame_now ? frame_now(NULL) : 0; }
 static int fk_live(void) { return fk_on && fnow() <= fk_until; }
-static bool hk_mb(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == 0 && fnow() == fk_down) : o_mb(b, mi); }
-static bool hk_mbd(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == 0 && fnow() == fk_down) : o_mbd(b, mi); }
-static bool hk_mbu(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == 0 && fnow() == fk_down + 1) : o_mbu(b, mi); }
+static bool hk_mb(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down) : o_mb(b, mi); }
+static bool hk_mbd(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down) : o_mbd(b, mi); }
+static bool hk_mbu(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down + 1) : o_mbu(b, mi); }
 static V3 hk_mpos(const void *mi) { return fk_live() ? (V3){ fk_x, fk_y, 0 } : o_mpos(mi); }
 static V2 hk_wheel(Obj self, const void *mi) { return fk_live() && fnow() == fk_wheel_at ? (V2){ 0, fk_wy } : o_wheel(self, mi); }
 static void fk_at(const float r[4]) { fk_on = 1; fk_x = (r[0] + r[2]) / 2; fk_y = (r[1] + r[3]) / 2; fk_down = -1; fk_wheel_at = -1; }
-static int click_rect(const float r[4]) { fk_at(r); fk_down = fnow() + 5; fk_until = fk_down + 30; return 0; }   /* rest 5 frames, press, release */
+static int click_rect(const float r[4]) { fk_at(r); fk_btn = 0; fk_down = fnow() + 5; fk_until = fk_down + 30; return 0; }   /* rest 5 frames, press, release */
 static int move_rect(const float r[4]) { fk_at(r); fk_until = 0x7fffffff; return 0; }                           /* hover until "mouse_off" */
 static int wheel_rect(const float r[4], int dy) { fk_at(r); fk_wheel_at = fnow() + 3; fk_wy = (float)dy; fk_until = fk_wheel_at + 20; return 0; }
 static id ns_str(const char *s) { return ((id (*)(Class, SEL, const char *))objc_msgSend)(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), s); }
@@ -107,7 +108,7 @@ static char *jstr(const char *j, const char *k, char *out, size_t cap) {   /* "k
     size_t n = 0; while (*p && *p != '"' && n + 1 < cap) { if (*p == '\\' && p[1]) p++; out[n++] = *p++; } out[n] = 0; return out;
 }
 static double jnum(const char *j, const char *k, double d) { char pat[64]; snprintf(pat, sizeof pat, "\"%s\":", k); const char *p = strstr(j, pat); return p ? atof(p + strlen(pat)) : d; }
-static void jesc(char *o, size_t cap, const char *s) { size_t n = 0; for (; *s && n + 3 < cap; s++) { if (*s == '"' || *s == '\\') o[n++] = '\\'; if ((unsigned char)*s < 0x20) continue; o[n++] = *s; } o[n] = 0; }
+static void jesc(char *o, size_t cap, const char *s) { size_t n = 0; for (; *s && n + 3 < cap; s++) { if (*s == '\n') { o[n++] = '\\'; o[n++] = 'n'; continue; } if (*s == '"' || *s == '\\') o[n++] = '\\'; if ((unsigned char)*s < 0x20) continue; o[n++] = *s; } o[n] = 0; }
 
 /* "bring:<name>": the Bring Units card window of the multiplayer module (src/mu_bring.c mu_bring_test_find; since the Units
    Laboratory split it is there, not in custom-modes). Looked up on use: the module image is mapped by then. */
@@ -325,6 +326,11 @@ static void handle(const char *j) {
         else rc = !strcmp(cmd, "click") ? click_rect(r) : !strcmp(cmd, "hover") ? move_rect(r) : wheel_rect(r, (int)jnum(j, "dy", -3));
         o += (size_t)snprintf(out + o, sizeof out - o, "\"on\":%d,\"at\":[%.0f,%.0f,%.0f,%.0f],\"text\":\"%s\",", on, r[0], r[1], r[2], r[3], le);
     }
+    else if (!strcmp(cmd, "hover_xy") || !strcmp(cmd, "click_xy")) {   /* a screen point (pixels, origin bottom-left, as Input.mousePosition) */
+        float x = (float)jnum(j, "x", 0), y = (float)jnum(j, "y", 0), r[4] = { x, y, x, y };
+        rc = !strcmp(cmd, "click_xy") ? click_rect(r) : move_rect(r);
+        if (!strcmp(cmd, "click_xy")) fk_btn = (int)jnum(j, "button", 0);   /* 1 = the right button */
+    }
     else if (!strcmp(cmd, "mouse_off")) fk_on = 0;
     else if (!strcmp(cmd, "via")) via_view = (int)jnum(j, "view", 1);
     else if (!strcmp(cmd, "key")) rc = key_code((int)jnum(j, "code", 36));
@@ -352,6 +358,9 @@ static void focus_on(void) {
     if (!cur) { cur = H->find_method_address("UnityEngine.EventSystems", "EventSystem", "get_current", 0);
                 foc = H->find_method_address("UnityEngine.EventSystems", "EventSystem", "OnApplicationFocus", 1); }
     Obj es = cur ? cur(NULL) : NULL; if (es && foc) foc(es, true, NULL);
+    /* without the multiplayer mod (its rig keeps a hidden copy running) the game would stop in the background */
+    static void (*rib)(bool, const void *); if (!rib) rib = H->find_method_address("UnityEngine", "Application", "set_runInBackground", 1);
+    static int done; if (rib && !done) { rib(true, NULL); done = 1; }
 }
 static void tick(CFRunLoopTimerRef tm, void *info) {
     (void)tm; (void)info;
