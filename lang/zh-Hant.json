@@ -28,6 +28,7 @@
  "%s  Lv %d": "%s  等級 %d",
  "%s %.*s is not in this game version": "%s %.*s 不在此遊戲版本中",
  "%s cannot go in the %s slot": "%s 無法放入 %s 欄位",
+ "%s could not be read from the save: %s": "無法從存檔讀取 %s：%s",
  "%s is not in one of this unit's skill trees": "%s 不在此單位的任一技能樹中",
  "%s skills cost %.0f points, the unit has %.0f": "%s 技能需要 %.0f 點，此單位只有 %.0f 點",
  "%s x%d": "%s x%d",
@@ -41,6 +42,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "供品越大，每次升級獲得的屬性和消耗的魔力石越多。",
  "A fully built base with all research done. Your squad walks in ready to play.": "建造完整、所有研究皆已完成的基地。你的小隊進場即可開始遊玩。",
  "A picked unit is no longer in My Units.": "一個已選取的單位已不在「我的單位」中。",
+ "A picked unit's world is no longer in your saves.": "已選取單位所在的世界已不在你的存檔中。",
  "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "一個練習用的 %s，耐久度為 %s，會嘲諷你的單位。攻擊它即可看見你的小隊造成多少傷害。",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "一支隊伍最多容納 %d 個單位。"
@@ -191,6 +193,7 @@
  "Offering at each level-up": "每次升級的供品",
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "每級一個銘文：共 %d 個（至等級 %d）。額外技能樹用掉 %d 個，銘文用掉 %d 個，剩餘 %d 個可用。",
  "One-handed.": "單手武器。",
+ "Open a world and tick the units to send in. They fight as they are in that save.": "打開一個世界，勾選要進場的單位。它們會以該存檔中的狀態作戰。",
  "Open the Wiki Build Gallery": "開啟維基作品庫",
  "Opening the build...": "正在開啟構築...",
  "Opens": "開啟",

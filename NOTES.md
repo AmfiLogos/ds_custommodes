@@ -85,7 +85,56 @@
   the name only; units, author and gallery id stay). Bottom bar: the shown buttons at their label width from the left
   (layout_bottom), so the team buttons do not leave a gap in All units; pager 160 wide.
 
-## Escape closes our windows (owner 2026-10-25, 0.1.19: "make sure Escape works to close our custom windows")
+## Default unit names in the saves we write (2026-10-25, 0.1.19)
+- Owner: "when importing units from my save, from the snapshot, they don't have their names saved": in a test fight the
+  Multi-unit view cards (mod multi-bar) showed "TEXTKEY_PLAYERNAME_Elf_Male_13"; the top portrait bar showed "Silvarion".
+- Cause: a save unit never renamed keeps the game's default name KEY (mu_save.c: build name = UnitNameTextKey). The game
+  shows a unit's name through EntityDisplayNameExtensions.GetDisplayName -> GetPlayerUnitDisplayName (decomp 25846389):
+  UnitNameTextKey is localized only when it equals DefaultUnitNameTextKey (or that one is empty); otherwise it is a typed
+  name and shown as it is. A stock unit holds the same key in both fields (wiki base save). The wiki's savegen.js (Test
+  Fights) and our pb_entry (Bring Units) wrote the race's "_0" key as DefaultUnitNameTextKey, so the key was shown raw
+  wherever the game uses GetDisplayName, e.g. the stock unit panel (EntitySummaryUIView) and the multi-bar cards.
+  The portrait bar reads the key itself (SubUI_UnitShortCutParts), hence "Silvarion" there.
+- Fix: a name that starts with TEXTKEY_ goes in both fields: pvp_build.c pb_entry, and fights/sg_glue.js nameKeys() on
+  the wiki's generated save (clan units only; a no-op once the wiki writes it). multi-bar needed no change (it already
+  uses GetDisplayName). The library and saves are not changed: snapshot units already in My Units get their names.
+- Test: units/test/namekey/namekey_test.py (one hidden copy, en + de; the Test Fights save from sg_cli and a pb_entry
+  save; stock panel + multi-bar cards = TextKeyExtensions.GetText(key)). NK_OLD = an older tree: its saves fail.
+
+## Test Fights: World units (2026-10-25, 0.1.20, lane dsfights)
+- Owner: "Test fights should allow to select directly people from one of your current saves." A third source in the
+  Test Fights squad picker, labelled "World units" (the same words as My Units' section; on a second row under My Units /
+  Wiki Build Gallery: three labels never fit one row, ES "Galería de builds de la wiki").
+- One World units list for both windows: units/mu_window.c `mu_player_worlds` (the folders Load Campaign lists, Test
+  Fights' test worlds left out) and `mu_world_units` (a world's units, default names in the game's language), declared in
+  mu_worlds.h. My Units and Test Fights call them; nothing is copied.
+- The list: one row per world (clan name, save time, how many of its units are picked); a click opens it (a second click
+  closes it): its newest save's units as Compact Plus cards (read only), each with a tick. A card narrower than
+  MU_CARD_NARROW (360) leaves the in-game look out (the name and icon rows need the room; the portrait shows the face).
+  A save that cannot be read shows the reader's own line (WARN colour); a unit that cannot be built shows a red line on
+  its card; the other units still show.
+- Picks: world guid + unit guid (+ the shown name), max = the fight's squad size. Picks of a world gone from the list are
+  dropped when the window opens; picks of a unit its newest save no longer holds are dropped when that world is opened,
+  and at Start such a pick stops Start with a line that names the unit.
+- Mixing sources: the picker's existing rule is kept: the squad is the picks of the tab that is shown (My Units, Gallery
+  or World units); the other tabs keep their picks but they are not sent.
+- Start: each pick is built straight from its world's newest save by `mu_save_build_obj` (mu_worlds.c), the same call a
+  snapshot makes (mu_snapshot now uses it): the save import's build + the save's own skill bar as the builder's `quick`
+  pick, so the save generator writes the save's bar (builder.js quickFor keeps the skills the build has). The test world's
+  clan is the world's clan name when all picks come from one world.
+- Default names: a unit never renamed fights under its name key (TEXTKEY_PLAYERNAME_...); the generator wrote the
+  template's DefaultUnitNameTextKey, so the game showed the key itself (found by the game test here and by lane dsnames).
+  Fixed once, by lane dsnames (fights/sg_glue.js nameKeys: the key in both name fields); the game test checks the names.
+- Limit found: the wiki generator's templates have 4 skill bar slots; a save unit with 5 bar skills fights with the first
+  4 (the 5th stays learned). The generator is the wiki's (savegen.js quickSlotCount); not changed here.
+- Tests: fights/test/run_saveunits.sh (saveunits_test.c: copies of real saves + the wiki base save, picks through
+  mu_save_build_obj and the wiki generator in QuickJS, the test world read back: level, race, background, talents, worn
+  items + rolls, learned skills, trees, inscriptions, soul stones, name and the save's bar; fails on a lost level or a
+  computed bar, checked by mutation). fights/test/saveunits_game_test.py (one hidden copy: World units tab, open the save
+  copy's world, tick 2, Custom fight with one Weak Grey Rat, Start, the squad = the picked units by name with their save
+  levels, combat, the rat killed, back to the title, test world removed; LANGTYPE = shots + card text fit only).
+
+## Escape closes our windows (owner 2026-10-25, 0.1.21: "make sure Escape works to close our custom windows")
 - The loader kit owns the key (kit 0.1.28, dsl_sdk.h `esc_push` / `esc_drop`, wrappers `dsl_esc_push` / `dsl_esc_drop`):
   each window pushes itself when it shows, one press calls the close of the top-most one that still shows, and the game
   never sees that press. Pushed here, close = the window's own button: the home page (Back), My Units (Close), its paste

@@ -64,6 +64,7 @@ void mu_name_of(const char *key, char *out, size_t cap);
    owner 2026-10-25 "only 3 units per line" when it was a line under the card): forms longest first, the first that fits
    is shown (else the last one cut with "..."); note_tip = the hover card's text (the full line); NULL / 0 = nothing. */
 #define MU_CARD_H 128.f                        /* 4 cards fit the My Units list at UI scale 1 (owner 2026-10-17) */
+#define MU_CARD_NARROW 360.f                   /* narrower: no in-game look on the card (Test Fights' World units) */
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
                     const char *const *note, int nnote, const char *note_tip);

@@ -136,22 +136,6 @@ static void state(char *out, size_t cap) {
         if (!looked) { looked = 1; *(void **)&te = dlsym(RTLD_DEFAULT, "dsl_ui_test_esc"); *(void **)&ty = dlsym(RTLD_DEFAULT, "dsl_ui_test_typing"); }
         char es[1500] = "", ee[1700]; int n = te ? te(es, sizeof es) : -1; jesc(ee, sizeof ee, es);
         o += (size_t)snprintf(out + o, cap - o, ",\"esc_n\":%d,\"esc\":\"%s\",\"typing\":%d", n, ee, ty ? ty() : -1);
-        /* the EventSystem's selected object: its path, 4 levels up (which field has the keyboard) */
-        static Obj (*cur)(const void *), (*sgo)(Obj, const void *), (*gtr)(Obj, const void *), (*par)(Obj, const void *), (*nm)(Obj, const void *);
-        if (!cur) { cur = H->find_method_address("UnityEngine.EventSystems", "EventSystem", "get_current", 0);
-                    sgo = H->find_method_address("UnityEngine.EventSystems", "EventSystem", "get_currentSelectedGameObject", 0);
-                    gtr = H->find_method_address("UnityEngine", "GameObject", "get_transform", 0);
-                    par = H->find_method_address("UnityEngine", "Transform", "get_parent", 0);
-                    nm = H->find_method_address("UnityEngine", "Object", "get_name", 0); }
-        Obj evs = cur ? cur(NULL) : NULL, g = evs && sgo ? sgo(evs, NULL) : NULL, t = g && gtr ? gtr(g, NULL) : NULL;
-        char path[400] = "", one[96], tmp[400], pe[480];
-        for (int d = 0; t && par && nm && d < 4; d++, t = par(t, NULL)) {
-            Obj s = nm(t, NULL); int32_t n2 = s ? *(int32_t *)((char *)s + 0x10) : 0; const uint16_t *c = s ? (const uint16_t *)((char *)s + 0x14) : NULL;
-            int i = 0; for (; c && i < n2 && i < 90; i++) one[i] = c[i] < 0x80 ? (char)c[i] : '?'; one[i] = 0;
-            snprintf(tmp, sizeof tmp, "%s%s%s", one, path[0] ? "/" : "", path); snprintf(path, sizeof path, "%s", tmp);
-        }
-        jesc(pe, sizeof pe, path);
-        o += (size_t)snprintf(out + o, cap - o, ",\"sel\":\"%s\"", pe);
     }
     if (c_state && o + 2 < cap) { o += (size_t)snprintf(out + o, cap - o, ",\"cm\":{"); o += c_state(out + o, cap - o - 2); o += (size_t)snprintf(out + o, cap - o, "}"); }
     { id w = game_window(); CGRect f = w ? ((CGRect (*)(id, SEL))objc_msgSend)(w, sel_registerName("frame")) : CGRectZero;

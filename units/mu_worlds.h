@@ -7,6 +7,7 @@
 #pragma once
 #include <stddef.h>
 #include "myunits.h"
+#include "mu_save.h"
 
 typedef struct mu_world {
     char path[1024];          /* the world's newest save file */
@@ -31,6 +32,17 @@ int  mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, 
 void mu_game_saves_dir(char *out, size_t n);
 /* the header of a save (guid, clan name, save time) into w, read without parsing the whole save: 0 ok */
 int  mu_world_header(const char *path, mu_world *w);
+/* unit `guid` of a save as a builder JSON build: what a snapshot stores in My Units and what Test Fights' World units
+   hands the save generator (the same unit both ways). jfree it. NULL + err. */
+jv  *mu_save_build_obj(const char *path, const char *guid, char *err, size_t errn);
+
+/* Game side (units/mu_window.c, main thread; not in the host tests): the one World units list, shared by My Units and
+   Test Fights (owner 2026-10-25: "Test fights should allow to select directly people from one of your current saves").
+   mu_player_worlds = the folders Load Campaign lists (DSML_GAME_SAVES + the modded game's Saves), Test Fights' test
+   worlds left out; returns the count. mu_world_units = the units of the world's save (mu_save_units) with the game's
+   default names in the current language ("Unit" when none); the count, or -1 + err. */
+int  mu_player_worlds(mu_world *out, int max);
+int  mu_world_units(const mu_world *w, mu_save_unit *out, int max, char *err, size_t errn);
 
 /* the snapshot: unit `guid` of the world's save -> a new My Units unit named `name` (NULL / "" = the build's own name)
    with its source (world, save, save time, snapshot time = now). Does NOT save the library. 0 ok (id_out), -1 + err. */

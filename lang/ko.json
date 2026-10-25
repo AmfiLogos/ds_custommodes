@@ -28,6 +28,7 @@
  "%s  Lv %d": "%s  Lv %d",
  "%s %.*s is not in this game version": "%s %.*s은(는) 이 게임 버전에 없습니다",
  "%s cannot go in the %s slot": "%s은(는) %s 슬롯에 들어갈 수 없습니다",
+ "%s could not be read from the save: %s": "세이브에서 %s 유닛을 읽을 수 없습니다: %s",
  "%s is not in one of this unit's skill trees": "%s은(는) 이 유닛의 스킬 트리에 없습니다",
  "%s skills cost %.0f points, the unit has %.0f": "%s 스킬 비용은 %.0f 포인트인데, 유닛에게는 %.0f 포인트가 있습니다",
  "%s x%d": "%s x%d",
@@ -41,6 +42,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "공물이 클수록 레벨업마다 오르는 능력치와 드는 마나석이 늘어납니다.",
  "A fully built base with all research done. Your squad walks in ready to play.": "모든 건설과 연구를 마친 기지입니다. 분대가 바로 플레이할 수 있는 상태로 들어갑니다.",
  "A picked unit is no longer in My Units.": "선택한 유닛이 더 이상 내 유닛에 없습니다.",
+ "A picked unit's world is no longer in your saves.": "선택한 유닛의 월드가 더 이상 세이브에 없습니다.",
  "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "유닛을 도발하는 연습용 %s입니다 (내구도 %s). 공격해서 분대의 피해량을 확인하십시오.",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "한 팀에는 유닛이 최대 %d개까지 들어갑니다."
@@ -191,6 +193,7 @@
  "Offering at each level-up": "레벨업마다 바치는 공물",
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "레벨마다 각인 하나: %d개 (레벨 %d 기준). 추가 스킬 트리에 %d, 각인에 %d 사용, 남은 수 %d.",
  "One-handed.": "한손 무기.",
+ "Open a world and tick the units to send in. They fight as they are in that save.": "월드를 열고 들어갈 유닛을 체크하십시오. 그 세이브에 있는 그대로 싸웁니다.",
  "Open the Wiki Build Gallery": "위키 빌드 갤러리 열기",
  "Opening the build...": "빌드를 여는 중...",
  "Opens": "열람",
