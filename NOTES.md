@@ -206,14 +206,15 @@
   mouse stayed on it; "a DPS display log logging the damages in the chat of the MP function", every hit.
 - Only in a world loaded from a DPS Check save (tf_wikisave.c tfw_dps_made, set in tf_worlds.c's load hook); every hook
   passes straight through anywhere else. Nothing changes game state.
-- Panel (EntitySummaryUIView.UpdateBuildingEntityUI hook + the frame tick): "<now> / <max>" with the language's thousands
+- Panel (EntitySummaryUIView.UpdateBuildingEntityUI hook): "<now> / <max>" with the language's thousands
   separator (as the Test Fights card), one line. A number that fits its 50-unit box stays as the game shows it; a longer one
   grows away from the "/" (now right-aligned, max left-aligned) into the bar's free room; only if that is too narrow both
   shrink alike (never under 60 %). en/de/ru/ja: 1,000,000 fits at the game's size. The panel follows the shown building's
-  durability every frame it changes (bar + texts through the game's own SetDurabilityUI).
+  durability through the loader's Fix live-hp ("Live building HP", every building; it calls UpdateBuildingEntityUI on each
+  change, so this hook's number form runs each time). Until 0.1.26 the frame tick here did that for the scarecrow only.
 - Stock (decomp 25846389): a building's durability in that panel is set only when the panel is filled
   (EntitySummaryUIPresenter.RefreshSummary); status changes refresh UNITS only. So every building's panel stands still in
-  the stock game; only the DPS Check's follows here. Measured: with our follow off the text stayed while durability fell.
+  the stock game; the Fix live-hp makes them all follow. Measured: with no follow the text stayed while durability fell.
 - Hit log (DamageSimulator.Simulate hook, one call per hit): target = BUILDING_DungeonScareCrow (the wiki's DPS target) ->
   "<unit display name>: <skill / affecter name in the game's language> <TotalDamage as F0>[ Crit|Guard]", "Miss" / "Immune"
   with no number (the game's VFXExecution words). Into the multiplayer chat (mp_api v3 chat_local: never sent, no rate
@@ -254,9 +255,10 @@
 - Test: units/test/esc_test.py (one hidden copy, title, real Escape key events through the test module font-probe, test
   library DSMP_UNITS_LIB; the owner's library checked unchanged). It fails with 0.1.18 on the same loader.
 - 0.1.26 (owner asks 1-9, 2026-10-25, task file LANE_TASKS_dsdps): the full numbers stay (no "997.3K"). The Inspect window
-  (SubUI_EntityInspectionStatus.SetBuildingStatus hook) follows too: its Durability rows written again through the
-  game's own SetBuildingStatus each time the value changes, with the bottom panel's StatusReader (the window's own reader
-  is a short-lived object) and DASText.SetText (a TMP set_text on a DASText is replaced by its own copy).
+  (SubUI_EntityInspectionStatus.SetBuildingStatus hook) follows too: the Fix live-hp calls SetBuildingStatus again on
+  each change (with the entity's own StatusReader); this hook writes the rows in the thousands form, with the bottom
+  panel's StatusReader, through DASText.SetText (a TMP set_text on a DASText is replaced by its own copy). The per-frame
+  follow that was here (live_tick / ins_tick, the "live" test switch) moved to live-hp (dshpfix, 2026-10-25).
 - DPS meter (fights/tf_meter.c): left side, folds, Start / Stop / Reset, "Start on first hit"; time, damage dealt, DPS,
   DPS last 5 s, what the scarecrow repaired (StatusSimulator.Simulate hook: Stat Durability on it, the log's Amount);
   one row per unit (portrait, name, damage, DPS, share, bar), a click shows its skills. The ONE hit list (tf_dps_hits)
@@ -284,7 +286,8 @@
   Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
   max health and max health + the added part only), so "(n over)" never shows yet.
 - Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
-- With the Fix mod live-hp loaded, our panel/Inspect follow steps aside (live-hp makes every building follow).
+- The panel / Inspect follow is the Fix live-hp only (it makes every building follow; our own copy was removed): without it the
+  DPS Check panel stands still, as every building in the stock game.
 - 0.1.29: effects in the log start with the fight's first damage of any kind (they waited for a scarecrow hit, so a fight
   without the scarecrow showed none). dps_test.py --heal: a healer (Healing Touch) + barrier squad in a Custom fight
   (plain Grey Monster Rats + Blue Goblins attack it), the log and meter forced on there by the test switch "force 1" (same
