@@ -154,15 +154,27 @@ static long long now_ms(void) {
     struct timespec ts; timespec_get(&ts, TIME_UTC);
     return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
-int mu_snapshot(jv *lib, const mu_world *w, const char *guid, const char *name, char id_out[17], char *err, size_t errn) {
-    wk_build b; char e[400];
-    if (mu_save_build(w->path, guid, &b, e, sizeof e)) { snprintf(err, errn, "%s", e); return -1; }
-    char *js = wk_json(&b, 1); char pe[200];
+jv *mu_save_build_obj(const char *path, const char *guid, char *err, size_t errn) {
+    struct { wk_build b; mu_save_extra x; } *t = calloc(1, sizeof *t); char e[400];   /* large: on the heap */
+    if (!t) { snprintf(err, errn, "internal: out of memory"); return NULL; }
+    if (mu_save_build_ex(path, guid, &t->b, &t->x, e, sizeof e)) { snprintf(err, errn, "%s", e); free(t); return NULL; }
+    mu_save_extra x = t->x; char *js = wk_json(&t->b, 1); char pe[200] = "";
+    free(t);
     jv *arr = js ? jparse(js, strlen(js), pe, sizeof pe) : NULL; free(js);
-    if (!arr || arr->t != JN_ARR || arr->cnt != 1) { snprintf(err, errn, "internal: unit JSON: %s", pe); jfree(arr); return -1; }
-    char id[17];
-    int r = mu_add_build(lib, arr->v[0], name, id, err, errn);
+    if (!arr || arr->t != JN_ARR || arr->cnt != 1) { snprintf(err, errn, "internal: unit JSON: %s", pe); jfree(arr); return NULL; }
+    jv *o = arr->v[0]; arr->v[0] = NULL; arr->cnt = 0;                   /* taken out of the array */
     jfree(arr);
+    /* the unit's own skill bar from the save (wk_build has no field for it) as the builder's own bar pick `quick`: the save
+       generator writes it as the unit's bar, keeping only the skills the build has (builder.js quickFor) */
+    if (x.nbar) { jv *q = jarr(); for (int i = 0; i < x.nbar && i < 8; i++) jpush(q, jstrv(x.bar[i])); jset(o, "quick", q); }
+    return o;
+}
+int mu_snapshot(jv *lib, const mu_world *w, const char *guid, const char *name, char id_out[17], char *err, size_t errn) {
+    jv *bj = mu_save_build_obj(w->path, guid, err, errn);
+    if (!bj) return -1;
+    char id[17];
+    int r = mu_add_build(lib, bj, name, id, err, errn);
+    jfree(bj);
     if (r) return -1;
     mu_source s; memset(&s, 0, sizeof s);
     snprintf(s.world, sizeof s.world, "%s", w->name); snprintf(s.campaign, sizeof s.campaign, "%s", w->guid);

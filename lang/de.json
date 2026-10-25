@@ -34,6 +34,7 @@
  "%s  Lv %d": "%s  Stufe %d",
  "%s %.*s is not in this game version": "%s %.*s ist in dieser Spielversion nicht vorhanden",
  "%s cannot go in the %s slot": "%s passt nicht in den Platz %s",
+ "%s could not be read from the save: %s": "%s konnte nicht aus dem Spielstand gelesen werden: %s",
  "%s is not in one of this unit's skill trees": "%s ist in keinem der Skillbäume dieser Einheit",
  "%s skills cost %.0f points, the unit has %.0f": "Skills von %s kosten %.0f Punkte, die Einheit hat %.0f",
  "%s x%d": "%s x%d",
@@ -47,6 +48,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "Eine größere Opfergabe vervielfacht die Werte pro Levelaufstieg und die Manasteine, die er kostet.",
  "A fully built base with all research done. Your squad walks in ready to play.": "Eine vollständig gebaute Basis mit abgeschlossener Forschung. Dein Trupp betritt sie spielbereit.",
  "A picked unit is no longer in My Units.": "Eine ausgewählte Einheit ist nicht mehr in Meine Einheiten.",
+ "A picked unit's world is no longer in your saves.": "Die Welt einer ausgewählten Einheit ist nicht mehr unter deinen Spielständen.",
  "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "Übungsziel: %s mit %s Haltbarkeit. Es provoziert deine Einheiten. Greif es an, um zu sehen, wie viel Schaden dein Trupp macht.",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "Ein Team hat höchstens %d Einheit.",
@@ -202,6 +204,7 @@
  "Offering at each level-up": "Opfergabe pro Levelaufstieg",
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "Eine Inschrift pro Level: %d bei Level %d. %d für zusätzliche Skillbäume ausgegeben, %d für Inschriften, also %d frei.",
  "One-handed.": "Einhändig.",
+ "Open a world and tick the units to send in. They fight as they are in that save.": "Öffne eine Welt und hake die Einheiten an, die mitkämpfen sollen. Sie kämpfen so, wie sie in diesem Spielstand sind.",
  "Open the Wiki Build Gallery": "Wiki-Build-Galerie öffnen",
  "Opening the build...": "Build wird geöffnet...",
  "Opens": "Aufrufe",

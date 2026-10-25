@@ -62,6 +62,7 @@ void mu_name_of(const char *key, char *out, size_t cap);
    teams the unit is in (owner 2026-10-25), shown after the name on its row as "Teams: A, B", shortened to "A +2" when
    they do not fit; NULL / 0 = nothing. */
 #define MU_CARD_H 128.f                        /* 4 cards fit the My Units list at UI scale 1 (owner 2026-10-17) */
+#define MU_CARD_NARROW 360.f                   /* narrower: no in-game look on the card (Test Fights' World units) */
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams);
 /* test support: the teams text the last mu_card_draw showed ("" none; the "+N" part included when it was cut) */

@@ -12,6 +12,7 @@
 #include "../fe/fe_json.h"
 #include "cm_il.h"
 #include "mu_ui.h"
+#include "mu_worlds.h"
 #include "cm_i18n.h"
 #include "cm_prefs.h"
 #include "cm_gtip.h"
@@ -182,8 +183,9 @@ static const char *const kit_titles[] __attribute__((used)) = { TR_NOOP("Aid Kit
 static struct {
     int mode, boss, combat, mgmt, mgmt_own, msat, kit[8], kit_insc;
     struct { char k[80]; int n; } mon[MAXMON]; int nmon; char monq[80]; int mon_count;
-    int src;                                    /* 0 My Units, 1 Gallery */
+    int src;                                    /* 0 My Units, 1 Gallery, 2 World units (a save's units) */
     char ids[8][17]; int nids; char team[96];   /* My Units picks; team = the picked team's name ("" = single units) */
+    struct { char world[40], guid[40], name[96]; } sv[8]; int nsv;   /* World units picks: world (campaign guid) + unit guid */
     int team_i;                                 /* the picked team's place in My Units, -1 = single units */
     char *gal_builds; char gal_title[160]; char gal_names[8][96]; int gal_n;
     int seeded;
@@ -316,7 +318,35 @@ static void job_gen_done(cm_job *j) {
     paint_all();
 }
 static jv *lib;                                                      /* My Units library (mu_load) while the window is open */
+/* World units (owner 2026-10-25: "Test fights should allow to select directly people from one of your current saves"): the
+   player's worlds, the same list as My Units' "World units" (mu_player_worlds), read when the window opens */
+#define TF_WMAX 64
+#define TF_WUMAX 200
+static mu_world wl[TF_WMAX]; static int nwl, wsel = -1;              /* wsel = the open world, -1 none */
+static mu_save_unit wu[TF_WUMAX]; static int nwu, wu_for = -1; static char wu_err[400];   /* the open world's units */
+static const mu_world *world_of(const char *guid) { for (int i = 0; i < nwl; i++) if (!strcmp(wl[i].guid, guid)) return &wl[i]; return NULL; }
+/* the picks as builds, each built straight from its world's newest save, the way a snapshot is made (mu_save_build_obj):
+   the unit fights with the save's level, gear and skills */
+static char *save_builds_json(char *err, size_t errn) {
+    if (!st.nsv) { snprintf(err, errn, "%s", TR("Pick at least one unit.")); return NULL; }
+    jv *a = jarr();
+    for (int i = 0; i < st.nsv && i < P.max_squad; i++) {
+        const mu_world *w = world_of(st.sv[i].world); char e[400] = "";
+        jv *b = w ? mu_save_build_obj(w->path, st.sv[i].guid, e, sizeof e) : NULL;
+        if (!b) {
+            if (w) { snprintf(err, errn, TR("%s could not be read from the save: %s"), st.sv[i].name, e); dsi_utf8_fix_end(err); }
+            else snprintf(err, errn, "%s", TR("A picked unit's world is no longer in your saves."));
+            cmw_log("tf: World units pick %s / %s: %s", st.sv[i].world, st.sv[i].guid, w ? e : "world gone");
+            jfree(a); return NULL;
+        }
+        jpush(a, b);
+    }
+    char *o = jdump(a, 0, NULL); jfree(a);
+    if (!o) snprintf(err, errn, "%s", TR("The save generator gave no answer."));
+    return o;
+}
 static char *builds_json(char *err, size_t errn) {
+    if (st.src == 2) return save_builds_json(err, errn);
     if (st.src == 1) {
         if (!st.gal_builds) { snprintf(err, errn, "%s", TR("Pick a build in the Wiki Build Gallery first.")); return NULL; }
         return strdup(st.gal_builds);
@@ -334,15 +364,41 @@ static char *builds_json(char *err, size_t errn) {
     o[k++] = ']'; o[k] = 0;
     return o;
 }
+/* a build named with the game's default-name text key (a unit taken from a save, a snapshot): the save generator writes it
+   as the unit's own name, and the game then shows the key itself in the fight ("TEXTKEY_PLAYERNAME_Human_Female_12": its
+   DefaultUnitNameTextKey is the template's, not this key; seen in the World units game test). The name the game shows for
+   that key goes in instead. Takes builds (malloc'd JSON array), returns the text to use. */
+static char *default_names_shown(char *builds) {
+    char e[200]; jv *a = jparse(builds, strlen(builds), e, sizeof e);
+    if (!a || a->t != JN_ARR) { jfree(a); return builds; }
+    int n = 0;
+    for (size_t i = 0; i < a->cnt; i++) {
+        jv *nm = jget(a->v[i], "name"); if (!nm || nm->t != JN_STR) continue;
+        char *raw = jstrdup_raw(nm), t[96], esc[300];
+        if (!strncmp(raw, "TEXTKEY_", 8) && !cm_gettext(raw, t, sizeof t)) { jesc(t, esc, sizeof esc); jset(a->v[i], "name", jstrv(esc)); n++; }
+        free(raw);
+    }
+    char *o = n ? jdump(a, 0, NULL) : NULL; jfree(a);
+    if (!o) return builds;
+    cmw_log("tf: %d default unit name(s) as the game shows them", n);
+    free(builds); return o;
+}
+/* World units: the world's clan name when every pick is from one world (the test world's clan), else none */
+static const char *save_team(void) {
+    for (int i = 1; i < st.nsv; i++) if (strcmp(st.sv[i].world, st.sv[0].world)) return "";
+    const mu_world *w = st.nsv ? world_of(st.sv[0].world) : NULL;
+    return w ? w->name : "";
+}
 static void start_click(void *ud, DSLObj w) {
     (void)ud; (void)w;
     if (busy || engine_state != 2) return;
     char e[300] = "";
     char *builds = builds_json(e, sizeof e);
     if (!builds) { snprintf(status, sizeof status, "%s", e); status_warn = 1; paint_all(); return; }
+    builds = default_names_shown(builds);
     if (!strcmp(mode_id(), "arena") && !st.nmon) { free(builds); snprintf(status, sizeof status, "%s", TR("Add at least one monster to the room.")); status_warn = 1; paint_all(); return; }
     size_t cap = strlen(builds) + 4096; char *o = malloc(cap); size_t k = 0;
-    char team[300]; jesc(st.src == 1 ? st.gal_title : st.team, team, sizeof team);
+    char team[300]; jesc(st.src == 1 ? st.gal_title : st.src == 2 ? save_team() : st.team, team, sizeof team);
     k += (size_t)snprintf(o + k, cap - k, "{\"mode\":\"%s\",\"boss\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"kitInsc\":%s,\"team\":\"%s\",\"kits\":[",
                           mode_id(), P.nbosses ? P.bosses[st.boss].id : "", P.combat[st.combat], P.mgmt[mgmt_index()], st.kit_insc ? "true" : "false", team);
     int first = 1;
@@ -508,17 +564,95 @@ static void ellipsis_fit(DSLObj t, const char *s, float w) {
     while (lo > 0 && s[lo - 1] == ' ') lo--;
     snprintf(b, sizeof b, "%.*s...", lo, s); U->set_text(t, b);
 }
+/* World units: the open world's units (once per world: mu_world_units), picks of units its save no longer holds dropped */
+static void world_units_load(void) {
+    if (wu_for == wsel) return;
+    nwu = 0; wu_err[0] = 0; wu_for = wsel;
+    if (wsel < 0 || wsel >= nwl) return;
+    int n = mu_world_units(&wl[wsel], wu, TF_WUMAX, wu_err, sizeof wu_err);
+    cmw_log("tf: World units %s: %d units%s%s", wl[wsel].save, n, n < 0 ? " | " : "", n < 0 ? wu_err : "");
+    if (n < 0) return;
+    nwu = n;
+    for (int k = st.nsv - 1; k >= 0; k--) {
+        if (strcmp(st.sv[k].world, wl[wsel].guid)) continue;
+        int f = 0; for (int i = 0; i < nwu && !f; i++) f = !strcmp(wu[i].guid, st.sv[k].guid);
+        if (!f) { memmove(&st.sv[k], &st.sv[k + 1], (size_t)(st.nsv - k - 1) * sizeof st.sv[0]); st.nsv--; }
+    }
+}
+static int sv_at(const char *world, const char *guid) { for (int k = 0; k < st.nsv; k++) if (!strcmp(st.sv[k].world, world) && !strcmp(st.sv[k].guid, guid)) return k; return -1; }
+static void world_click(void *ud, DSLObj w) { (void)w; int i = (int)(intptr_t)ud; wsel = wsel == i ? -1 : i; paint_all(); }   /* a second click closes it */
+static void wunit_toggle(void *ud, DSLObj w) {
+    int i = (int)(intptr_t)ud; if (wsel < 0 || wsel >= nwl || i < 0 || i >= nwu) return;
+    int at = sv_at(wl[wsel].guid, wu[i].guid);
+    status[0] = 0; status_warn = 0;
+    if (at >= 0) { memmove(&st.sv[at], &st.sv[at + 1], (size_t)(st.nsv - at - 1) * sizeof st.sv[0]); st.nsv--; }
+    else if (st.nsv < P.max_squad && st.nsv < 8) {
+        snprintf(st.sv[st.nsv].world, sizeof st.sv[0].world, "%s", wl[wsel].guid); snprintf(st.sv[st.nsv].guid, sizeof st.sv[0].guid, "%s", wu[i].guid);
+        snprintf(st.sv[st.nsv].name, sizeof st.sv[0].name, "%s", wu[i].name); st.nsv++;
+    } else { U->toggle_set(w, 0); squad_full_warn(); }
+    paint_all();
+}
+int mu_window_is_open(void);
+/* the World units list (owner 2026-10-25): the worlds as rows (clan name, save time, how many of its units are picked); the
+   open world shows its save's units as cards (read only), each with a tick */
+static void paint_worlds(float y, float lh, float ky) {
+    DSLObj sc = U->scroll(left, 0, y, LW, lh); float sy = 0, uw = LW - 16;
+    char sq[700]; size_t k = 0; sq[0] = 0;
+    for (int q = 0; q < st.nsv; q++) { k += (size_t)snprintf(sq + k, sizeof sq - k, "%s%s", k ? ", " : "", st.sv[q].name); if (k >= sizeof sq) break; }
+    char line[900];
+    if (sq[0]) { snprintf(line, sizeof line, TR("In the squad: %s"), sq); dsi_utf8_fix_end(line); }
+    else snprintf(line, sizeof line, "%s", TR("Open a world and tick the units to send in. They fight as they are in that save."));
+    sy += txt(sc, "fights:l.picked", 0, sy, uw, line, 15, sq[0] ? GOLD : SUB) + 8;
+    if (!nwl) sy += txt(sc, "fights:l.wnone", 0, sy, uw, TR("No saves found."), 15, SUB);
+    if (!mu_window_is_open()) mu_drawn_reset();                       /* the cards' test record (overflow check), unless My Units uses it */
+    for (int i = 0; i < nwl; i++) {
+        int open = i == wsel, nin = 0;
+        for (int q = 0; q < st.nsv; q++) nin += !strcmp(st.sv[q].world, wl[i].guid);
+        char nm[40], when[80], c[16]; snprintf(nm, sizeof nm, "fights:l.world%d", i);
+        snprintf(when, sizeof when, TR("Saved %s"), wl[i].when); dsi_utf8_fix_end(when);
+        DSLObj b = cmw_named(U->button(sc, 0, sy, uw, 52, "", world_click, (void *)(intptr_t)i), CMW_BUTTON, nm, world_click, (void *)(intptr_t)i, wl[i].name);
+        if (b) {
+            snprintf(c, sizeof c, "%d", nin);
+            mu_text(b, 12, 4, uw - 24 - (nin ? 40 : 0), 24, wl[i].name, 15, DSL_TXT_LEFT, open || nin ? GOLD : MAIN);
+            mu_text(b, 12, 27, uw - 24, 20, when, 13, DSL_TXT_LEFT, SUB);
+            if (nin) mu_text(b, uw - 52, 4, 40, 24, c, 15, DSL_TXT_RIGHT, GOLD);
+        }
+        sy += 56;
+        if (!open) continue;
+        world_units_load();
+        if (!nwu) { sy += txt(sc, "fights:l.werr", 12, sy, uw - 12, wu_err[0] ? wu_err : TR("No units of your clan are stored in this save."), 15, wu_err[0] ? WARN : SUB) + 8; continue; }
+        for (int u = 0; u < nwu; u++) {
+            char tn[40], cn[40]; snprintf(tn, sizeof tn, "fights:l.wtick%d", u); snprintf(cn, sizeof cn, "fights:l.wcard%d", u);
+            mu_plate(sc, 0, sy + (MU_CARD_H - 44) / 2, 40, 44, MU_C_BAND);
+            /* the kit's check box sits 24 from the toggle's right edge: 48 wide from -4 puts it in the slot's middle */
+            cmw_named(U->toggle(sc, -4, sy + (MU_CARD_H - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
+            static wk_build b; static mu_card cd; static mu_save_extra x; char e[300] = ""; DSLObj card;
+            if (!mu_save_build_ex(wl[i].path, wu[u].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &cd)) {
+                const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
+                card = mu_card_draw(sc, 44, sy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0);
+            } else if ((card = U->panel(sc, 44, sy, uw - 44, MU_CARD_H, MU_C_ROW)))   /* this unit only: the others still show */
+                mu_text(card, 12, 10, uw - 68, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
+            if (card) cmw_named(card, CMW_TEXT, cn, NULL, NULL, wu[u].guid);
+            sy += MU_CARD_H + 8;
+        }
+    }
+    U->scroll_height(sc, sy + 8);
+    keep_set(0, sc, ky, sy + 8 - lh);
+    thumb_add(0, left, sc, LW - 5, y, lh, sy + 8);
+}
 static void paint_left(void) {
     cmw_forget("fights:l.");
     float ky = keep_get(0); cm_il_hset(&h_keep[0], NULL);
     if (left) U->destroy(left);
     left = cmw_flat(U->panel(body, LX, 16, LW, PANEL_H, 0), 0x00000000);
     float y = head(left, 0, 0, LW, TR("Squad"));
-    const char *src_l[2] = { TR("My Units"), TR("Wiki Build Gallery") };
-    DSLObj sb[2]; float sx[2] = { 0, LW / 2 + 4 }, sw[2] = { LW / 2 - 4, LW / 2 - 4 }, need[2];
-    for (int s = 0; s < 2; s++) {
+    /* World units (the same words as My Units' section) on a second row: three labels never fit one row (ES "Galería de
+       builds de la wiki") */
+    const char *src_l[3] = { TR("My Units"), TR("Wiki Build Gallery"), TR("World units") };
+    DSLObj sb[3]; float sx[3] = { 0, LW / 2 + 4, 0 }, sw[3] = { LW / 2 - 4, LW / 2 - 4, LW }, ty[3] = { y, y, y + 46 }, need[3];
+    for (int s = 0; s < 3; s++) {
         char nm[40]; snprintf(nm, sizeof nm, "fights:l.src%d", s);
-        sb[s] = cmw_named(U->button(left, sx[s], y, sw[s], 38, src_l[s], src_click, (void *)(intptr_t)s), CMW_BUTTON, nm, src_click, (void *)(intptr_t)s, src_l[s]);
+        sb[s] = cmw_named(U->button(left, sx[s], ty[s], sw[s], 38, src_l[s], src_click, (void *)(intptr_t)s), CMW_BUTTON, nm, src_click, (void *)(intptr_t)s, src_l[s]);
         float pw = sb[s] ? cm_text_preferred_w(sb[s]) : -1; need[s] = pw > 0 ? pw + 28 : sw[s];   /* the label measured + the frame */
     }
     /* a label too long for half the row (JA "Wikiビルドギャラリー" touched the frame): each tab as wide as its label, the
@@ -528,8 +662,8 @@ static void paint_left(void) {
         sw[0] = need[0] + extra; sw[1] = need[1] + extra; sx[1] = sw[0] + 8;
         for (int s = 0; s < 2; s++) if (sb[s]) U->place(sb[s], sx[s], y, sw[s], 38);
     }
-    cmw_flat(U->panel(left, sx[st.src], y + 40, sw[st.src], 3, 0), GOLD);
-    y += 52;
+    cmw_flat(U->panel(left, sx[st.src], ty[st.src] + 40, sw[st.src], 3, 0), GOLD);
+    y += 52 + 46;
     float lh = PANEL_H - y;
     if (st.src == 0) {
         if (!lib) { txt(left, "fights:l.note", 0, y, LW, TR("My Units could not be read."), 15, WARN); return; }
@@ -599,7 +733,8 @@ static void paint_left(void) {
         U->scroll_height(sc, sy + 8);
         keep_set(0, sc, ky, sy + 8 - lh);
         thumb_add(0, left, sc, LW - 5, y, lh, sy + 8);
-    } else {
+    } else if (st.src == 2) paint_worlds(y, lh, ky);
+    else {
         if (st.gal_builds) {
             y += txt(left, "fights:l.galtitle", 0, y, LW, st.gal_title, 17, MAIN);
             for (int i = 0; i < st.gal_n; i++) y += txt(left, NULL, 12, y, LW - 12, st.gal_names[i], 15, SUB);
@@ -879,7 +1014,7 @@ static void paint_right(void) {
     thumb_add(1, right_sc, vp, RW - 5, 0, PANEL_H, y + 16);
 }
 static void paint_status(void) {
-    char sq[400]; int n = st.src == 1 ? (st.gal_builds ? st.gal_n : 0) : st.nids;
+    char sq[400]; int n = st.src == 1 ? (st.gal_builds ? st.gal_n : 0) : st.src == 2 ? st.nsv : st.nids;
     if (n > P.max_squad && P.max_squad) n = P.max_squad;
     snprintf(sq, sizeof sq, TR("Squad: %d / %d"), n, P.max_squad ? P.max_squad : 4);
     char all[1700], shown[1740]; snprintf(all, sizeof all, "%s%s%s", sq, status[0] ? "\n" : "", status);
@@ -919,6 +1054,10 @@ static void build_window(void) {
     char e[300]; if (lib) jfree(lib);
     lib = mu_load(e, sizeof e);
     if (!lib) cmw_log("tf: My Units: %s", e);
+    char open_g[40] = ""; if (wsel >= 0 && wsel < nwl) snprintf(open_g, sizeof open_g, "%s", wl[wsel].guid);
+    nwl = mu_player_worlds(wl, TF_WMAX); wu_for = -1; wsel = -1;        /* World units: the worlds as they are now */
+    for (int i = 0; i < nwl && open_g[0]; i++) if (!strcmp(wl[i].guid, open_g)) wsel = i;   /* the open world stays open */
+    for (int k = st.nsv - 1; k >= 0; k--) if (!world_of(st.sv[k].world)) { memmove(&st.sv[k], &st.sv[k + 1], (size_t)(st.nsv - k - 1) * sizeof st.sv[0]); st.nsv--; }
     cm_il_hset(&h_keep[0], NULL); cm_il_hset(&h_keep[1], NULL); foot_x = 0;
     w_div = cmw_flat(U->panel(body, 24, BODY_H - 84, WIN_W - 48, 1, 0), 0x633D33FF);
     w_status = NULL;
@@ -942,9 +1081,17 @@ extern void gal_open(void);
 static void gallery_open_click(void *ud, DSLObj w) { (void)ud; (void)w; gal_open(); }
 
 static void test_state(char *out, size_t n) {
-    snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d}",
-             engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.nids, st.src, status, P.tag,
-             P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i);
+    /* World units: the worlds "save file|guid", the open world's unit guids, the picks "world/unit" */
+    char ws[1400] = "", us[1000] = "", ps[600] = ""; size_t a = 0, b = 0, c = 0;   /* short_state gives each window 4000 bytes */
+    for (int i = 0; i < nwl && a + 300 < sizeof ws; i++) a += (size_t)snprintf(ws + a, sizeof ws - a, "%s%s|%s", i ? ";" : "", wl[i].save, wl[i].guid);
+    for (int i = 0; wsel >= 0 && i < nwu && b + 50 < sizeof us; i++) b += (size_t)snprintf(us + b, sizeof us - b, "%s%s", i ? "," : "", wu[i].guid);
+    for (int i = 0; i < st.nsv && c + 70 < sizeof ps; i++) c += (size_t)snprintf(ps + c, sizeof ps - c, "%s%s/%s", i ? "," : "", st.sv[i].world, st.sv[i].guid);
+    for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
+    snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\"}",
+             engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
+             P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
+             P.max_squad, ws, wsel, us, wu_err, ps);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 

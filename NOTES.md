@@ -76,3 +76,36 @@
   "A, B +N" (no whole name fits: the first name cut with "..." and "+N" apart). Read from the library at every redraw, so
   Save as team, Delete team, Delete and Rename show it at once. A save's cards show none. 4 cards per page kept (in-card,
   no extra line). Test: worlds_test.py teams_check after each action (all pages, against the file).
+
+## Test Fights: World units (2026-10-25, lane dsfights)
+- Owner: "Test fights should allow to select directly people from one of your current saves." A third source in the
+  Test Fights squad picker, labelled "World units" (the same words as My Units' section; on a second row under My Units /
+  Wiki Build Gallery: three labels never fit one row, ES "Galería de builds de la wiki").
+- One World units list for both windows: units/mu_window.c `mu_player_worlds` (the folders Load Campaign lists, Test
+  Fights' test worlds left out) and `mu_world_units` (a world's units, default names in the game's language), declared in
+  mu_worlds.h. My Units and Test Fights call them; nothing is copied.
+- The list: one row per world (clan name, save time, how many of its units are picked); a click opens it (a second click
+  closes it): its newest save's units as Compact Plus cards (read only), each with a tick. A card narrower than
+  MU_CARD_NARROW (360) leaves the in-game look out (the name and icon rows need the room; the portrait shows the face).
+  A save that cannot be read shows the reader's own line (WARN colour); a unit that cannot be built shows a red line on
+  its card; the other units still show.
+- Picks: world guid + unit guid (+ the shown name), max = the fight's squad size. Picks of a world gone from the list are
+  dropped when the window opens; picks of a unit its newest save no longer holds are dropped when that world is opened,
+  and at Start such a pick stops Start with a line that names the unit.
+- Mixing sources: the picker's existing rule is kept: the squad is the picks of the tab that is shown (My Units, Gallery
+  or World units); the other tabs keep their picks but they are not sent.
+- Start: each pick is built straight from its world's newest save by `mu_save_build_obj` (mu_worlds.c), the same call a
+  snapshot makes (mu_snapshot now uses it): the save import's build + the save's own skill bar as the builder's `quick`
+  pick, so the save generator writes the save's bar (builder.js quickFor keeps the skills the build has). The test world's
+  clan is the world's clan name when all picks come from one world.
+- Default names: a build named with a TEXTKEY_PLAYERNAME_ key got the key itself as its name in the fight (the generator
+  writes the template's DefaultUnitNameTextKey, so the game reads the key as a custom name). Start now gives such a build
+  the name the game shows for the key (tf_ui.c default_names_shown, every source).
+- Limit found: the wiki generator's templates have 4 skill bar slots; a save unit with 5 bar skills fights with the first
+  4 (the 5th stays learned). The generator is the wiki's (savegen.js quickSlotCount); not changed here.
+- Tests: fights/test/run_saveunits.sh (saveunits_test.c: copies of real saves + the wiki base save, picks through
+  mu_save_build_obj and the wiki generator in QuickJS, the test world read back: level, race, background, talents, worn
+  items + rolls, learned skills, trees, inscriptions, soul stones, name and the save's bar; fails on a lost level or a
+  computed bar, checked by mutation). fights/test/saveunits_game_test.py (one hidden copy: World units tab, open the save
+  copy's world, tick 2, Custom fight with one Weak Grey Rat, Start, the squad = the picked units by name with their save
+  levels, combat, the rat killed, back to the title, test world removed; LANGTYPE = shots + card text fit only).

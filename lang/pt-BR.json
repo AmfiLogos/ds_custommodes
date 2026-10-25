@@ -34,6 +34,7 @@
  "%s  Lv %d": "%s  NV. %d",
  "%s %.*s is not in this game version": "%s %.*s não existe nesta versão do jogo",
  "%s cannot go in the %s slot": "%s não pode ir no slot %s",
+ "%s could not be read from the save: %s": "Não foi possível ler %s do salvamento: %s",
  "%s is not in one of this unit's skill trees": "%s não está em nenhuma árvore de habilidades desta unidade",
  "%s skills cost %.0f points, the unit has %.0f": "Habilidades de %s custam %.0f pontos, a unidade tem %.0f",
  "%s x%d": "%s x%d",
@@ -47,6 +48,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "Uma oferenda maior multiplica os atributos de cada subida de nível e as pedras de mana que ela custa.",
  "A fully built base with all research done. Your squad walks in ready to play.": "Uma base totalmente construída, com toda a pesquisa feita. Seu esquadrão entra pronto para jogar.",
  "A picked unit is no longer in My Units.": "Uma unidade escolhida não está mais em Minhas unidades.",
+ "A picked unit's world is no longer in your saves.": "O mundo de uma unidade escolhida não está mais nos seus salvamentos.",
  "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "Um %s de treino com %s de durabilidade que provoca suas unidades. Bata nele para ver quanto dano seu esquadrão causa.",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "Uma equipe comporta no máximo %d unidade.",
@@ -202,6 +204,7 @@
  "Offering at each level-up": "Oferenda a cada subida de nível",
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "Uma inscrição por nível: %d por nível %d. %d gastos em árvores de habilidades extras, %d em inscrições, então %d livres.",
  "One-handed.": "De uma mão.",
+ "Open a world and tick the units to send in. They fight as they are in that save.": "Abra um mundo e marque as unidades que entram. Elas lutam como estão nesse salvamento.",
  "Open the Wiki Build Gallery": "Abrir a Galeria de builds da wiki",
  "Opening the build...": "Abrindo a build...",
  "Opens": "Aberturas",

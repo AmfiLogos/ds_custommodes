@@ -34,6 +34,7 @@
  "%s  Lv %d": "%s  Niv. %d",
  "%s %.*s is not in this game version": "%s %.*s ne figure pas dans cette version du jeu.",
  "%s cannot go in the %s slot": "%s ne peut pas aller dans l'emplacement %s",
+ "%s could not be read from the save: %s": "Impossible de lire %s dans la sauvegarde : %s",
  "%s is not in one of this unit's skill trees": "%s n'est dans aucun arbre de compétences de cette unité",
  "%s skills cost %.0f points, the unit has %.0f": "Les compétences de %s coûtent %.0f points, l'unité en a %.0f.",
  "%s x%d": "%s x%d",
@@ -47,6 +48,7 @@
  "A bigger offering multiplies the stats each level-up gives and the mana stones it costs.": "Une offrande plus grande multiplie les stats gagnées à chaque niveau et les pierres de mana qu'il coûte.",
  "A fully built base with all research done. Your squad walks in ready to play.": "Une colonie entièrement construite avec toutes les recherches terminées. Votre escouade y entre prête à jouer.",
  "A picked unit is no longer in My Units.": "Une unité choisie n'est plus dans Mes unités.",
+ "A picked unit's world is no longer in your saves.": "Le monde d'une unité choisie n'est plus dans vos sauvegardes.",
  "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does.": "Un %s d'entraînement avec une durabilité de %s qui attire vos unités. Frappez-le pour voir les dégâts de votre escouade.",
  "A team holds %d unit at most.||A team holds %d units at most.": [
   "Une équipe contient au maximum %d unité.",
@@ -202,6 +204,7 @@
  "Offering at each level-up": "Offrande à chaque niveau",
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "Une inscription par niveau : %d au niveau %d. %d dépensées en arbres de compétences supplémentaires, %d en inscriptions, donc %d libres.",
  "One-handed.": "À une main.",
+ "Open a world and tick the units to send in. They fight as they are in that save.": "Ouvrez un monde et cochez les unités qui entrent. Elles combattent telles qu'elles sont dans cette sauvegarde.",
  "Open the Wiki Build Gallery": "Ouvrir la Galerie de builds du wiki",
  "Opening the build...": "Ouverture du build...",
  "Opens": "Ouvertures",
