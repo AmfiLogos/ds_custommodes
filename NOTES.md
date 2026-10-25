@@ -76,3 +76,19 @@
   "A, B +N" (no whole name fits: the first name cut with "..." and "+N" apart). Read from the library at every redraw, so
   Save as team, Delete team, Delete and Rename show it at once. A save's cards show none. 4 cards per page kept (in-card,
   no extra line). Test: worlds_test.py teams_check after each action (all pages, against the file).
+
+## Default unit names in the saves we write (2026-10-25, 0.1.18)
+- Owner: "when importing units from my save, from the snapshot, they don't have their names saved": in a test fight the
+  Multi-unit view cards (mod multi-bar) showed "TEXTKEY_PLAYERNAME_Elf_Male_13"; the top portrait bar showed "Silvarion".
+- Cause: a save unit never renamed keeps the game's default name KEY (mu_save.c: build name = UnitNameTextKey). The game
+  shows a unit's name through EntityDisplayNameExtensions.GetDisplayName -> GetPlayerUnitDisplayName (decomp 25846389):
+  UnitNameTextKey is localized only when it equals DefaultUnitNameTextKey (or that one is empty); otherwise it is a typed
+  name and shown as it is. A stock unit holds the same key in both fields (wiki base save). The wiki's savegen.js (Test
+  Fights) and our pb_entry (Bring Units) wrote the race's "_0" key as DefaultUnitNameTextKey, so the key was shown raw
+  wherever the game uses GetDisplayName, e.g. the stock unit panel (EntitySummaryUIView) and the multi-bar cards.
+  The portrait bar reads the key itself (SubUI_UnitShortCutParts), hence "Silvarion" there.
+- Fix: a name that starts with TEXTKEY_ goes in both fields: pvp_build.c pb_entry, and fights/sg_glue.js nameKeys() on
+  the wiki's generated save (clan units only; a no-op once the wiki writes it). multi-bar needed no change (it already
+  uses GetDisplayName). The library and saves are not changed: snapshot units already in My Units get their names.
+- Test: units/test/namekey/namekey_test.py (one hidden copy, en + de; the Test Fights save from sg_cli and a pb_entry
+  save; stock panel + multi-bar cards = TextKeyExtensions.GetText(key)). NK_OLD = an older tree: its saves fail.

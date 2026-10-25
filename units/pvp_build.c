@@ -233,6 +233,10 @@ jv *pb_entry(const wk_build *b, const char *player_uid, char *notes, size_t note
     int pi = b->portrait >= 0 && b->portrait < WU_PROF_N[b->race] ? b->portrait : 0;
     const wu_profile *P = &WU_PROF[b->race][pi];
     char defname[96]; snprintf(defname, sizeof defname, "TEXTKEY_PLAYERNAME_%s_%s_0", WU_RACE_NAME[b->race], P->gender ? "Female" : "Male");
+    /* a name that is a text key (a save unit never renamed: TEXTKEY_PLAYERNAME_...) goes in BOTH name fields, as the game
+     * keeps such a unit. The game shows UnitNameTextKey as typed when it is not DefaultUnitNameTextKey (a renamed unit;
+     * EntityDisplayNameExtensions.GetPlayerUnitDisplayName): the unit panel and the multi-unit cards showed the raw key. */
+    const char *nk = b->name[0] ? b->name : defname, *dk = !strncmp(nk, "TEXTKEY_", 8) ? nk : defname;
 
     char ug[37]; fe_new_guid(ug);
     char ig[WK_SLOTS][37];
@@ -301,10 +305,10 @@ jv *pb_entry(const wk_build *b, const char *player_uid, char *notes, size_t note
     sp(&o, "}}},");
     sp(&o, "{\"Type\":9,\"Data\":{\"$type\":\"Refactor.CarryComponentSaveData, Assembly-CSharp\",\"CarriedGuid\":\"%s\",\"CarrierGuid\":\"%s\",\"IsDead\":false}},", ZERO, ZERO);
     sp(&o, "{\"Type\":10,\"Data\":{\"$type\":\"Refactor.UnitProfileComponentSaveData, Assembly-CSharp\",\"ProfileKey\":\"%s\",\"UnitNameTextKey\":", P->key);
-    if (b->name[0]) sq(&o, b->name); else sq(&o, defname);
-    sp(&o, ",\"DefaultUnitNameTextKey\":\"%s\",\"UnitBioTextKey\":\"\",\"UnitPortraitID\":\"%s\",\"UnitVisualType\":%d,\"HeadType\":%d,\"GenderType\":%d,"
+    sq(&o, nk); sp(&o, ",\"DefaultUnitNameTextKey\":"); sq(&o, dk);
+    sp(&o, ",\"UnitBioTextKey\":\"\",\"UnitPortraitID\":\"%s\",\"UnitVisualType\":%d,\"HeadType\":%d,\"GenderType\":%d,"
            "\"BodyType\":%d,\"SkinColorType\":%d,\"HairType\":%d,\"FacialDecoType\":%d,\"EyesType\":%d,\"HideHeadEquipment\":%s}},",
-       defname, P->portrait, P->vis, P->head, P->gender, P->body, P->skin, P->hair, P->facial, P->eyes, b->hide_head ? "true" : "false");
+       P->portrait, P->vis, P->head, P->gender, P->body, P->skin, P->hair, P->facial, P->eyes, b->hide_head ? "true" : "false");
     sp(&o, "{\"Type\":15,\"Data\":{\"$type\":\"Refactor.TradeDataComponentSaveData, Assembly-CSharp\",\"GoldAmount\":0,\"HasRefreshTimer\":false,\"TradeRefreshType\":0,"
            "\"TradePoolRefreshKey\":\"TRADEPOOL_GuildMerchant\",\"TradeTickPassed\":0.0,\"TradeRefreshInterval\":0.0,\"DiscountRates\":[");
     for (int i = 0; i < 36; i++) sp(&o, "%s0.0", i ? "," : "");
