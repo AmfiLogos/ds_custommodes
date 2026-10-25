@@ -87,24 +87,72 @@ DSLObj mu_plate(DSLObj parent, float x, float y, float w, float h, uint32_t rgba
     return p;
 }
 typedef struct { float x, y, z; } V3s;
-DSLObj mu_window(const char *title, float want_w, float want_h, float *w, float *h) {
+typedef struct { float x, y; } V2s;
+static void set_scale(DSLObj p, float sc) {
+    static cm_m ls; if (!ls.fn) ls = cm_il_method("UnityEngine", "Transform", "set_localScale", 1, NULL);
+    if (ls.fn && p) CM_CALL(ls, void, Obj, V3s, const void *)(p, (V3s){ sc, sc, 1 }, ls.mi);
+}
+/* anchors, pivot, size and position of a RectTransform (a = anchorMin, b = anchorMax) */
+static void rt_set(DSLObj rt, V2s a, V2s b, V2s pivot, V2s size, V2s pos) {
+    static cm_m amin, amax, piv, sz, ap;
+    if (!amin.fn) { amin = cm_il_method("UnityEngine", "RectTransform", "set_anchorMin", 1, NULL); amax = cm_il_method("UnityEngine", "RectTransform", "set_anchorMax", 1, NULL);
+                    piv = cm_il_method("UnityEngine", "RectTransform", "set_pivot", 1, NULL); sz = cm_il_method("UnityEngine", "RectTransform", "set_sizeDelta", 1, NULL);
+                    ap = cm_il_method("UnityEngine", "RectTransform", "set_anchoredPosition", 1, NULL); }
+    if (!rt || !amin.fn || !amax.fn || !piv.fn || !sz.fn || !ap.fn) return;
+    CM_CALL(amin, void, Obj, V2s, const void *)(rt, a, amin.mi); CM_CALL(amax, void, Obj, V2s, const void *)(rt, b, amax.mi);
+    CM_CALL(piv, void, Obj, V2s, const void *)(rt, pivot, piv.mi); CM_CALL(sz, void, Obj, V2s, const void *)(rt, size, sz.mi);
+    CM_CALL(ap, void, Obj, V2s, const void *)(rt, pos, ap.mi);
+}
+DSLObj mu_backdrop(uint32_t rgba) {
     if (!U) return NULL;
+    DSLObj b = U->panel(NULL, 0, 0, 100, 100, 0);
+    if (!b) return NULL;
+    cm_set_sprite(b, NULL, rgba);
+    cm_raycast(b, true);                                               /* takes the clicks of what is under it */
+    rt_set(b, (V2s){ 0, 0 }, (V2s){ 1, 1 }, (V2s){ 0.5f, 0.5f }, (V2s){ 0, 0 }, (V2s){ 0, 0 });   /* the whole layer, also after a resize */
+    return b;
+}
+void mu_centre_scaled(DSLObj w, float bw, float bh) {
+    rt_set(w, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ bw, bh }, (V2s){ 0, 0 });
+    set_scale(w, mu_ui_scale());
+}
+/* the red X: the kit's copy of the game's close button when the kit has one, else a kit button "X" (an older loader) */
+static DSLObj close_x(DSLObj parent, float x, float y, float s, dsl_ui_cb cb, void *ud) {
+    return U->button(parent, x, y, s, s, "X", cb, ud);
+}
+DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud) {
+    memset(s, 0, sizeof *s);
+    if (!U) return NULL;
+    s->back = mu_backdrop(0x0000009Eu);                                /* the title (or the world) dimmed, its clicks taken */
     DSLObj p = U->panel(NULL, 0, 0, want_w, want_h, 0);
-    if (!p) return NULL;
+    if (!p) { if (s->back) U->destroy(s->back); s->back = NULL; return NULL; }
     float lw = 0, lh = 0;
     if (cm_rect_size(cm_parent(p), &lw, &lh) || lw < 100 || lh < 100) { lw = 1920; lh = 1080; }
-    /* the window follows the game's UI scale like the game's own windows: drawn at its size x scale, so the room it may
-       take (in its own units) is the layer / scale */
-    float sc = mu_ui_scale(), aw = lw / sc - 40, ah = lh / sc - 40;
-    float ww = want_w > aw ? aw : want_w, hh = want_h > ah ? ah : want_h;
-    U->place(p, (lw - ww * sc) / 2, (lh - hh * sc) / 2, ww, hh);
-    { static cm_m ls; if (!ls.fn) ls = cm_il_method("UnityEngine", "Transform", "set_localScale", 1, NULL);
-      if (ls.fn) CM_CALL(ls, void, Obj, V3s, const void *)(p, (V3s){ sc, sc, 1 }, ls.mi); }
+    /* the game's UI scale like the game's own windows: drawn at its size x scale, never cut by the screen layer: fit 0 =
+       the room it may take (in its own units) is the layer / scale minus a margin; fit 1 = its size stays, the scale goes
+       down until it fits */
+    float sc = mu_ui_scale(), ww = want_w, hh = want_h;
+    if (!fit) { float aw = lw / sc - 40, ah = lh / sc - 40; if (ww > aw) ww = aw; if (hh > ah) hh = ah; }
+    else { if (sc * ww > lw - 40) sc = (lw - 40) / ww; if (sc * hh > lh - 40) sc = (lh - 40) / hh; }
+    rt_set(p, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ ww, hh }, (V2s){ 0, 0 });
+    if (sc > 0.1f) set_scale(p, sc);
     mu_plate(p, 6, 6, ww - 12, hh - 12, MU_C_BODY);                    /* one body colour inside the frame (the lobby's #222025) */
-    U->text(p, 20, 10, ww - 40, 40, title, 26, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+    /* the header as Load Campaign: the title centred in the game's title font, a copper line under it; the X top right */
+    DSLObj t = U->text(p, 70, 6, ww - 140, MU_SHELL_BAND - 8, title, 30, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+    if (t) { cm_text_ellipsis(t); cm_raycast(t, false); }
+    mu_plate(p, 12, MU_SHELL_BAND - 1, ww - 24, 2, MU_C_COPPER);
+    float xs = 38;
+    s->x = close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, on_x, ud);
+    s->win = p;
     if (w) *w = ww;
     if (h) *h = hh;
     return p;
+}
+void mu_shell_close(mu_shell *s) {
+    if (!U || !s) return;
+    if (s->win) U->destroy(s->win);
+    if (s->back) U->destroy(s->back);
+    memset(s, 0, sizeof *s);
 }
 
 /* the card's weapon word (mu_card_tables.h MUC_ITEM_WLABEL, the wiki's English label): the game's own text of that item

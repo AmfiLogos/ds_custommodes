@@ -654,7 +654,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
     member_name(it, u, t, sizeof t);
     txt(c, x0, 10, right - x0 - (pick_cb ? 230 : 0), 26, t, 20, DSL_TXT_LEFT, GOLD);
     if (pick_cb) { char nm[40]; snprintf(nm, sizeof nm, "gallery:p.pick%d", u);
-                   cmw_named(K(mu_button(c, right - 220, 8, 220, 38, TR("Use this unit"), pick_click, (void *)(intptr_t)u)), CMW_BUTTON, nm, pick_click, (void *)(intptr_t)u, TR("Use this unit")); }
+                   cmw_named(K(mu_button(c, right - 220, 8, 220, 38, TR("Use This Unit"), pick_click, (void *)(intptr_t)u)), CMW_BUTTON, nm, pick_click, (void *)(intptr_t)u, TR("Use This Unit")); }
     crumb(g, 1, t, sizeof t);
     size_t k = strlen(t);
     for (int e = 0; e < g->nextra && k < sizeof t; e++) {
@@ -751,7 +751,7 @@ static void tab(DSLObj p, float x, float y, float w, const char *label, int on, 
     if (on) flat(p, x + 4, y + 40, w - 8, 3, GOLD);
 }
 static void filters(DSLObj p) {
-    const char *kinds[2] = { TR("Teams"), TR("Units") }, *sorts[2] = { TR("Most popular"), TR("Newest") }, *views[2] = { TR("Compact Plus"), TR("List") };
+    const char *kinds[2] = { TR("Teams"), TR("Units") }, *sorts[2] = { TR("Most Popular"), TR("Newest") }, *views[2] = { TR("Compact Plus"), TR("List") };
     char nm[40];
     for (int s = 0; s < 2; s++) {
         snprintf(nm, sizeof nm, "gallery:f.kind%d", s); tab(p, 24 + s * 126, 12, 120, kinds[s], q.chars == s, kind_click, s, nm);
@@ -766,9 +766,9 @@ static void filters(DSLObj p) {
         for (int i = 0; i < nrace; i++) { char g[96]; game_name(race_keys[i], g, sizeof g); snprintf(rn[i], 96, "%s", g[0] ? g : gal_name_word(words, "races", race_keys[i])); rl[i + 1] = rn[i]; }
         for (int i = 0; i < ntree; i++) { snprintf(tn[i], 96, "%s", gal_name_word(words, "trees", tree_keys[i])); tl[i + 1] = tn[i]; }
         cmw_named(K(U->value_row(p, 24, 62, rw, TR("Races"), rl, nrace + 1, q.race, race_change, NULL)), CMW_VALUE, "gallery:f.race", race_change, NULL, rl[q.race]);
-        cmw_named(K(U->value_row(p, 24 + rw + 12, 62, rw, TR("Weapon trees"), tl, ntree + 1, q.tree, tree_change, NULL)), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
+        cmw_named(K(U->value_row(p, 24 + rw + 12, 62, rw, TR("Weapon Trees"), tl, ntree + 1, q.tree, tree_change, NULL)), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
     }
-    cmw_named(K(U->toggle(p, WW - 24 - 250, 63, 250, TR("Complete only"), q.complete, complete_change, NULL)), CMW_TOGGLE, "gallery:f.complete", complete_change, NULL, TR("Complete only"));
+    cmw_named(K(U->toggle(p, WW - 24 - 250, 63, 250, TR("Complete Only"), q.complete, complete_change, NULL)), CMW_TOGGLE, "gallery:f.complete", complete_change, NULL, TR("Complete Only"));
 }
 static void grid(DSLObj p) {
     nvis = 0; for (int i = 0; i < nitems; i++) if (visible(&items[i])) vis[nvis++] = i;   /* a name search shows only its matches */

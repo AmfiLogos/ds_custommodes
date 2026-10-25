@@ -53,8 +53,10 @@ static struct {
     char wticked[NMAX][40]; int nwticked;
     /* library cards with a source (a snapshot): the line inside the card (nsrc = drawn on this page; their text) */
     int nsrc; char card_src[16][200], card_src_full[16][400];
-    /* "Delete team" box: Team and units / Team only / Cancel */
+    /* "Delete team" box: Cancel / Team only / Team and units */
     int dlg_on; DSLObj dlg, dlg_units, dlg_only, dlg_cancel;
+    mu_shell sh;                      /* the window's shell: backdrop, frame, title, red X (mu_ui.h) */
+    int on_title, title_poll;         /* opened on the title screen: closed when the title goes away (U1) */
 } W = { .sel_team = -1, .sel_world = -1, .su_for = -1 };
 
 static void refresh(void);
@@ -138,11 +140,13 @@ static void load_world_units(void) {
 }
 
 /* ------------------------------------------------------------------ actions */
+static void dlg_close(void);
 static void close_win(void) {
     if (!W.open) return;
     W.open = 0;
     mu_tick_remove(poll_fn);
-    if (W.win) U->destroy(W.win);
+    dlg_close();                                                       /* the Delete team box is on the screen layer, not in the window */
+    mu_shell_close(&W.sh);
     W.win = NULL; W.box = W.rename_row = NULL; W.dlg = NULL; W.dlg_on = 0; W.ren_on = 0;
     if (W.lib) { jfree(W.lib); W.lib = NULL; }
     mu_save_cache_clear();                                             /* parsed saves (a few MB each) */
@@ -168,12 +172,16 @@ static int show_box(int on) {
 }
 static void win_poll(void) {
     if (!W.open) return;
+    /* opened on the title screen: the title went away (a world loads, a soft restart) = the window goes with it, never
+       left over the game (U1). Checked about once a second (a scene search) */
+    if (W.on_title && ++W.title_poll >= 20) { W.title_poll = 0; if (!cmw_title_shown()) { mu_log("my units: the title screen went away: closed"); close_win(); return; } }
     if (W.win) {
         float lw = 0, lh = 0;
         if (!cm_rect_size(cm_parent(W.win), &lw, &lh) && lw >= 100 && lh >= 100
             && (fabsf(lw - W.lw) > 1 || fabsf(lh - W.lh) > 1 || fabsf(mu_ui_scale() - W.scale) > 0.001f)) {
             mu_log("my units: screen layer %.0fx%.0f -> %.0fx%.0f, window built again", W.lw, W.lh, lw, lh);
-            U->destroy(W.win); W.win = NULL; mu_drawn_reset();
+            int dlg = W.dlg_on; dlg_close(); W.dlg_on = dlg;
+            mu_shell_close(&W.sh); W.win = NULL; mu_drawn_reset();
             if (build_ui()) { close_win(); return; }
             refresh();
         }
@@ -323,9 +331,10 @@ static void on_delete(void *ud, DSLObj w) {
                               "Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.", W.nticked), W.nticked);
     U->notice(m, TR("Delete"), TR("Cancel"), del_ok, NULL, NULL);
 }
-/* "Delete team" asks each time (owner 2026-10-25): a box in this window with "Team and units", "Team only" and Cancel
-   (the game's notice box has two buttons). It says how many units go; a unit also in another team stays. */
-static void dlg_close(void) { if (W.dlg) U->destroy(W.dlg); W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = NULL; W.dlg_on = 0; }
+/* "Delete team" asks each time (owner 2026-10-25): a box with Cancel, "Team only" and "Team and units" (the game's notice
+   box has two buttons). It says how many units go; a unit also in another team stays. As the game's notice box (UX U4):
+   the whole screen dimmed under it, Cancel first (left), the choice that deletes the most last. */
+static void dlg_close(void) { if (W.dlg) { dsl_esc_drop(U, W.dlg); U->destroy(W.dlg); } W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = NULL; W.dlg_on = 0; }
 static void dlg_done(int with_units) {
     if (!W.open || !W.lib || W.sel_team < 0) { dlg_close(); return; }
     char tid[17]; int gone = 0;
@@ -348,22 +357,23 @@ static void on_dlg_cancel(void *ud, DSLObj w) { (void)ud; (void)w; dlg_close(); 
 static void esc_dlg(void *ud) { (void)ud; dlg_close(); }
 static float fit_w(DSLObj b, float w0);
 static void dlg_show(void) {
-    if (W.dlg) { U->destroy(W.dlg); W.dlg = NULL; }
+    dlg_close();
     char tid[17], nm[200], ids[MU_TEAM_MAX][17];
-    if (!W.lib || W.sel_team < 0 || mu_team_id_at(W.lib, (size_t)W.sel_team, tid)) { W.dlg_on = 0; return; }
+    if (!W.lib || W.sel_team < 0 || mu_team_id_at(W.lib, (size_t)W.sel_team, tid)) return;
     int ngo = 0, nst = 0; mu_team_split(W.lib, tid, NULL, &ngo, &nst);
     mu_team_at(W.lib, (size_t)W.sel_team, nm, sizeof nm, ids);
-    /* a dark layer over the whole window takes the clicks; the box in its middle */
-    W.dlg = mu_plate(W.win, 0, 0, W.w, W.h, 0x000000B0u);
-    if (!W.dlg) { W.dlg_on = 0; return; }
-    cm_raycast(W.dlg, true);
+    /* the whole screen dimmed (the window too) and its clicks taken, as the game's notice box; the box in its middle at the
+       game's UI scale */
+    W.dlg = mu_backdrop(0x000000C0u);
+    if (!W.dlg) return;
     W.dlg_on = 1;
     dsl_esc_push(U, W.dlg, esc_dlg, NULL, 0);
-    float bw = W.w - 80 < 640 ? W.w - 80 : 640, bh = 240, bx = (W.w - bw) / 2, by = (W.h - bh) / 2;
-    DSLObj box = U->panel(W.dlg, bx, by, bw, bh, 0);
+    float bw = 640, bh = 240;
+    DSLObj box = U->panel(W.dlg, 0, 0, bw, bh, 0);
     if (!box) return;
+    mu_centre_scaled(box, bw, bh);
     mu_plate(box, 6, 6, bw - 12, bh - 12, MU_C_BODY);
-    U->text(box, 20, 12, bw - 40, 34, TR("Delete team"), 22, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+    U->text(box, 20, 12, bw - 40, 34, TR("Delete Team"), 22, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
     char t[1200], a[300], b[300] = "", q[300];
     snprintf(q, sizeof q, TR("Delete the team \"%s\"?"), nm);
     snprintf(a, sizeof a, TRN("Team and units: %d unit goes.", "Team and units: %d units go.", ngo), ngo);
@@ -371,11 +381,11 @@ static void dlg_show(void) {
     snprintf(t, sizeof t, "%s\n%s%s\n%s", q, a, b, TR("Team only: the units stay in My Units."));
     dsi_utf8_fix_end(t);
     mu_text(box, 24, 52, bw - 48, bh - 52 - 64, t, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, MU_C_MAIN);
-    /* the three buttons along the bottom, each as wide as its label, the room shared out */
-    W.dlg_units = mu_button(box, 0, bh - 58, 100, 40, TR("Team and units"), on_dlg_units, NULL);
-    W.dlg_only = mu_button(box, 0, bh - 58, 100, 40, TR("Team only"), on_dlg_only, NULL);
+    /* the three buttons along the bottom in the game's order (Cancel first), each as wide as its label, the room shared out */
     W.dlg_cancel = mu_button(box, 0, bh - 58, 100, 40, TR("Cancel"), on_dlg_cancel, NULL);
-    DSLObj bb[3] = { W.dlg_units, W.dlg_only, W.dlg_cancel }; float ww[3], sum = 0, room = bw - 40, x = 20;
+    W.dlg_only = mu_button(box, 0, bh - 58, 100, 40, TR("Team Only"), on_dlg_only, NULL);
+    W.dlg_units = mu_button(box, 0, bh - 58, 100, 40, TR("Team and Units"), on_dlg_units, NULL);
+    DSLObj bb[3] = { W.dlg_cancel, W.dlg_only, W.dlg_units }; float ww[3], sum = 0, room = bw - 40, x = 20;
     for (int i = 0; i < 3; i++) sum += ww[i] = fit_w(bb[i], 120) + 10;
     for (int i = 0; i < 3; i++) {
         float k = sum > room ? ww[i] * room / sum : ww[i] + (room - sum) / 3;
@@ -407,7 +417,7 @@ static void draw_left(void) {
     if (!W.left) return;
     float y = 0, bw = LEFT_W - 8; char t[200], all[160];
     int all_sel = W.sel_team < 0 && W.sel_world < 0;
-    snprintf(all, sizeof all, TR("All units (%zu)"), W.lib ? mu_count(W.lib) : (size_t)0);
+    snprintf(all, sizeof all, TR("All Units (%zu)"), W.lib ? mu_count(W.lib) : (size_t)0);
     snprintf(t, sizeof t, "%s%s%s", all_sel ? "<color=#D9BE8F>" : "", all, all_sel ? "</color>" : "");
     W.all_btn = mu_button(W.left, 0, y, bw, 44, t, on_team, (void *)(intptr_t)-1); y += 48;
     size_t nt = W.lib ? mu_team_count(W.lib) : 0;
@@ -432,7 +442,7 @@ static void draw_left(void) {
     }
     /* World units */
     y += 8;
-    mu_text(W.left, 4, y, bw - 8, 26, TR("World units"), 16, DSL_TXT_LEFT, MU_C_GOLD); y += 28;
+    mu_text(W.left, 4, y, bw - 8, 26, TR("World Units"), 16, DSL_TXT_LEFT, MU_C_GOLD); y += 28;
     if (!W.nworlds) { mu_text(W.left, 4, y, bw - 8, 44, TR("No saves found."), 13, DSL_TXT_LEFT | DSL_TXT_WRAP, MU_C_SUB); y += 46; }
     for (int i = 0; i < W.nworlds && W.nworld_btn < WMAX; i++) {
         DSLObj b = mu_button(W.left, 0, y, bw, WORLD_H, "", on_world, (void *)(intptr_t)i);
@@ -567,22 +577,23 @@ static void refresh(void) {
    the layer is laid out one frame later, and the game window or the UI scale can change while it is open */
 static int build_ui(void) {
     float w, h;
-    W.win = mu_window(TR("My Units"), 1100, 720, &w, &h);
+    /* 738 high: 4 cards fit the list at UI scale 1 under the shell's header (owner 2026-10-17) */
+    W.win = mu_shell_open(&W.sh, TR("My Units"), 1100, 738, 0, &w, &h, on_close, NULL);
     if (!W.win) { mu_log("my units: kit not ready"); return -1; }
     dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* first: its boxes go on top of it */
     W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = W.nworld_btn = 0; W.b_snap = NULL;
     W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = NULL;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
-    /* top bar */
-    float x = 20, y = 56;
-    W.b_add = mu_button(W.win, x, y, 220, 40, TR("Add from wiki link"), on_add, NULL);
+    /* top bar under the header (the red X closes: no Close button) */
+    float x = 20, y = MU_SHELL_BAND + 10;
+    W.b_add = mu_button(W.win, x, y, 220, 40, TR("Add from Wiki Link"), on_add, NULL);
     { float bw = fit_w(W.b_add, 220); if (bw > 340) bw = 340; U->place(W.b_add, x, y, bw, 40); x += bw + 10; }
-    U->tooltip(W.b_add, TR("Add from wiki link"), TR("Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."));
+    U->tooltip(W.b_add, TR("Add from Wiki Link"), TR("Copy a unit or team link in the wiki's Unit Builder, then press here: it is read from the clipboard."));
     W.b_new = NULL;
-    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New unit"), on_new, NULL);
+    if (mu_builder_present()) { W.b_new = mu_button(W.win, x, y, 150, 40, TR("New Unit"), on_new, NULL);
                                 float bw = fit_w(W.b_new, 150); if (bw > 220) bw = 220; U->place(W.b_new, x, y, bw, 40); x += bw + 10; }
-    W.b_close = mu_button(W.win, w - 130, y, 110, 40, TR("Close"), on_close, NULL);
-    W.status = mu_text(W.win, x, y, w - 140 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
+    W.b_close = W.sh.x;
+    W.status = mu_text(W.win, x, y, w - 20 - x, 40, "", 14, DSL_TXT_LEFT, MU_C_SUB);
     /* paste box (only when the clipboard holds no link): at the top of the lists, which move down while it shows */
     W.box = U->panel(W.win, 20, y + 46, w - 40, 52, MU_C_BAND);
     if (W.box) {
@@ -600,12 +611,12 @@ static int build_ui(void) {
         int nb = mu_builder_present() ? 5 : 4;                      /* Edit only with the Unit Builder */
         float bx = 8, room = w - 40 - 160 - 140 - 8;
         W.t_sel = mu_text(W.bottom, bx + 4, 0, 124, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;   /* 12 from the left, off the edge */
-        W.b_team = mu_button(W.bottom, bx, 2, 100, 40, TR("Save as team"), on_save_team, NULL);
+        W.b_team = mu_button(W.bottom, bx, 2, 100, 40, TR("Save as Team"), on_save_team, NULL);
         W.b_rename = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename"), on_rename, NULL);
         W.b_edit = nb == 5 ? mu_button(W.bottom, bx, 2, 100, 40, TR("Edit"), on_edit, NULL) : NULL;
         W.b_delete = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete"), on_delete, NULL);
-        W.b_renteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename team"), on_renteam, NULL);
-        W.b_delteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete team"), on_delteam, NULL);
+        W.b_renteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename Team"), on_renteam, NULL);
+        W.b_delteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete Team"), on_delteam, NULL);
         /* each button as wide as its label on one line, placed by layout_bottom (the team buttons only in a team's view) */
         nb += 1;                                                    /* Rename team */
         DSLObj bb[6] = { W.b_team, W.b_rename, W.b_delete, W.b_renteam, W.b_delteam, NULL };
@@ -613,9 +624,9 @@ static int build_ui(void) {
         W.bar_n = nb; W.bar_x0 = bx; W.bar_room = room;
         for (int i = 0; i < nb; i++) { W.bar_b[i] = bb[i]; W.bar_w[i] = fit_w(bb[i], 90) + 6; }
         /* a world's view: Save snapshot where Save as team is */
-        W.b_snap = mu_button(W.bottom, 136 + 8, 2, 160, 40, TR("Save snapshot"), on_snapshot, NULL);
+        W.b_snap = mu_button(W.bottom, 136 + 8, 2, 160, 40, TR("Save Snapshot"), on_snapshot, NULL);
         { float sw = fit_w(W.b_snap, 160); if (sw > room) sw = room; U->place(W.b_snap, 136 + 8, 2, sw, 40); }
-        U->tooltip(W.b_snap, TR("Save snapshot"), TR("Copies the ticked units into My Units as they are in this save. Your save is not changed."));
+        U->tooltip(W.b_snap, TR("Save Snapshot"), TR("Copies the ticked units into My Units as they are in this save. Your save is not changed."));
         W.b_prev = mu_button(W.bottom, w - 40 - 160, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
         W.t_page = mu_text(W.bottom, w - 40 - 112, 0, 64, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         W.b_next = mu_button(W.bottom, w - 40 - 44, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
@@ -644,7 +655,7 @@ void mu_window_open(void) {
     load_lib();
     load_worlds();
     if (build_ui()) return;
-    W.open = 1;
+    W.open = 1; W.on_title = cmw_title_shown(); W.title_poll = 0;
     mu_tick_add(poll_fn);
     if (!W.lib) set_msg(W.err, MU_C_BAD);
     refresh();
@@ -655,7 +666,8 @@ int mu_window_is_open(void) { return W.open; }
 void mu_window_relang(void) {
     if (!W.open || !W.win) return;
     W.su_for = -1;                                                     /* the units' default names again, in the new language */
-    U->destroy(W.win); W.win = NULL; mu_drawn_reset();
+    int dlg = W.dlg_on; dlg_close(); W.dlg_on = dlg;
+    mu_shell_close(&W.sh); W.win = NULL; mu_drawn_reset();
     if (build_ui()) { close_win(); return; }
     refresh();
 }

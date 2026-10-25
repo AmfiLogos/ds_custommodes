@@ -607,7 +607,7 @@ static void paint_worlds(float y, float lh, float ky) {
     else snprintf(line, sizeof line, "%s", TR("Open a world and tick the units to send in. They fight as they are in that save."));
     sy += txt(sc, "fights:l.picked", 0, sy, uw, line, 15, sq[0] ? GOLD : SUB) + 8;
     /* owner 2026-10-25: "Give the option to import their affecters from save as is (food buffs & others)": off by default */
-    const char *wl_aff = TR("Bring buffs and effects from the save");
+    const char *wl_aff = TR("Bring Buffs and Effects from the Save");
     cmw_named(U->toggle(sc, 0, sy, uw, wl_aff, st.waff, waff_change, NULL), CMW_TOGGLE, "fights:l.waff", waff_change, NULL, wl_aff);
     sy += 44;
     int ni = 0, na = 0;
@@ -669,7 +669,7 @@ static void paint_left(void) {
     float y = head(left, 0, 0, LW, TR("Squad"));
     /* World units (the same words as My Units' section) on a second row: three labels never fit one row (ES "Galería de
        builds de la wiki") */
-    const char *src_l[3] = { TR("My Units"), TR("Wiki Build Gallery"), TR("World units") };
+    const char *src_l[3] = { TR("My Units"), TR("Wiki Build Gallery"), TR("World Units") };
     DSLObj sb[3]; float sx[3] = { 0, LW / 2 + 4, 0 }, sw[3] = { LW / 2 - 4, LW / 2 - 4, LW }, ty[3] = { y, y, y + 46 }, need[3];
     for (int s = 0; s < 3; s++) {
         char nm[40]; snprintf(nm, sizeof nm, "fights:l.src%d", s);
@@ -750,7 +750,7 @@ static void paint_left(void) {
         for (size_t i = 0; i < nu; i++) {
             mu_info in; if (mu_info_at(lib, i, &in)) continue;
             if (i < sizeof in_team && in_team[i]) continue;
-            if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units not in a team"), 16, GOLD) + 2; head_done = 1; }
+            if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units Not in a Team"), 16, GOLD) + 2; head_done = 1; }
             int on = picked_at(in.id) >= 0;
             char lab[160], nm[40]; snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.unit%zu", i);
             cmw_named(U->toggle(sc, 0, sy, uw, lab, on, unit_toggle, (void *)(intptr_t)i), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)i, lab);
@@ -914,10 +914,10 @@ static void paint_right(void) {
     DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, PANEL_H);
     right = vp;
     /* What do you want */
-    y += head(right, 0, y, w, TR("What to test"));
+    y += head(right, 0, y, w, TR("What to Test"));
     const char *ml[6]; char md[600] = "";
     for (int i = 0; i < P.nmodes; i++)
-        ml[i] = !strcmp(P.modes[i], "dps") ? TR("DPS Check") : !strcmp(P.modes[i], "boss") ? TR("Boss fight") : !strcmp(P.modes[i], "arena") ? TR("Custom fight") : TR("Finished base");
+        ml[i] = !strcmp(P.modes[i], "dps") ? TR("DPS Check") : !strcmp(P.modes[i], "boss") ? TR("Boss Fight") : !strcmp(P.modes[i], "arena") ? TR("Custom Fight") : TR("Finished Base");
     cmw_named(U->value_row(right, 0, y, w, TR("Test"), ml, P.nmodes, st.mode, mode_change, NULL), CMW_VALUE, "fights:r.mode", mode_change, NULL, ml[st.mode]);
     y += 50;
     if (!strcmp(mode_id(), "dps")) { char dur[40]; fmt_n(P.dummy_dur, dur, sizeof dur); snprintf(md, sizeof md, TR("A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does."), P.dummy_tn, dur); }
@@ -928,7 +928,7 @@ static void paint_right(void) {
     if (!strcmp(mode_id(), "dps")) { y += dps_card(right, y, w) + 10; y += tf_dps_setup_rows(right, y, w) + 6; }   /* its switches (tf_dps.c) */
     /* Which fight / Which room */
     if (is_fight() && P.nbosses) {
-        y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which fight") : TR("Which room"));
+        y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which Fight") : TR("Which Room"));
         const char *bl[8]; for (int i = 0; i < P.nbosses; i++) bl[i] = P.bosses[i].tn[0] ? P.bosses[i].tn : P.bosses[i].n;
         cmw_named(U->value_row(right, 0, y, w, TR("Boss"), bl, P.nbosses, st.boss, boss_change, NULL), CMW_VALUE, "fights:r.boss", boss_change, NULL, bl[st.boss]);
         y += 50;
@@ -945,7 +945,7 @@ static void paint_right(void) {
             cmw_named(U->field(right, 0, y, w - 220, 40, TR("Search monsters by name..."), st.monq, monq_submit, NULL), CMW_FIELD, "fights:r.monq", monq_submit, NULL, st.monq);
             static const char *cnt[30]; static char cb[30][4];
             for (int i = 0; i < 30; i++) { snprintf(cb[i], 4, "%d", i + 1); cnt[i] = cb[i]; }
-            cmw_named(U->value_row(right, w - 212, y - 2, 212, TR("How many"), cnt, 30, st.mon_count - 1, moncount_change, NULL), CMW_VALUE, "fights:r.moncount", moncount_change, NULL, cnt[st.mon_count - 1]);
+            cmw_named(U->value_row(right, w - 212, y - 2, 212, TR("How Many"), cnt, 30, st.mon_count - 1, moncount_change, NULL), CMW_VALUE, "fights:r.moncount", moncount_change, NULL, cnt[st.mon_count - 1]);
             y += 48;
             int shown = 0;
             for (int i = 0; i < P.nmons && shown < 12; i++) {
@@ -981,13 +981,13 @@ static void paint_right(void) {
     DSLObj mg = cmw_named(U->value_row(right, 0, y, w, cm_gw("TEXTKEY_SaveLoad_ManagementDifficulty", TR_NOOP("Management")), gl, P.nmgmt, mi, mgmt_change, NULL), CMW_VALUE, "fights:r.mgmt", mgmt_change, NULL, gl[mi]);
     if (!st.mgmt_own) U->set_enabled(mg, 0);
     y += 50;
-    cmw_named(U->toggle(right, 0, y, w, TR("Choose management difficulty separately"), st.mgmt_own, mgmt_own_change, NULL), CMW_TOGGLE, "fights:r.mgmtown", mgmt_own_change, NULL, TR("Choose management difficulty separately"));
+    cmw_named(U->toggle(right, 0, y, w, TR("Choose Management Difficulty Separately"), st.mgmt_own, mgmt_own_change, NULL), CMW_TOGGLE, "fights:r.mgmtown", mgmt_own_change, NULL, TR("Choose Management Difficulty Separately"));
     y += 42;
     if (!st.mgmt_own) { char t[200]; snprintf(t, sizeof t, TR("Left off, the economy matches the combat difficulty (%s)."), gl[mi]); y += txt(right, NULL, 12, y, w - 12, t, 14, SUB); }
     y += 10;
     /* Battle kits */
     if (P.nkits) {
-        y += head(right, 0, y, w, TR("Battle kits"));
+        y += head(right, 0, y, w, TR("Battle Kits"));
         y += txt(right, NULL, 12, y, w - 12, TR("Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."), 14, SUB) + 4;
         int sl = 0, any = 0; double wt = 0;
         for (int i = 0; i < P.nkits; i++) {
@@ -1019,7 +1019,7 @@ static void paint_right(void) {
         else { char g[32]; snprintf(t, sizeof t, TRN("%d slot and %s weight per character.", "%d slots and %s weight per character.", sl), sl, fmt_g((double)((long long)(wt * 100 + 0.5)) / 100, g, sizeof g)); }
         y += txt(right, NULL, 12, y, w - 12, t, 14, SUB) + 4;
         if (any && P.insc_n[0]) {
-            char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on custom saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);
+            char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on Custom Saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);
             /* owner v0.1.11 #5 (and the wiki's own rule, builder.js paintSup): the inscription's icon first; hovering it shows
                the game's own hover card for that inscription */
             Obj sp = P.insc_k[0] ? cm_icon(CM_ICON_AFFECTER, P.insc_k) : NULL;
@@ -1089,7 +1089,7 @@ static void build_window(void) {
     w_status = NULL;
     w_start = cmw_named(U->button(body, WIN_W - 24 - 220, BODY_H - 72, 220, 52, TR("Start"), start_click, NULL), CMW_BUTTON, "fights:start", start_click, NULL, TR("Start"));
     /* always made, shown by paint_status: the files often fail after the window opened (it was missing then) */
-    w_retry = cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try again"));
+    w_retry = cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try Again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try Again"));
     engine_open();
     paint_all();
 }

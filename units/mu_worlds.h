@@ -15,6 +15,7 @@ typedef struct mu_world {
     char name[96];            /* CampaignSaveHeader.ClanName (raw text, quotes as spaces); the file name when missing */
     char guid[40];            /* CampaignGuid: 32 hex, lower case */
     char when[24];            /* the save's time "YYYY-MM-DD HH:MM" (header SaveTime, else the file time) */
+    char sort[24];            /* the same time to the second "YYYY-MM-DD HH:MM:SS": the list's order (newest first) */
     int group;                /* index of the folder its newest save is in (dirs list order) */
     long long mtime;          /* file time, seconds */
 } mu_world;
@@ -26,7 +27,9 @@ int  mu_world_save_name(const char *file);
 /* skip(guid, save_name) = 1: a world not to list (Test Fights' test worlds); may be NULL */
 typedef int (*mu_world_skip_fn)(const char *guid, const char *save_name);
 /* the worlds of these folders, one list: one per campaign guid (a world in both folders once), its newest file by file
-   time, newest world first. A file without a readable CampaignSaveHeader is left out. Returns the count. */
+   time; the worlds newest first by the save time they show (header SaveTime, the file time when it has none: a copied or
+   synced save keeps its own time, as Load Campaign orders it). A file without a readable CampaignSaveHeader is left out.
+   Returns the count. */
 int  mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, mu_world_skip_fn skip);
 /* the normal game's Saves folder (env DSML_GAME_SAVES, set by both starters; "" when not set) */
 void mu_game_saves_dir(char *out, size_t n);
