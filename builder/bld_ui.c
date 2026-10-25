@@ -16,6 +16,7 @@
 #include "mu_look.h"
 #include "bld_filter.h"
 #include "cm_home.h"
+#include "cm_win.h"
 #include "cm_il.h"
 #include "sg_cache.h"
 #include "i18n/ds_i18n.h"
@@ -30,7 +31,7 @@
 #define SCRIPTS_MAX_AGE (6 * 3600)          /* same as Test Fights: the wiki's scripts are asked again after 6 h */
 enum { SEC_RACE, SEC_BG, SEC_TRAITS, SEC_SKILLS, SEC_GEAR, SEC_INSC, SEC_LEVEL, SEC_PRESETS, SEC_N };
 static const char *const SEC_NAME[SEC_N] = { TR_NOOP("Race"), TR_NOOP("Background"), TR_NOOP("Traits"), TR_NOOP("Skills"), TR_NOOP("Gear"), TR_NOOP("Inscriptions"),
-                                             TR_NOOP("Level-ups"), TR_NOOP("Presets") };   /* English: also the test names */
+                                             TR_NOOP("Level-Ups"), TR_NOOP("Presets") };   /* English: also the test names */
 static const int NAV_ORDER[SEC_N] = { SEC_PRESETS, SEC_RACE, SEC_BG, SEC_TRAITS, SEC_LEVEL, SEC_SKILLS, SEC_GEAR, SEC_INSC };   /* top to bottom */
 static const char *sec_label(int i) { return i == SEC_SKILLS ? cm_gw("TEXTKEY_GAMEGUIDE_SkillsAbility_NAME", SEC_NAME[i]) : TR(SEC_NAME[i]); }
 enum { ENG_NONE, ENG_OPENING, ENG_READY, ENG_FAILED };
@@ -107,6 +108,10 @@ static struct {
     char msg[800]; uint32_t msg_col;
     int saving, take_name;                 /* take_name: the next load names the unit (a gallery build) */
     int dirty; char name0[96];             /* a change since the window opened (Cancel asks); the name field as loaded */
+    float ty;                              /* the top row's y (name, level, Save) under the shell's header */
+    int tal_cut;                           /* test: Level-ups' talent chips whose tier name did not fit (UX U6) */
+    mu_shell sh;                           /* the window's shell: backdrop, frame, title, red X = Cancel (mu_ui.h) */
+    int on_title, title_poll;              /* opened on the title screen: closed when the title goes away (U1) */
     struct { char name[120]; DSLObj o; } reg[REGMAX]; int nreg;
 } W = { .open_slot = -1 };
 
@@ -148,7 +153,7 @@ static int truthy(const jv *o, const char *k) { return jtruthy(jget(o, k)); }
 static void close_win(void) {
     if (!W.open) return;
     W.open = 0;
-    if (W.win) U->destroy(W.win);
+    mu_shell_close(&W.sh);
     W.win = W.mid = W.mid_holder = W.sheet = W.bar = W.f_search = NULL;
     W.nreg = 0;
     if (W.st) { jfree(W.st); W.st = NULL; }
@@ -158,7 +163,7 @@ static void discard_ok(void *ud, DSLObj w) { (void)ud; (void)w; if (W.open) { mu
 static void on_cancel(void *ud, DSLObj w) {      /* unsaved changes: the game's notice asks first (owner 2026-10-21) */
     (void)ud; (void)w;
     char nm[96] = ""; if (W.f_name) U->field_get(W.f_name, nm, sizeof nm);
-    if (W.dirty || strcmp(nm, W.name0)) { U->notice(TR("Discard your changes?"), TR("Discard"), TR("Keep editing"), discard_ok, NULL, NULL); return; }
+    if (W.dirty || strcmp(nm, W.name0)) { U->notice(TR("Discard your changes?"), TR("Discard"), TR("Keep Editing"), discard_ok, NULL, NULL); return; }
     mu_log("builder: closed without saving"); close_win();
 }
 /* Escape (kit 0.1.28 owns the key; an older kit: nothing, as before) = Cancel: with unsaved changes the game's notice asks
@@ -394,6 +399,13 @@ static float label_w(const char *s, float size) {          /* a first guess, the
     float w = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) { if ((*p & 0xC0) == 0x80) continue; w += *p < 0x80 ? size * 0.56f : size * 1.05f; }
     return w;
 }
+static float label_px(DSLObj p, const char *s, float size) {  /* a one-line text's width at size (measured, -1 = no kit) */
+    DSLObj m = U->text(p, 0, 0, 2000, 30, s, mu_text_size(size), DSL_TXT_LEFT, MU_C_MAIN);
+    float pw = m ? cm_text_preferred_w(m) : -1;
+    if (m) U->destroy(m);
+    return pw;
+}
+static int chips_cut;                                       /* fixed cells whose label did not fit at its size (test) */
 static DSLObj chip(DSLObj p, float x, float y, float w, float h, const char *label, int on, dsl_ui_cb cb, void *ud, float *used) {
     int grow = w <= 0;
     if (w <= 0) w = label_w(label, 14) + 26;
@@ -401,6 +413,7 @@ static DSLObj chip(DSLObj p, float x, float y, float w, float h, const char *lab
     if (!b) { if (used) *used = w; return NULL; }
     DSLObj t = mu_text(b, 8, 0, w - 16, h, label, 14, DSL_TXT_CENTER, on ? MU_C_GOLD : MU_C_MAIN);
     float pw = t ? cm_text_preferred_w(t) : -1;
+    if (!grow && pw > w - 16 + 0.5f) chips_cut++;
     if (t && pw > w - 16 && grow) {                          /* the box grows to its label; a fixed cell (talent tier,
                                                                 elixir +/-) keeps its size and its label shrinks / ends in "..." */
         w = pw + 18;
@@ -614,8 +627,8 @@ static float bar_bg(DSLObj p, float y, float w) {
     }
     y = search_box(p, y, w);
     /* chips, several at once: a background must grant every chosen tree (the wiki's tree chips); one bonus stat (the wiki's bonus select) */
-    y = chip_row(p, y, w, TR("Weapon trees"), F_BG_W, shown[0]);
-    y = chip_row(p, y, w, TR("Auxiliary trees"), F_BG_A, shown[1]);
+    y = chip_row(p, y, w, TR("Weapon Trees"), F_BG_W, shown[0]);
+    y = chip_row(p, y, w, TR("Auxiliary Trees"), F_BG_A, shown[1]);
     filter_row(p, 6, y, w * 0.6f, TR("Bonus"), F_BG_B, shown[2]);
     return y + 46;
 }
@@ -637,7 +650,7 @@ static float bar_gear(DSLObj p, float y, float w) {
 static float bar_skills(DSLObj p, float y, float w) {
     FL.n[F_SK_TYPE] = FL.n[F_SK_STATE] = 0;
     fl_add(F_SK_TYPE, "active"); fl_add(F_SK_TYPE, "passive"); fl_add(F_SK_STATE, "learned"); fl_add(F_SK_STATE, "can");
-    const char *ts[] = { TR("Active"), TR("Passive") }, *ss[] = { TR("Learned"), TR("Can learn") };
+    const char *ts[] = { TR("Active"), TR("Passive") }, *ss[] = { TR("Learned"), TR("Can Learn") };
     jv *sp = jget(W.st, "sp"); char t[300];
     snprintf(t, sizeof t, TR("Main SP left %d of %d    Sub SP left %d of %d"), num(sp, "main"), num(sp, "mainMax"), num(sp, "sub"), num(sp, "subMax"));
     y = note(p, y, w, t, 22);
@@ -767,7 +780,7 @@ static float draw_traits(DSLObj p, float y) {
     Grid g = { "inds", CM_ICON_AFFECTER, 2, 48, on_ind, "ind", 0, NULL, NULL };
     y = grid(p, y, &g, 1) + 10;
     /* acquired in play (renderAcqTraits) and the soul stone (renderSouls) */
-    y = heading(p, y, LW, TR("Acquired traits"));
+    y = heading(p, y, LW, TR("Acquired Traits"));
     y = note(p, y, LW, TR("Traits a unit gains in play by using an item. Add the ones this unit has taken: the stats include them."), 40);
     Grid ga = { "acq", CM_ICON_AFFECTER, 2, 48, on_acq, "acq", 0, NULL, "from" };
     y = grid(p, y, &ga, 1) + 10;
@@ -790,7 +803,7 @@ static float draw_level(DSLObj p, float y) {
     snprintf(t, sizeof t, TR("Mana stones spent to reach it: %s"), u[0] ? u : "-");
     y = note(p, y, LW, t, 40) + 6;
     /* offering */
-    y = heading(p, y, LW, TR("Offering at each level-up"));
+    y = heading(p, y, LW, TR("Offering at Each Level-Up"));
     const jv *of = arr_in(lv, "offers");
     Flow fo; flow_init(&fo, p, 6, y, LW - 6, 36);
     for (size_t i = 0; of && i < of->cnt; i++) {
@@ -805,9 +818,9 @@ static float draw_level(DSLObj p, float y) {
     y = flow_end(&fo);
     y = note(p, y, LW, TR("A bigger offering multiplies the stats each level-up gives and the mana stones it costs."), 22) + 6;
     /* stat gain per level */
-    y = heading(p, y, LW, TR("Stat gain per level"));
+    y = heading(p, y, LW, TR("Stat Gain per Level"));
     char gain[16]; sraw(jget(lv, "gain"), gain, sizeof gain);
-    const char *gl[3] = { TR("worst"), TR("average"), TR("best") };
+    const char *gl[3] = { TR("Worst"), TR("Average"), TR("Best") };
     Flow fg; flow_init(&fg, p, 6, y, LW - 6, 36);
     for (int i = 0; i < 3; i++) {
         DSLObj c = flow_chip(&fg, gl[i], !strcmp(gain, GAIN[i]), on_gain, UD(i));
@@ -829,25 +842,44 @@ static float draw_level(DSLObj p, float y) {
       for (int i = 0; i < 4; i++) { DSLObj c = flow_chip(&fa, al[i], 0, on_tal_all, UD(i == 3 ? -1 : i)); char rn[40]; snprintf(rn, sizeof rn, "+talall:%d", i); reg(rn, c); }
       y = flow_end(&fa) + 2; }
     const jv *tl = arr("tal");
-    float nw = 150, cw = ti && ti->cnt ? (LW - nw - 12 - (ti->cnt - 1) * 6) / ti->cnt : 100;
+    /* the tier chips (UX U6: equal fifths cut "Outstandi...", "Außergewöhnli / ch"): each tier's column as wide as its label
+       at its size + the frame, the stat names' column as wide as the longest name, the room left shared out. No room for
+       both on one line: each stat name on its own line and its chips under it across the whole width */
+    int nt = ti ? (int)ti->cnt : 0; if (nt > 8) nt = 8;
+    float tw[8], tsum = 0, nw = 90;
+    for (int i = 0; i < nt; i++) { char tk[40], tn[80]; sraw(jget(ti->v[i], "k"), tk, sizeof tk); sraw(jget(ti->v[i], "n"), tn, sizeof tn);
+                                   float pw = label_px(p, tier_word(tk, tn), 14); tw[i] = (pw > 0 ? pw : label_w(tier_word(tk, tn), 14)) + 22; tsum += tw[i]; }
+    for (size_t m = 0; tl && m < tl->cnt; m++) { char mk[40], mn[80]; sraw(jget(tl->v[m], "m"), mk, sizeof mk); sraw(jget(tl->v[m], "n"), mn, sizeof mn);
+                                                 float pw = label_px(p, stat_word(mk, mn), 15) + 14; if (pw > nw) nw = pw; }
+    float gaps = nt > 1 ? (float)(nt - 1) * 6 : 0, one = LW - 6 - nw - 6;
+    int two = tsum + gaps > one;
+    float cx0 = two ? 6 : 6 + nw + 6, avail = two ? LW - 12 : one, k = 1, extra = 0;
+    if (tsum + gaps > avail) k = (avail - gaps) / tsum;                 /* not even a line of its own: all narrower (last resort) */
+    else extra = (avail - tsum - gaps) / (nt ? nt : 1);
+    chips_cut = 0;
     for (size_t m = 0; tl && m < tl->cnt; m++) {
         char mk[40], mn[80], cur[40]; sraw(jget(tl->v[m], "m"), mk, sizeof mk); sraw(jget(tl->v[m], "n"), mn, sizeof mn); sraw(jget(tl->v[m], "t"), cur, sizeof cur);
-        text_fit(p, 6, y, nw - 8, 34, stat_word(mk, mn), 15, DSL_TXT_LEFT, MU_C_MAIN);
-        for (size_t i = 0; ti && i < ti->cnt; i++) {
+        text_fit(p, 6, y, two ? LW - 12 : nw, two ? 26 : 34, stat_word(mk, mn), 15, DSL_TXT_LEFT, MU_C_MAIN);
+        if (two) y += 28;
+        float cx = cx0;
+        for (int i = 0; i < nt; i++) {
             char tk[40], tn[80]; sraw(jget(ti->v[i], "k"), tk, sizeof tk); sraw(jget(ti->v[i], "n"), tn, sizeof tn);
-            DSLObj c = chip(p, nw + i * (cw + 6), y, cw, 34, tier_word(tk, tn), !strcmp(cur, tk), on_tal, UD(((int)m << 8) | (int)i), NULL);
+            float cw = tw[i] * k + extra;
+            DSLObj c = chip(p, cx, y, cw, 34, tier_word(tk, tn), !strcmp(cur, tk), on_tal, UD(((int)m << 8) | i), NULL);
+            cx += cw + 6;
             if (c) { char tip[200]; snprintf(tip, sizeof tip, TR("+%d to +%d per level"), num(ti->v[i], "lo"), num(ti->v[i], "hi")); U->tooltip(c, tier_word(tk, tn), tip);
                      char rn[120]; snprintf(rn, sizeof rn, "+tal:%s:%s", mk, tk); reg(rn, c); }
         }
         y += 40;
     }
+    W.tal_cut = chips_cut;
     { jv *ts = jget(W.st, "talSum");
       snprintf(t, sizeof t, TR("Talent sum: %d. A recruit rolls a sum from %d to %d."), num(ts, "v"), num(ts, "lo"), num(ts, "hi"));
       y = note(p, y, LW, t, 22) + 6; }
     /* stat elixirs (renderElixirs) */
     const jv *ex = arr("elix");
     if (ex && ex->cnt) {
-        y = heading(p, y, LW, TR("Stat elixirs"));
+        y = heading(p, y, LW, TR("Stat Elixirs"));
         y = note(p, y, LW, TR("Each elixir a unit drinks raises one stat for good. Count the ones this unit has taken."), 22);
         for (size_t i = 0; i < ex->cnt; i++) {
             char k[80], wn[120], n[160], m[40], sn[80], line[300];
@@ -994,8 +1026,8 @@ static int tree_pass(const jv *o) { return fl_pass(F_IN_TREE, truthy(o, "w") ? "
 static float draw_insc(DSLObj p, float y) {
     jv *in = jget(W.st, "insc"); int freen = num(in, "free");
     FL.n[F_IN_TREE] = 0; fl_add(F_IN_TREE, "w"); fl_add(F_IN_TREE, "a");
-    y = heading(p, y, LW, TR("Extra skill trees"));
-    const char *trs[] = { TR("Weapon trees"), TR("Auxiliary trees") };
+    y = heading(p, y, LW, TR("Extra Skill Trees"));
+    const char *trs[] = { TR("Weapon Trees"), TR("Auxiliary Trees") };
     y = chip_row(p, y, LW, NULL, F_IN_TREE, trs);
     Grid gt = { "treeCands", CM_ICON_TREE, 3, 44, on_tree, "tree", 1, tree_pass, NULL };
     y = grid(p, y, &gt, freen > 0) + 8;
@@ -1005,7 +1037,7 @@ static float draw_insc(DSLObj p, float y) {
 }
 static float draw_presets(DSLObj p, float y) {
     jv *sets = jget(W.st, "sets");
-    y = heading(p, y, LW, TR("Gear quick sets"));
+    y = heading(p, y, LW, TR("Gear Quick Sets"));
     y = note(p, y, LW, TR("Pick a weapon type, then a material set: the set brings that weapon and the armour of its tier. Change any slot in Gear after."), 40);
     const jv *wt = arr_in(sets, "weapons");
     Flow fw; flow_init(&fw, p, 6, y, LW - 6, 34);
@@ -1017,7 +1049,7 @@ static float draw_presets(DSLObj p, float y) {
     }
     y = flow_end(&fw);
     int two = truthy(sets, "twoHanded");
-    DSLObj tg = U->toggle(p, 6, y, LW - 12 > 520 ? 520 : LW - 12, TR("Add a shield (one-handed weapons)"), truthy(sets, "shield"), on_shield, NULL);   /* 320 cut the label */
+    DSLObj tg = U->toggle(p, 6, y, LW - 12 > 520 ? 520 : LW - 12, TR("Add a Shield (One-Handed Weapons)"), truthy(sets, "shield"), on_shield, NULL);   /* 320 cut the label */
     if (tg) { U->set_enabled(tg, !two); reg("+shield", tg); }
     y += 44;
     const jv *ls = arr_in(sets, "list");
@@ -1036,10 +1068,10 @@ static float draw_presets(DSLObj p, float y) {
         if (b) { U->tooltip(b, n, line); char rn[60]; snprintf(rn, sizeof rn, "+qset:%zu", i); reg(rn, b); }
     }
     y += ((ls ? ls->cnt : 0) + 1) / 2 * 56 + 10;
-    y = heading(p, y, LW, TR("Whole units"));
-    DSLObj gb = chip(p, 6, y, 0, 40, TR("Start from a gallery build"), 0, on_gal, NULL, NULL);
+    y = heading(p, y, LW, TR("Whole Units"));
+    DSLObj gb = chip(p, 6, y, 0, 40, TR("Start from a Gallery Build"), 0, on_gal, NULL, NULL);
     if (gb) { reg("+gallery", gb); if (!cm_gallery_pick) U->set_enabled(gb, 0);
-              U->tooltip(gb, TR("Start from a gallery build"), TR("Opens the Wiki Build Gallery. The unit you choose there fills this window.")); }
+              U->tooltip(gb, TR("Start from a Gallery Build"), TR("Opens the Wiki Build Gallery. The unit you choose there fills this window.")); }
     return note(p, y + 48, LW, TR("Or save a gallery build to My Units, then press Edit there."), 24);
 }
 
@@ -1117,10 +1149,10 @@ static void draw_sheet(void) {
         y += 8;
     }
     jv *sp = jget(W.st, "sp"), *in = jget(W.st, "insc"); char t[80];
-    y = sheet_group(W.sheet, y, sw, TR("Points left"), 3);
-    snprintf(t, sizeof t, "%d / %d", num(sp, "main"), num(sp, "mainMax")); y = sheet_row(W.sheet, y, sw, TR("Main SP left"), t, NULL);
-    snprintf(t, sizeof t, "%d / %d", num(sp, "sub"), num(sp, "subMax")); y = sheet_row(W.sheet, y, sw, TR("Sub SP left"), t, NULL);
-    snprintf(t, sizeof t, "%d / %d", num(in, "free"), num(in, "slots")); sheet_row(W.sheet, y, sw, TR("Inscriptions free"), t, NULL);
+    y = sheet_group(W.sheet, y, sw, TR("Points Left"), 3);
+    snprintf(t, sizeof t, "%d / %d", num(sp, "main"), num(sp, "mainMax")); y = sheet_row(W.sheet, y, sw, TR("Main SP Left"), t, NULL);
+    snprintf(t, sizeof t, "%d / %d", num(sp, "sub"), num(sp, "subMax")); y = sheet_row(W.sheet, y, sw, TR("Sub SP Left"), t, NULL);
+    snprintf(t, sizeof t, "%d / %d", num(in, "free"), num(in, "slots")); sheet_row(W.sheet, y, sw, TR("Inscriptions Free"), t, NULL);
 }
 
 /* scroll thumbs (as Test Fights): the kit's scroll lists have no bar, so the last portrait row looked cut at the window's
@@ -1205,7 +1237,7 @@ static void refresh(void) {
             char store[100][8]; const char *vals[100]; int n = mx > 0 && mx <= 100 ? mx : 12;
             for (int i = 0; i < n; i++) { snprintf(store[i], sizeof store[i], "%d", i + 1); vals[i] = store[i]; }
             U->destroy(W.v_lvl);
-            W.v_lvl = U->value_row(W.win, W.lx, 54, 240, TR("Level"), vals, n, lv - 1, on_lvl, NULL);
+            W.v_lvl = U->value_row(W.win, W.lx, W.ty - 2, 240, TR("Level"), vals, n, lv - 1, on_lvl, NULL);
             W.lvl_n = n;
         } else U->value_set(W.v_lvl, lv - 1);
     }
@@ -1226,7 +1258,8 @@ static void refresh(void) {
 
 static int build_ui(void) {
     float w, h;
-    W.win = mu_window(W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 780, &w, &h);
+    /* the shell's red X is the window's Cancel (asks first with unsaved changes): no Cancel button (owner 2026-10-25, U5) */
+    W.win = mu_shell_open(&W.sh, W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 798, 0, &w, &h, on_cancel, NULL);
     if (!W.win) { mu_log("builder: kit not ready"); return -1; }
     dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* again after each build: a gear list goes on top */
     W.w = w; W.h = h; W.mid = W.mid_holder = W.sheet = W.bar = W.f_search = NULL; W.nreg = 0; W.lvl_n = 0; W.bar_sec = -1; W.scroll_h = 0;
@@ -1234,21 +1267,21 @@ static int build_ui(void) {
     /* one fill over the Box sprite (it holds a lighter block that ended mid-window when stretched); its copper edge stays */
     { DSLObj fill = U->panel(W.win, 5, 8, w - 10, h - 16, 0);
       if (fill) { look(fill, NULL, C_FILL); cm_raycast(fill, false); cm_set_sibling(fill, 0); } }
-    float y = 56;
+    float y = W.ty = MU_SHELL_BAND + 10;
     /* the top row from the window's real width (mu_window clamps it): a narrow window (UI scale 1.4 on a 16:10 or 4:3
        screen) takes the room for the message from the name box, never from the buttons */
-    float fw = 260, need = 240 - (w - 902); if (need > 0) fw -= need > 100 ? 100 : need;
+    float fw = 260, need = 240 - (w - 767); if (need > 0) fw -= need > 100 ? 100 : need;
     W.lx = 84 + fw + 16; float stx = W.lx + 240 + 12;
     text_fit(W.win, 20, y, 64, 40, TR("Name"), 15, DSL_TXT_LEFT, MU_C_SUB);
     W.f_name = U->field(W.win, 84, y, fw, 40, TR("Unit name"), W.lib_name, on_name, NULL);
     { const char *one[] = { "-" }; W.v_lvl = U->value_row(W.win, W.lx, y - 2, 240, TR("Level"), one, 1, 0, on_lvl, NULL); }   /* 44 high: centred on the 40 row */
-    W.b_save = mu_button(W.win, w - 280, y, 125, 40, TR("Save"), on_save, NULL);
-    W.b_cancel = mu_button(W.win, w - 145, y, 125, 40, TR("Cancel"), on_cancel, NULL);
-    /* the message: up to three lines (y 50..104, above the lists) so a gallery load or a save error is read whole */
-    W.status = mu_text(W.win, stx, y - 6, w - 280 - stx - 10, 54, W.msg, 14, DSL_TXT_LEFT, MU_C_SUB);
+    W.b_save = mu_button(W.win, w - 145, y, 125, 40, TR("Save"), on_save, NULL);
+    W.b_cancel = W.sh.x;
+    /* the message: up to three lines (y - 6 .. y + 48, above the lists) so a gallery load or a save error is read whole */
+    W.status = mu_text(W.win, stx, y - 6, w - 145 - stx - 10, 54, W.msg, 14, DSL_TXT_LEFT, MU_C_SUB);
     U->tooltip(W.b_save, TR("Save"), TR("Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."));
     reg("name", W.f_name); reg("save", W.b_save); reg("cancel", W.b_cancel); reg("status", W.status); reg("win", W.win);
-    W.my = 108; W.mh = h - W.my - 20; W.mx = 212;
+    W.my = y + 52; W.mh = h - W.my - 20; W.mx = 212;
     float ny = W.my, nh = 40;
     if ((nh + 6) * SEC_N > W.mh) nh = W.mh / SEC_N - 6;
     for (int j = 0; j < SEC_N; j++) {
@@ -1267,6 +1300,8 @@ static int relang;                       /* the language changed: build the wind
 void bld_relang(void) { relang = 1; }
 static void win_poll(void) {             /* the kit's screen layer or the UI scale changed: build the window again */
     if (!W.open || !W.win) { relang = 0; return; }
+    /* opened on the title screen: gone with the title (a world loads), never left over the game (U1); about once a second */
+    if (W.on_title && ++W.title_poll >= 20) { W.title_poll = 0; if (!cmw_title_shown()) { mu_log("builder: the title screen went away: closed"); close_win(); return; } }
     thumb_tick();
     /* the search box: the list follows what is typed (a short pause first, so a word is one redraw) */
     if (W.f_search) {
@@ -1281,7 +1316,7 @@ static void win_poll(void) {             /* the kit's screen layer or the UI sca
         char name[96] = ""; if (W.f_name) U->field_get(W.f_name, name, sizeof name);
         if (W.f_search) U->field_get(W.f_search, FL.q[W.section], sizeof FL.q[W.section]);
         mu_log("builder: screen layer %.0fx%.0f -> %.0fx%.0f, window built again", W.lw, W.lh, lw, lh);
-        U->destroy(W.win); W.win = NULL;
+        mu_shell_close(&W.sh); W.win = NULL;
         if (build_ui()) { close_win(); return; }
         if (name[0]) U->field_set(W.f_name, name);
         refresh();
@@ -1312,7 +1347,7 @@ void cm_builder_open(const char *unit_id_or_null, void (*saved)(const char *unit
     }
     W.saved = saved; W.ud = ud; snprintf(W.name0, sizeof W.name0, "%s", W.lib_name);   /* the field's first text */
     if (build_ui()) { free(bj); return; }
-    W.open = 1;
+    W.open = 1; W.on_title = cmw_title_shown(); W.title_poll = 0;
     if (eng == ENG_FAILED) eng = ENG_NONE;              /* try again (the wiki may answer now) */
     post(J_LOAD, bj ? bj : "null");
     free(bj);
@@ -1340,9 +1375,9 @@ size_t bld_test_state(char *out, size_t cap) {
     for (size_t t = 0; trees && t < trees->cnt; t++) { jv *rows = jget(trees->v[t], "rows");
         for (size_t r = 0; rows && r < rows->cnt; r++) for (size_t c = 0; rows->v[r]->t == JN_ARR && c < rows->v[r]->cnt; c++) learned += jtruthy(jget(rows->v[r]->v[c], "on")); }
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"engine\":%d,\"busy\":%d,\"saving\":%d,\"section\":%d,\"edit\":\"%s\",\"msg\":\"%s\",\"eng_msg\":\"%s\","
-                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f,\"dirty\":%d,\"slot\":%d}",
+                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f,\"dirty\":%d,\"slot\":%d,\"tal_cut\":%d}",
                             W.open, eng, bld_work_busy(), W.saving, W.section, W.unit_id, m, em, nm, race, bg, W.st ? num(W.st, "lvl") : 0, learned,
-                            W.nreg, W.w, W.h, W.dirty, W.open_slot);
+                            W.nreg, W.w, W.h, W.dirty, W.open_slot, W.tal_cut);
 }
 /* test: keys the window lists now, "key,on,locked;..." for kind races|bgs|inds|treeCands|inscs|acq|souls|portraits|skills|items:<Slot> */
 int bld_test_keys(const char *kind, char *out, size_t n) {

@@ -607,7 +607,7 @@ static void paint_worlds(float y, float lh, float ky) {
     else snprintf(line, sizeof line, "%s", TR("Open a world and tick the units to send in. They fight as they are in that save."));
     sy += txt(sc, "fights:l.picked", 0, sy, uw, line, 15, sq[0] ? GOLD : SUB) + 8;
     /* owner 2026-10-25: "Give the option to import their affecters from save as is (food buffs & others)": off by default */
-    const char *wl_aff = TR("Bring buffs and effects from the save");
+    const char *wl_aff = TR("Bring Buffs and Effects from the Save");
     cmw_named(U->toggle(sc, 0, sy, uw, wl_aff, st.waff, waff_change, NULL), CMW_TOGGLE, "fights:l.waff", waff_change, NULL, wl_aff);
     sy += 44;
     int ni = 0, na = 0;
@@ -669,7 +669,7 @@ static void paint_left(void) {
     float y = head(left, 0, 0, LW, TR("Squad"));
     /* World units (the same words as My Units' section) on a second row: three labels never fit one row (ES "Galería de
        builds de la wiki") */
-    const char *src_l[3] = { TR("My Units"), TR("Wiki Build Gallery"), TR("World units") };
+    const char *src_l[3] = { TR("My Units"), TR("Wiki Build Gallery"), TR("World Units") };
     DSLObj sb[3]; float sx[3] = { 0, LW / 2 + 4, 0 }, sw[3] = { LW / 2 - 4, LW / 2 - 4, LW }, ty[3] = { y, y, y + 46 }, need[3];
     for (int s = 0; s < 3; s++) {
         char nm[40]; snprintf(nm, sizeof nm, "fights:l.src%d", s);
@@ -750,7 +750,7 @@ static void paint_left(void) {
         for (size_t i = 0; i < nu; i++) {
             mu_info in; if (mu_info_at(lib, i, &in)) continue;
             if (i < sizeof in_team && in_team[i]) continue;
-            if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units not in a team"), 16, GOLD) + 2; head_done = 1; }
+            if (nt && !head_done) { sy += txt(sc, "fights:l.solo", 0, sy, uw, TR("Units Not in a Team"), 16, GOLD) + 2; head_done = 1; }
             int on = picked_at(in.id) >= 0;
             char lab[160], nm[40]; snprintf(lab, sizeof lab, TR("%s  Lv %d"), in.name, in.lvl); snprintf(nm, sizeof nm, "fights:l.unit%zu", i);
             cmw_named(U->toggle(sc, 0, sy, uw, lab, on, unit_toggle, (void *)(intptr_t)i), CMW_TOGGLE, nm, unit_toggle, (void *)(intptr_t)i, lab);
@@ -866,12 +866,19 @@ static float dps_card(DSLObj parent, float y, float w) {
     cmw_named(card, CMW_TEXT, "fights:r.dpscard", NULL, NULL, stats);
     return H;
 }
+static int boss_cut;                                                  /* test: boss card stat names that did not fit (UX U7) */
+static float label_px(DSLObj p, const char *s, float size) {          /* a one-line text's width at its size (measured) */
+    DSLObj m = U->text(p, 0, 0, 2000, 30, s, size, DSL_TXT_LEFT, SUB);
+    float pw = m ? cm_text_preferred_w(m) : -1;
+    if (m) U->destroy(m);
+    return pw;
+}
 static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
-    const float H = 156, A = 132;
+    const float A = 132;
+    float H = 156;
     DSLObj card = cmw_flat(U->panel(parent, 0, y, w, H, 0), 0x2D2A31FFu);
     if (!card) return 0;
-    cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu);
-    cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
+    DSLObj top = cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu), foot = cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
     DSLObj box = cmw_flat(U->panel(card, 12, 12, A, A, 0), 0x1E1C21FFu);
     Obj sp = tfc_unit_art(b->key);                                   /* cut to its visible pixels: it fills the box */
     DSLObj art = sp && box ? U->panel(box, 4, 4, A - 8, A - 8, 0xFFFFFFFFu) : NULL;
@@ -880,17 +887,34 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
     DSLObj nmt = U->text(card, x, 10, cw, 32, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
     if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.bossname", NULL, NULL, b->tn[0] ? b->tn : b->n); }
     float v[TFC_N];
+    boss_cut = 0;
     if (tfc_unit_stats(b->key, v)) { txt(card, "fights:r.bossstats", x, 46, cw, TR("The game's data for this boss is not loaded yet."), 14, SUB); return H; }
-    /* the wiki unit card's rows: HP, attacks, attack speed, critical chance, resistances, movement speed */
-    char stats[1200]; size_t k = 0;
-    float colw = cw / 2, ry = 46;
+    /* the wiki unit card's rows: HP, attacks, attack speed, critical chance, resistances, movement speed; the game's stat names.
+       Two columns when every name fits its half at its size, else one stat per row across the card (UX U7: de / ru names
+       were cut and shrunk to different sizes: "Maximale Lebensp...", "Шанс критическо...") */
+    const char *lab[TFC_N]; char key[TFC_N][96];
+    float colw = cw / 2, ry = 46, need = 0;
     for (int i = 0; i < TFC_N; i++) {
-        char key[96], val[40]; snprintf(key, sizeof key, "TEXTKEY_STATUS_%s_NAME", tfc_field[i]);
-        const char *lab = cm_gw(key, tfc_field[i]);
+        snprintf(key[i], sizeof key[i], "TEXTKEY_STATUS_%s_NAME", tfc_field[i]);
+        lab[i] = cm_gw(key[i], tfc_field[i]);
+        char keep[160]; snprintf(keep, sizeof keep, "%s", lab[i]);     /* cm_gw's buffers rotate: measure a copy */
+        float pw = label_px(card, keep, 14); if (pw > need) need = pw;
+    }
+    int cols = need > 0 && need <= colw - 76 ? 2 : 1;
+    if (cols == 1) colw = cw;
+    int rows = (TFC_N + cols - 1) / cols;
+    if (ry + (float)rows * 24 + 10 > H) {                              /* taller: the card grows, its foot line moves down */
+        H = ry + (float)rows * 24 + 10;
+        U->place(card, 0, y, w, H); U->place(foot, 0, H - 1, w, 1);
+    }
+    (void)top;
+    char stats[1200]; size_t k = 0;
+    for (int i = 0; i < TFC_N; i++) {
+        char name[160], val[40]; snprintf(name, sizeof name, "%s", cm_gw(key[i], tfc_field[i]));
         fmt_stat(i, v[i], val, sizeof val);
-        float cx = x + (i % 2) * colw, cy = ry + (float)(i / 2) * 24;
-        DSLObj l = U->text(card, cx, cy, colw - 76, 24, lab, 14, DSL_TXT_LEFT, SUB);   /* clear of the value's box */
-        if (l) cm_text_ellipsis(l);
+        float cx = x + (float)(i % cols) * colw, cy = ry + (float)(i / cols) * 24;
+        DSLObj l = U->text(card, cx, cy, colw - 76, 24, name, 14, DSL_TXT_LEFT, SUB);   /* clear of the value's box */
+        if (l) { cm_text_ellipsis(l); float pw = cm_text_preferred_w(l); if (pw > colw - 76 + 0.5f) boss_cut++; }
         U->text(card, cx + colw - 74, cy, 64, 24, val, 15, DSL_TXT_RIGHT, MAIN);
         if (k + 100 < sizeof stats) k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", tfc_field[i], val);
     }
@@ -914,10 +938,10 @@ static void paint_right(void) {
     DSLObj vp = U->scroll(right_sc, 0, 0, RW - 10, PANEL_H);
     right = vp;
     /* What do you want */
-    y += head(right, 0, y, w, TR("What to test"));
+    y += head(right, 0, y, w, TR("What to Test"));
     const char *ml[6]; char md[600] = "";
     for (int i = 0; i < P.nmodes; i++)
-        ml[i] = !strcmp(P.modes[i], "dps") ? TR("DPS Check") : !strcmp(P.modes[i], "boss") ? TR("Boss fight") : !strcmp(P.modes[i], "arena") ? TR("Custom fight") : TR("Finished base");
+        ml[i] = !strcmp(P.modes[i], "dps") ? TR("DPS Check") : !strcmp(P.modes[i], "boss") ? TR("Boss Fight") : !strcmp(P.modes[i], "arena") ? TR("Custom Fight") : TR("Finished Base");
     cmw_named(U->value_row(right, 0, y, w, TR("Test"), ml, P.nmodes, st.mode, mode_change, NULL), CMW_VALUE, "fights:r.mode", mode_change, NULL, ml[st.mode]);
     y += 50;
     if (!strcmp(mode_id(), "dps")) { char dur[40]; fmt_n(P.dummy_dur, dur, sizeof dur); snprintf(md, sizeof md, TR("A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does."), P.dummy_tn, dur); }
@@ -928,7 +952,7 @@ static void paint_right(void) {
     if (!strcmp(mode_id(), "dps")) { y += dps_card(right, y, w) + 10; y += tf_dps_setup_rows(right, y, w) + 6; }   /* its switches (tf_dps.c) */
     /* Which fight / Which room */
     if (is_fight() && P.nbosses) {
-        y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which fight") : TR("Which room"));
+        y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which Fight") : TR("Which Room"));
         const char *bl[8]; for (int i = 0; i < P.nbosses; i++) bl[i] = P.bosses[i].tn[0] ? P.bosses[i].tn : P.bosses[i].n;
         cmw_named(U->value_row(right, 0, y, w, TR("Boss"), bl, P.nbosses, st.boss, boss_change, NULL), CMW_VALUE, "fights:r.boss", boss_change, NULL, bl[st.boss]);
         y += 50;
@@ -945,7 +969,7 @@ static void paint_right(void) {
             cmw_named(U->field(right, 0, y, w - 220, 40, TR("Search monsters by name..."), st.monq, monq_submit, NULL), CMW_FIELD, "fights:r.monq", monq_submit, NULL, st.monq);
             static const char *cnt[30]; static char cb[30][4];
             for (int i = 0; i < 30; i++) { snprintf(cb[i], 4, "%d", i + 1); cnt[i] = cb[i]; }
-            cmw_named(U->value_row(right, w - 212, y - 2, 212, TR("How many"), cnt, 30, st.mon_count - 1, moncount_change, NULL), CMW_VALUE, "fights:r.moncount", moncount_change, NULL, cnt[st.mon_count - 1]);
+            cmw_named(U->value_row(right, w - 212, y - 2, 212, TR("How Many"), cnt, 30, st.mon_count - 1, moncount_change, NULL), CMW_VALUE, "fights:r.moncount", moncount_change, NULL, cnt[st.mon_count - 1]);
             y += 48;
             int shown = 0;
             for (int i = 0; i < P.nmons && shown < 12; i++) {
@@ -981,13 +1005,13 @@ static void paint_right(void) {
     DSLObj mg = cmw_named(U->value_row(right, 0, y, w, cm_gw("TEXTKEY_SaveLoad_ManagementDifficulty", TR_NOOP("Management")), gl, P.nmgmt, mi, mgmt_change, NULL), CMW_VALUE, "fights:r.mgmt", mgmt_change, NULL, gl[mi]);
     if (!st.mgmt_own) U->set_enabled(mg, 0);
     y += 50;
-    cmw_named(U->toggle(right, 0, y, w, TR("Choose management difficulty separately"), st.mgmt_own, mgmt_own_change, NULL), CMW_TOGGLE, "fights:r.mgmtown", mgmt_own_change, NULL, TR("Choose management difficulty separately"));
+    cmw_named(U->toggle(right, 0, y, w, TR("Choose Management Difficulty Separately"), st.mgmt_own, mgmt_own_change, NULL), CMW_TOGGLE, "fights:r.mgmtown", mgmt_own_change, NULL, TR("Choose Management Difficulty Separately"));
     y += 42;
     if (!st.mgmt_own) { char t[200]; snprintf(t, sizeof t, TR("Left off, the economy matches the combat difficulty (%s)."), gl[mi]); y += txt(right, NULL, 12, y, w - 12, t, 14, SUB); }
     y += 10;
     /* Battle kits */
     if (P.nkits) {
-        y += head(right, 0, y, w, TR("Battle kits"));
+        y += head(right, 0, y, w, TR("Battle Kits"));
         y += txt(right, NULL, 12, y, w - 12, TR("Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."), 14, SUB) + 4;
         int sl = 0, any = 0; double wt = 0;
         for (int i = 0; i < P.nkits; i++) {
@@ -1019,7 +1043,7 @@ static void paint_right(void) {
         else { char g[32]; snprintf(t, sizeof t, TRN("%d slot and %s weight per character.", "%d slots and %s weight per character.", sl), sl, fmt_g((double)((long long)(wt * 100 + 0.5)) / 100, g, sizeof g)); }
         y += txt(right, NULL, 12, y, w - 12, t, 14, SUB) + 4;
         if (any && P.insc_n[0]) {
-            char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on custom saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);
+            char lab[200]; snprintf(lab, sizeof lab, TR("Grant %s on Custom Saves"), P.insc_tn[0] ? P.insc_tn : P.insc_n);
             /* owner v0.1.11 #5 (and the wiki's own rule, builder.js paintSup): the inscription's icon first; hovering it shows
                the game's own hover card for that inscription */
             Obj sp = P.insc_k[0] ? cm_icon(CM_ICON_AFFECTER, P.insc_k) : NULL;
@@ -1089,7 +1113,7 @@ static void build_window(void) {
     w_status = NULL;
     w_start = cmw_named(U->button(body, WIN_W - 24 - 220, BODY_H - 72, 220, 52, TR("Start"), start_click, NULL), CMW_BUTTON, "fights:start", start_click, NULL, TR("Start"));
     /* always made, shown by paint_status: the files often fail after the window opened (it was missing then) */
-    w_retry = cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try again"));
+    w_retry = cmw_named(U->button(body, WIN_W - 24 - 220 - 180, BODY_H - 66, 170, 40, TR("Try Again"), retry_click, NULL), CMW_BUTTON, "fights:retry", retry_click, NULL, TR("Try Again"));
     engine_open();
     paint_all();
 }
@@ -1115,10 +1139,10 @@ static void test_state(char *out, size_t n) {
     for (int i = 0; i < st.nsv && c + 70 < sizeof ps; i++) c += (size_t)snprintf(ps + c, sizeof ps - c, "%s%s/%s", i ? "," : "", st.sv[i].world, st.sv[i].guid);
     for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
     snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
-             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d}",
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d,\"boss_cut\":%d}",
              engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
              P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
-             P.max_squad, ws, wsel, us, wu_err, ps, st.waff);
+             P.max_squad, ws, wsel, us, wu_err, ps, st.waff, boss_cut);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 

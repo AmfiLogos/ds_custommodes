@@ -90,7 +90,7 @@ static void page_done(cm_job *j) {
             if (pv >= 0) { pv = -1; for (int i = 0; i < nitems; i++) if (!strcmp(items[i].id, pv_id)) { pv = i; break; } }
             more = b->pg.more && page < GAL_MAX_PAGE; page = b->page;
             status[0] = 0;                                                 /* picking: the hint stays until a state replaces it */
-            if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
+            if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\".")); status_warn = 0; }
             int shown = 0; for (int i = 0; i < nitems; i++) shown += visible(&items[i]);
             if (s_name[0] && shown < SEARCH_MIN && more) {                /* a name search: look further down the list */
                 gal_page_free(&b->pg); free(b);
@@ -655,7 +655,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
     member_name(it, u, t, sizeof t);
     txt(c, x0, 10, right - x0 - (pick_cb ? 230 : 0), 26, t, 20, DSL_TXT_LEFT, GOLD);
     if (pick_cb) { char nm[40]; snprintf(nm, sizeof nm, "gallery:p.pick%d", u);
-                   cmw_named(K(mu_button(c, right - 220, 8, 220, 38, TR("Use this unit"), pick_click, (void *)(intptr_t)u)), CMW_BUTTON, nm, pick_click, (void *)(intptr_t)u, TR("Use this unit")); }
+                   cmw_named(K(mu_button(c, right - 220, 8, 220, 38, TR("Use This Unit"), pick_click, (void *)(intptr_t)u)), CMW_BUTTON, nm, pick_click, (void *)(intptr_t)u, TR("Use This Unit")); }
     crumb(g, 1, t, sizeof t);
     size_t k = strlen(t);
     for (int e = 0; e < g->nextra && k < sizeof t; e++) {
@@ -663,7 +663,10 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
         k += (size_t)snprintf(t + k, sizeof t - k, "  \xC2\xB7  %s %s%s", stat_name(g->extra[e].key), v, g->extra[e].pct ? "%" : "");
     }
     dsi_utf8_fix_end(t);
-    txt(c, x0, 38, right - x0 - (pick_cb ? 230 : 0), 20, t, 14, DSL_TXT_LEFT, SUB);   /* clear of "Use this unit" */
+    /* picking for the Unit Builder: the line goes under "Use This Unit" across the whole width (UX U8: beside the button it
+       was cut, "... Life S...") */
+    float ly = pick_cb ? 50 : 38;
+    { char nm[40]; snprintf(nm, sizeof nm, "gallery:p.crumb%d", u); cmw_named(txt(c, x0, ly, right - x0, 20, t, 14, DSL_TXT_LEFT, SUB), CMW_TEXT, nm, NULL, NULL, t); }
     /* the six major stats; a talent colours the value (the game's talent gems) and is named after it */
     k = 0; t[0] = 0;
     for (int m = 0; m < 6 && k < sizeof t; m++) {
@@ -675,7 +678,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
                               tk[0] ? " (" : "", tk[0] ? cm_gw(tk, g->talents[m]) : "", tk[0] ? ")" : "");
     }
     dsi_utf8_fix_end(t);
-    float yy = 60;
+    float yy = ly + 22;
     if (t[0]) { DSLObj mt = txt(c, x0, yy, right - x0, 40, t, 14, DSL_TXT_LEFT | DSL_TXT_WRAP, MAIN);
                 float pw = mt ? cm_text_preferred_w(mt) : -1, th = pw > right - x0 ? 40 : 20;   /* one line or two */
                 if (mt) U->place(mt, x0, yy, right - x0, th); yy += th + 6; }
@@ -752,7 +755,7 @@ static void tab(DSLObj p, float x, float y, float w, const char *label, int on, 
     if (on) flat(p, x + 4, y + 40, w - 8, 3, GOLD);
 }
 static void filters(DSLObj p) {
-    const char *kinds[2] = { TR("Teams"), TR("Units") }, *sorts[2] = { TR("Most popular"), TR("Newest") }, *views[2] = { TR("Compact Plus"), TR("List") };
+    const char *kinds[2] = { TR("Teams"), TR("Units") }, *sorts[2] = { TR("Most Popular"), TR("Newest") }, *views[2] = { TR("Compact Plus"), TR("List") };
     char nm[40];
     for (int s = 0; s < 2; s++) {
         snprintf(nm, sizeof nm, "gallery:f.kind%d", s); tab(p, 24 + s * 126, 12, 120, kinds[s], q.chars == s, kind_click, s, nm);
@@ -767,9 +770,9 @@ static void filters(DSLObj p) {
         for (int i = 0; i < nrace; i++) { char g[96]; game_name(race_keys[i], g, sizeof g); snprintf(rn[i], 96, "%s", g[0] ? g : gal_name_word(words, "races", race_keys[i])); rl[i + 1] = rn[i]; }
         for (int i = 0; i < ntree; i++) { snprintf(tn[i], 96, "%s", gal_name_word(words, "trees", tree_keys[i])); tl[i + 1] = tn[i]; }
         cmw_named(K(U->value_row(p, 24, 62, rw, TR("Races"), rl, nrace + 1, q.race, race_change, NULL)), CMW_VALUE, "gallery:f.race", race_change, NULL, rl[q.race]);
-        cmw_named(K(U->value_row(p, 24 + rw + 12, 62, rw, TR("Weapon trees"), tl, ntree + 1, q.tree, tree_change, NULL)), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
+        cmw_named(K(U->value_row(p, 24 + rw + 12, 62, rw, TR("Weapon Trees"), tl, ntree + 1, q.tree, tree_change, NULL)), CMW_VALUE, "gallery:f.tree", tree_change, NULL, tl[q.tree]);
     }
-    cmw_named(K(U->toggle(p, WW - 24 - 250, 63, 250, TR("Complete only"), q.complete, complete_change, NULL)), CMW_TOGGLE, "gallery:f.complete", complete_change, NULL, TR("Complete only"));
+    cmw_named(K(U->toggle(p, WW - 24 - 250, 63, 250, TR("Complete Only"), q.complete, complete_change, NULL)), CMW_TOGGLE, "gallery:f.complete", complete_change, NULL, TR("Complete Only"));
 }
 static void grid(DSLObj p) {
     nvis = 0; for (int i = 0; i < nitems; i++) if (visible(&items[i])) vis[nvis++] = i;   /* a name search shows only its matches */
@@ -802,7 +805,8 @@ static void paint_status(void) {
 }
 static void paint(void) {
     if (!cmw_is_open("gallery") || !body) return;
-    cmw_forget("gallery:c"); cmw_forget("gallery:f."); cmw_forget("gallery:p.");
+    for (int d = 0; d <= 9; d++) { char pre[16]; snprintf(pre, sizeof pre, "gallery:c%d", d); cmw_forget(pre); }   /* the cards, not "gallery:close" */
+    cmw_forget("gallery:f."); cmw_forget("gallery:p.");
     trk_clear(); ncards_drawn = nsprites = 0;
     grid_holder = K(cmw_flat(U->panel(body, 0, 0, WW, BH - 70, 0), 0x00000000));
     cm_raycast(grid_holder, false);                                  /* the search row under it (made once) keeps its clicks */
@@ -819,7 +823,7 @@ static void closed(void *ud) {
 }
 /* the window: as large as the screen allows at the game's UI scale (cmw_open draws it at that scale), up to 1200 x 820 */
 static void win_size(void) {
-    float lw = 0, lh = 0, sc = mu_ui_scale(); DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);
+    float lw = 0, lh = 0, sc = mu_ui_scale(); DSLObj p = U->panel(NULL, 0, 0, 10, 10, 0);   /* KIT-SCALE: see mu_ui.h */
     if (p) { if (cm_rect_size(cm_parent(p), &lw, &lh)) lw = lh = 0; U->destroy(p); }
     lw /= sc; lh /= sc;
     WW = lw >= 1000 ? (lw - 60 < 1200 ? lw - 60 : 1200) : 1040;
@@ -851,9 +855,9 @@ void gal_open(void) {
     w_prev = cmw_named(mu_button(body, WW - 24 - 270, BH - 56, 46, 44, "<", prev_click, NULL), CMW_BUTTON, "gallery:prev", prev_click, NULL, "<");
     w_page = cmw_named(mu_text(body, WW - 24 - 220, BH - 56, 174, 44, "", 15, DSL_TXT_CENTER, SUB), CMW_TEXT, "gallery:page", NULL, NULL, "");
     w_next = cmw_named(mu_button(body, WW - 24 - 46, BH - 56, 46, 44, ">", next_click, NULL), CMW_BUTTON, "gallery:next", next_click, NULL, ">");
-    if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
+    if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\".")); status_warn = 0; }
     fetch(0);
-    if (pick_cb) snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\"."));
+    if (pick_cb) snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\"."));
     paint();
 }
 /* the picker door for the Unit Builder (lane cmbuilder, weak import): the gallery opens; "Use this unit" in a build's
