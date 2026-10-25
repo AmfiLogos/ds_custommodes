@@ -161,6 +161,9 @@ static void on_cancel(void *ud, DSLObj w) {      /* unsaved changes: the game's 
     if (W.dirty || strcmp(nm, W.name0)) { U->notice(TR("Discard your changes?"), TR("Discard"), TR("Keep editing"), discard_ok, NULL, NULL); return; }
     mu_log("builder: closed without saving"); close_win();
 }
+/* Escape (kit 0.1.28 owns the key; an older kit: nothing, as before) = Cancel: with unsaved changes the game's notice asks
+   (that box is the kit's: Escape there = "Keep editing") */
+static void esc_win(void *ud) { (void)ud; mu_log("builder: Escape = Cancel"); on_cancel(NULL, NULL); }
 
 /* a click: the action JSON goes to the model, the answer redraws */
 static void act(const char *json) {
@@ -459,6 +462,9 @@ static void on_skill(void *ud, DSLObj w) {
     char k[200]; sraw(jget(row->v[c], "k"), k, sizeof k); act_k("skill", k);
 }
 static void on_slot(void *ud, DSLObj w) { (void)w; W.open_slot = W.open_slot == IDX(ud) ? -1 : IDX(ud); FL.pk[F_GEAR_TYPE].n = 0; refresh(); }
+/* Escape with a gear slot's item list open: the list closes, as a second click on its slot (the slot button is pushed each
+   time the list is drawn; it goes with every redraw of the lists) */
+static void esc_slot(void *ud) { (void)ud; if (W.open && W.open_slot >= 0) { W.open_slot = -1; FL.pk[F_GEAR_TYPE].n = 0; refresh(); } }
 static void on_item(void *ud, DSLObj w) {
     (void)w; int v = IDX(ud), s = v >> 12, i = (v & 0xFFF) - 1;
     const jv *eq = arr("eq"); if (!eq || (size_t)s >= eq->cnt) return;
@@ -943,6 +949,7 @@ static float draw_gear(DSLObj p, float y) {
         DSLObj b = icon_button(p, lab, y, LW - lab - 4, 48, k[0] ? CM_ICON_ITEM : 0, k, k[0] ? n : TR("(empty)"),
                                W.open_slot == (int)s ? TR("choose below") : TR("click to change"), k[0] ? ST_ON : ST_OFF, on_slot, UD(s));
         snprintf(rn, sizeof rn, "+slot:%s", slot); reg(rn, b);
+        if (b && W.open_slot == (int)s) dsl_esc_push(U, b, esc_slot, NULL, 0);
         y += 54;
         /* the item's random rolls (which stats rolled; the value is the middle of the range, like the wiki's picker) */
         jv *rolls = jget(e, "rolls"), *tags = jget(e, "tags");
@@ -1221,6 +1228,7 @@ static int build_ui(void) {
     float w, h;
     W.win = mu_window(W.unit_id[0] ? TR("Unit Builder - Edit") : TR("Unit Builder"), 1240, 780, &w, &h);
     if (!W.win) { mu_log("builder: kit not ready"); return -1; }
+    dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* again after each build: a gear list goes on top */
     W.w = w; W.h = h; W.mid = W.mid_holder = W.sheet = W.bar = W.f_search = NULL; W.nreg = 0; W.lvl_n = 0; W.bar_sec = -1; W.scroll_h = 0;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* one fill over the Box sprite (it holds a lighter block that ended mid-window when stretched); its copper edge stays */
@@ -1332,9 +1340,9 @@ size_t bld_test_state(char *out, size_t cap) {
     for (size_t t = 0; trees && t < trees->cnt; t++) { jv *rows = jget(trees->v[t], "rows");
         for (size_t r = 0; rows && r < rows->cnt; r++) for (size_t c = 0; rows->v[r]->t == JN_ARR && c < rows->v[r]->cnt; c++) learned += jtruthy(jget(rows->v[r]->v[c], "on")); }
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"engine\":%d,\"busy\":%d,\"saving\":%d,\"section\":%d,\"edit\":\"%s\",\"msg\":\"%s\",\"eng_msg\":\"%s\","
-                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f}",
+                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f,\"dirty\":%d,\"slot\":%d}",
                             W.open, eng, bld_work_busy(), W.saving, W.section, W.unit_id, m, em, nm, race, bg, W.st ? num(W.st, "lvl") : 0, learned,
-                            W.nreg, W.w, W.h);
+                            W.nreg, W.w, W.h, W.dirty, W.open_slot);
 }
 /* test: keys the window lists now, "key,on,locked;..." for kind races|bgs|inds|treeCands|inscs|acq|souls|portraits|skills|items:<Slot> */
 int bld_test_keys(const char *kind, char *out, size_t n) {

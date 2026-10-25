@@ -103,6 +103,8 @@ static int build_page(Obj view) {
     return 0;
 }
 void (*cm_home_on_open)(void);
+/* Escape on the page = Back (kit 0.1.28 owns the key: the page is pushed while it shows; an older kit: no Escape here) */
+static void home_esc(void *ud) { (void)ud; H->log(ME, "home: Back (Escape)"); cm_home_close(); }
 void cm_home_open(void) {
     if (!U || !il_init()) { if (H) H->log(ME, "home: cannot open (kit %s, il2cpp %d)", U ? "ok" : "missing", il_ok); return; }
     Obj v = title_view(); if (!v) { H->log(ME, "home: no title screen"); return; }
@@ -113,12 +115,14 @@ void cm_home_open(void) {
     set_active(go_of(hget(h_col)), false);
     set_active(go_of(hget(h_page)), true);
     page_on = 1;
+    dsl_esc_push(U, (DSLObj)hget(h_page), home_esc, NULL, 0);
     H->log(ME, "home: page open");
     if (cm_home_on_open) cm_home_on_open();
 }
 void cm_home_close(void) {
     if (!page_on) return;
     page_on = 0;
+    dsl_esc_drop(U, (DSLObj)hget(h_page));
     set_active(go_of(hget(h_page)), false);
     set_active(go_of(hget(h_col)), true);
 }

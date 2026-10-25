@@ -132,6 +132,13 @@ static void state(char *out, size_t cap) {
     size_t o = 0; char col[1200] = "", e[1400];
     t_title(NULL, col, sizeof col); jesc(e, sizeof e, col);
     o += (size_t)snprintf(out + o, cap - o, "\"kit\":%d,\"title_column\":\"%s\"", U != NULL, e);
+    {   /* units/test/esc_test.py: the kit's Escape stack ("name|shown|flags|seq;..."; -1 = a loader without it) and whether
+           a text field has the keyboard (loader test exports, kit 0.1.28) */
+        static int (*te)(char *, size_t); static int (*ty)(void); static int looked;
+        if (!looked) { looked = 1; *(void **)&te = dlsym(RTLD_DEFAULT, "dsl_ui_test_esc"); *(void **)&ty = dlsym(RTLD_DEFAULT, "dsl_ui_test_typing"); }
+        char es[1500] = "", ee[1700]; int n = te ? te(es, sizeof es) : -1; jesc(ee, sizeof ee, es);
+        o += (size_t)snprintf(out + o, cap - o, ",\"esc_n\":%d,\"esc\":\"%s\",\"typing\":%d", n, ee, ty ? ty() : -1);
+    }
     if (c_state && o + 2 < cap) { o += (size_t)snprintf(out + o, cap - o, ",\"cm\":{"); o += c_state(out + o, cap - o - 2); o += (size_t)snprintf(out + o, cap - o, "}"); }
     { id w = game_window(); CGRect f = w ? ((CGRect (*)(id, SEL))objc_msgSend)(w, sel_registerName("frame")) : CGRectZero;
       o += (size_t)snprintf(out + o, cap - o, ",\"win\":[%.0f,%.0f,%.0f,%.0f]", f.origin.x, f.origin.y, f.size.width, f.size.height); }
