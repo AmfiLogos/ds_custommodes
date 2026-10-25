@@ -4,6 +4,12 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
+### Unreleased (0.1.44)
+
+Test Fights:
+- World Units shows four unit cards at once (it showed two): the cards are shorter (the name and the race share one
+  line), and the window grows taller when the screen has room.
+
 ### 0.1.43 (2026-10-25)
 
 Windows:

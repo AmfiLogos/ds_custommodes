@@ -422,3 +422,26 @@
   sit under the owner's header ("Strange Seed (summon) » Unit 24: +20"), in the meter in the owner's row with the summon
   as its own skill row. A summon of a unit that has not acted yet stays its own source. dps_test --heal 12/12: 7 Strange
   Seed heals under the healer, the meter row "Strange Seed (summon)" 140.
+
+## Test Fights: four World units cards at once (2026-10-25, 0.1.44, lane dstflist)
+- Owner: World units "only ever displays two units at once, which is wrong. It should display more." Measured on main
+  80c2617 (hidden copy, UI Scale 1.1, 960x540): list view 415 high, 151 of it above the first card (the hint or "In the
+  squad" line, the effects switch, the world row), cards 128 + 8: 2 cards wholly in view.
+- Pick (target: 4 cards, the text sizes kept): both of
+  - the card template's compact form (units/mu_ui.c `mu_card_draw_ex(..., MU_CARD_COMPACT)`, `mu_card_h`): the name and
+    the race line share the first row (the name keeps up to 55 %, the race line drops its weapon word, then ends in "...");
+    portrait 72, level, the three icon rows and every text size unchanged; 106 high. Same function as My Units' cards
+    (one template); My Units keeps the full form (its pages fit 4 already; teams and the snapshot note need the second
+    row). The compact form draws no teams / note.
+  - the window grows with the screen (tf_ui.c win_h): 728 as before, up to 940 when the screen layer has the room at the
+    game's UI Scale (`mu_shell_room_h`: (layer height - 40) / UI Scale, the shell's own fit test). The scale is never
+    lowered for it. At UI Scale 1.0 or 1.1 on a 1080-high layer (16:9, 1728x1000, the owner's 3456x2234: the game's canvas is 1080
+    high) it is 940: list view 627, 4 cards + a part of the 5th. At UI Scale 1.2+ the room is smaller (computed, not measured: 3 cards at 1.2).
+- My Units in Test Fights (source 0) lists one-line rows (40 high) and team rows (48), no cards: nothing to make compact.
+- "The window zooms on every unit tick" (owner, LEAD UPDATE 23:31): not this window. Measured: its screen rect stays the
+  same through tick / untick clicks (box and card), hover and mouse-off. The owner's dsload.log of that session shows only
+  ds_modloader multi-bar "layout n=4 scale=0.69 / n=3 0.92 / n=2 1.00" lines, each time the number of selected units in
+  the DPS Check world changed (multi_bar.c: the bars shrink to fit the canvas width). Reported to the lead.
+- Test: fights/test/saveunits_game_test.py list_view_part (every language run): the open world's cards wholly inside the
+  list's view (`fights:l.list`, the scroll's viewport rect) >= 4 in a world of 7 units (main 80c2617: 2, FAIL), and the
+  window's screen rect unchanged after tick / untick by box and card.
