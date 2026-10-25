@@ -38,7 +38,7 @@ static struct {
     DSLObj team_btn[64]; int nteam_btn; DSLObj all_btn; char team_txt[64][300];   /* team rows and their texts (tests) */
     float bar_x0, bar_room, bar_w[6]; DSLObj bar_b[6]; int bar_n;   /* the bottom bar's library buttons (layout_bottom) */
     int ren_team, ren_on; char ren_tid[17];   /* the name box renames: 0 the ticked unit, 1 the team ren_tid (selected when opened); ren_on = it shows */
-    DSLObj tick[16], card[16]; char card_id[16][17]; char card_guid[16][40]; char card_teams[16][400]; int ncard;
+    DSLObj tick[16], card[16], row[16], note[16]; char card_id[16][17]; char card_guid[16][40]; char card_teams[16][400]; int ncard;
     float w, h, rx, ry, rw, rh, lw, lh, scale;
     jv *lib; char err[400];
     int sel_team;                     /* -1 = All units */
@@ -242,6 +242,14 @@ static void on_tick(void *ud, DSLObj w) {
     if (U->toggle_get(w)) { if (!is_ticked(id) && W.nticked < NMAX) memcpy(W.ticked[W.nticked++], id, 17); }
     else untick(id);
     refresh();
+}
+/* CARD RULE (owner 2026-10-25): a click anywhere on a card toggles its tick, as its check box. The card is drawn inside a
+   button of its size (row[i]): a click on the card, its texts, icons or the snapshot line (which takes the hover) goes up
+   to that button. */
+static void on_card(void *ud, DSLObj w) {
+    (void)w; int i = (int)(intptr_t)ud; if (i < 0 || i >= W.ncard || !W.tick[i]) return;
+    U->toggle_set(W.tick[i], !U->toggle_get(W.tick[i]));
+    on_tick(ud, W.tick[i]);
 }
 /* "Save snapshot": the ticked units of the world's newest save become normal My Units units, each with its source */
 static void on_snapshot(void *ud, DSLObj w) {
@@ -474,14 +482,15 @@ static void draw_cards(void) {
             int i = W.page * W.per_page + k; if (i >= W.nsu) break;
             float y = 8 + k * (MU_CARD_H + 8);
             static wk_build b; static mu_card c; static mu_save_extra x; char e[300] = "";
-            snprintf(W.card_guid[W.ncard], 40, "%s", W.su[i].guid); W.card_id[W.ncard][0] = 0; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
+            snprintf(W.card_guid[W.ncard], 40, "%s", W.su[i].guid); W.card_id[W.ncard][0] = 0; W.note[W.ncard] = NULL; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
             mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);
             W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_wticked(W.su[i].guid), on_tick, (void *)(intptr_t)W.ncard);
+            DSLObj row = W.row[W.ncard] = U->button(W.right, 52, y, W.rw - 60, MU_CARD_H, "", on_card, (void *)(intptr_t)W.ncard);
             if (!mu_save_build_ex(path, W.su[i].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &c)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams */
+                W.card[W.ncard] = mu_card_draw(row ? row : W.right, row ? 0 : 52, row ? 0 : y, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams */
             } else {
-                DSLObj p = U->panel(W.right, 52, y, W.rw - 60, MU_CARD_H, MU_C_ROW);
+                DSLObj p = U->panel(row ? row : W.right, row ? 0 : 52, row ? 0 : y, W.rw - 60, MU_CARD_H, MU_C_ROW);
                 mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
                 W.card[W.ncard] = p;
             }
@@ -503,10 +512,12 @@ static void draw_cards(void) {
         int i = W.page * W.per_page + k; if (i >= W.nids) break;
         float y = 8 + k * slot;
         wk_build b; mu_card c; char e[300];
-        memcpy(W.card_id[W.ncard], W.ids[i], 17); W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
+        memcpy(W.card_id[W.ncard], W.ids[i], 17); W.note[W.ncard] = NULL; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
         mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
         /* the kit's check box sits 24 from the toggle's right edge (centre): 48 wide puts it in the slot's middle */
         W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
+        DSLObj row = W.row[W.ncard] = U->button(W.right, 52, y, W.rw - 60, MU_CARD_H, "", on_card, (void *)(intptr_t)W.ncard);
+        DSLObj cp = row ? row : W.right; float cx = row ? 0 : 52, cy = row ? 0 : y;     /* the card inside its button */
         if (!mu_build_of(W.lib, W.ids[i], &b, e, sizeof e) && !mu_card_of(&b, &c)) {
             char nm[64]; name_of(W.ids[i], nm, sizeof nm);
             /* the teams it is in (owner 2026-10-25), from the library as it is now: every action draws the cards again */
@@ -519,11 +530,12 @@ static void draw_cards(void) {
                line on hover) */
             mu_source src; static char sf[4][200]; const char *sp[4]; int nsf = 0;
             if (mu_source_of(W.lib, W.ids[i], &src)) { nsf = mu_source_forms(&src, sf); for (int q = 0; q < nsf; q++) sp[q] = sf[q]; }
-            W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, nm, 0, NULL, NULL, 0, tp, ntn, nsf ? sp : NULL, nsf, nsf ? sf[0] : NULL);
+            W.card[W.ncard] = mu_card_draw(cp, cx, cy, W.rw - 60, &c, nm, 0, NULL, NULL, 0, tp, ntn, nsf ? sp : NULL, nsf, nsf ? sf[0] : NULL);
             snprintf(W.card_teams[W.ncard], sizeof W.card_teams[0], "%s", mu_card_teams_shown());
             if (nsf) { snprintf(W.card_src[W.ncard], sizeof W.card_src[0], "%s", mu_card_note_shown()); snprintf(W.card_src_full[W.ncard], sizeof W.card_src_full[0], "%s", sf[0]); W.nsrc++; }
+            W.note[W.ncard] = nsf ? mu_card_note_obj() : NULL;
         } else {
-            DSLObj p = U->panel(W.right, 52, y, W.rw - 60, MU_CARD_H, MU_C_ROW);
+            DSLObj p = U->panel(cp, cx, cy, W.rw - 60, MU_CARD_H, MU_C_ROW);
             mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e, 14, DSL_TXT_WRAP, MU_C_BAD);
             W.card[W.ncard] = p;
         }
@@ -687,6 +699,7 @@ DSLObj mu_window_test_find(const char *n) {
     if (sscanf(n, "tip%d", &k) == 1) return mu_tip_test_target(k);       /* the k-th icon with a game hover card */
     if (sscanf(n, "tick%d", &k) == 1 && k >= 0 && k < W.ncard) return W.tick[k];
     if (sscanf(n, "card%d", &k) == 1 && k >= 0 && k < W.ncard) return W.card[k];
+    if (sscanf(n, "note%d", &k) == 1 && k >= 0 && k < W.ncard) return W.note[k];
     if (sscanf(n, "team%d", &k) == 1 && k >= 0 && k < W.nteam_btn) return W.team_btn[k];
     if (sscanf(n, "world%d", &k) == 1 && k >= 0 && k < W.nworld_btn) return W.world_btn[k];
     return NULL;

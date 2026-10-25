@@ -244,12 +244,15 @@ static void teams_row(DSLObj card, float x, float y, float room, const char *con
 }
 /* the note on the right of the race line: the first form that fits the room, right-aligned before the character sprite;
    the hover card has the full line */
-static char note_shown[400];
+static char note_shown[400]; static DSLObj note_obj;
 const char *mu_card_note_shown(void) { return note_shown; }
+DSLObj mu_card_note_obj(void) { return note_obj; }
 static void note_row(DSLObj card, float x, float y, float room, const char *const *forms, int n, const char *tip) {
     int k = n - 1;
     for (int i = 0; i < n; i++) { float pw = text_w(card, forms[i], 13); if (pw >= 0 && pw <= room) { k = i; break; } }
-    DSLObj h = mu_plate(card, x, y, room, 22, 0);                     /* a holder that takes the hover (the text lets it through) */
+    DSLObj h = mu_plate(card, x, y, room, 22, 0);                     /* a holder that takes the hover (the text lets it through); a
+                                                                         click on it goes up to the card's button (My Units) */
+    note_obj = h;
     if (h && tip && *tip) { cm_raycast(h, true); U->tooltip(h, TR("Snapshot"), tip); }
     mu_text(h ? h : card, h ? 0 : x, h ? 0 : y, room, 22, forms[k], 13, DSL_TXT_RIGHT, MU_C_SUB);
     snprintf(note_shown, sizeof note_shown, "%s", forms[k]);
@@ -257,7 +260,7 @@ static void note_row(DSLObj card, float x, float y, float room, const char *cons
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
                     const char *const *note, int nnote, const char *note_tip) {
-    teams_shown[0] = 0; note_shown[0] = 0;
+    teams_shown[0] = 0; note_shown[0] = 0; note_obj = NULL;
     if (!U || !c) return NULL;
     DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, 0);            /* the game's own panel (a dark tint drew it black) */
     if (!card) return NULL;

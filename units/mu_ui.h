@@ -86,6 +86,7 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
 /* test support: the teams text / note the last mu_card_draw showed ("" none; the teams' "+N" part included when cut) */
 const char *mu_card_teams_shown(void);
 const char *mu_card_note_shown(void);
+DSLObj mu_card_note_obj(void);                /* the last card's note holder (it takes the hover), NULL none */
 
 /* frame tick: fn runs on the game's main thread between frames every ~ms while registered (mu_clip.c, OS timer) */
 int  mu_tick_add(void (*fn)(void));

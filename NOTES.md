@@ -358,3 +358,7 @@
 - Tests: units/test/ux_test.py (language files + one hidden copy per language: backdrop takes the page's clicks, X square
   top right in all four windows, Delete Team box order and full-screen dim, talent / boss / pick-details text fit, My Units
   closes when a world loads); units/test/save (World units by save time).
+- 0.1.37 CARD RULE (owner 2026-10-25): a click anywhere on a unit card toggles its tick, as the check box, in All units,
+  team views and a world's view. Each card is drawn inside a button of its size (mu_window.c row[i], on_card); its texts and
+  icons let clicks through, and a click on the snapshot line (its holder takes the hover for the full line) goes up to the
+  button. worlds_test.py: card middle, snapshot line and a world card each tick then untick (fails on main e059e4f).
