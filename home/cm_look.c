@@ -12,6 +12,11 @@
 #include "cm_look.h"
 #include "cm_il.h"
 #include <string.h>
+/* the parts call dsl_esc_push / dsl_esc_drop on this table (Escape closes our windows, kit 0.1.28): a module built on an
+   older dsl_sdk.h would never close a window on Escape, so it does not build. The shipped build uses the loader's sdk/. */
+#ifndef DSL_UI_HAS
+#error "dsl_sdk.h older than kit 0.1.28 (no Escape API): build with SDK=<ds_modloader>/loader/sdk"
+#endif
 
 static const DSLHost *H; static DSLPlugin *ME; static const DSLUi *K;   /* K = the loader's own table */
 static DSLUi L;                                                           /* the parts' table */
