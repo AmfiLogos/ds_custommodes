@@ -32,10 +32,12 @@ static const DSLUi *U;
 static struct {
     int open;
     int box_on;
-    DSLObj box_add, box_cancel, b_rename_ok;
+    DSLObj box_add, box_cancel, b_rename_ok, b_rename_cancel;
     DSLObj win, status, box, box_field, rename_row, rename_field, left, right, bottom, pager;
-    DSLObj b_add, b_new, b_close, b_team, b_rename, b_edit, b_delete, b_delteam, b_snap, b_prev, b_next, t_sel, t_page;
-    DSLObj team_btn[64]; int nteam_btn; DSLObj all_btn;
+    DSLObj b_add, b_new, b_close, b_team, b_rename, b_edit, b_delete, b_renteam, b_delteam, b_snap, b_prev, b_next, t_sel, t_page;
+    DSLObj team_btn[64]; int nteam_btn; DSLObj all_btn; char team_txt[64][300];   /* team rows and their texts (tests) */
+    float bar_x0, bar_room, bar_w[6]; DSLObj bar_b[6]; int bar_n;   /* the bottom bar's library buttons (layout_bottom) */
+    int ren_team; char ren_tid[17];   /* the name box renames: 0 the ticked unit, 1 the team ren_tid (selected when opened) */
     DSLObj tick[16], card[16]; char card_id[16][17]; char card_guid[16][40]; char card_teams[16][400]; int ncard;
     float w, h, rx, ry, rw, rh, lw, lh, scale;
     jv *lib; char err[400];
@@ -49,12 +51,11 @@ static struct {
     DSLObj world_btn[WMAX]; int nworld_btn;
     mu_save_unit su[NMAX]; int nsu, su_for; char su_err[400];
     char wticked[NMAX][40]; int nwticked;
-    /* library cards with a source (a snapshot): a line under the card; src_any = the list has one (taller slots) */
-    int src_any, nsrc; DSLObj src_txt[16];
+    /* library cards with a source (a snapshot): the line inside the card (nsrc = drawn on this page; their text) */
+    int nsrc; char card_src[16][200], card_src_full[16][400];
     /* "Delete team" box: Team and units / Team only / Cancel */
     int dlg_on; DSLObj dlg, dlg_units, dlg_only, dlg_cancel;
 } W = { .sel_team = -1, .sel_world = -1, .su_for = -1 };
-#define SRC_H 24.f                    /* the source line under a snapshot unit's card */
 
 static void refresh(void);
 static void win_poll(void);
@@ -94,8 +95,6 @@ static void list_ids(void) {
         size_t n = mu_count(W.lib);
         for (size_t i = 0; i < n && W.nids < NMAX; i++) { mu_info inf; if (!mu_info_at(W.lib, i, &inf)) memcpy(W.ids[W.nids++], inf.id, 17); }
     }
-    W.src_any = 0;
-    for (int i = 0; i < W.nids && !W.src_any; i++) { mu_source s; W.src_any = mu_source_of(W.lib, W.ids[i], &s); }
 }
 
 /* ------------------------------------------------------------------ World units */
@@ -252,18 +251,38 @@ static void rename_show(int on) {
     if (W.rename_row) U->set_active(W.rename_row, on);
     if (W.bottom) U->set_active(W.bottom, !on);
 }
+static void on_rename_ok(void *ud, DSLObj w);
+/* the name box's field, made again when it switches between a unit and a team (its empty-field hint says which) */
+static void rename_field_for(int team) {
+    if (!W.rename_row || (W.rename_field && W.ren_team == team)) { W.ren_team = team; return; }
+    if (W.rename_field) U->destroy(W.rename_field);
+    W.ren_team = team;
+    W.rename_field = U->field(W.rename_row, 80, 2, W.w - 40 - 80 - 260, 40, team ? TR("Team name") : TR("Unit name"), "", on_rename_ok, NULL);
+}
 static void on_rename(void *ud, DSLObj w) {
     (void)ud; (void)w; if (!W.lib || W.nticked != 1) return;
     char cur[64]; name_of(W.ticked[0], cur, sizeof cur);
+    rename_field_for(0);
     U->field_set(W.rename_field, cur);
     rename_show(1);
 }
+/* "Rename team" (owner 2026-10-25: "no way to rename teams"): the selected team, in the same name box */
+static void on_renteam(void *ud, DSLObj w) {
+    (void)ud; (void)w; if (!W.lib || W.sel_team < 0 || W.sel_world >= 0) return;
+    char nm[200], ids[MU_TEAM_MAX][17]; mu_team_at(W.lib, (size_t)W.sel_team, nm, sizeof nm, ids); dsi_utf8_fix_end(nm);
+    if (mu_team_id_at(W.lib, (size_t)W.sel_team, W.ren_tid)) return;
+    rename_field_for(1);
+    U->field_set(W.rename_field, nm);
+    rename_show(1);
+}
 static void on_rename_ok(void *ud, DSLObj w) {
-    (void)ud; (void)w; char t[64] = ""; U->field_get(W.rename_field, t, sizeof t);
+    (void)ud; (void)w; char t[200] = ""; U->field_get(W.rename_field, t, sizeof t);
     char *s = t; while (*s == ' ') s++;
     size_t L = strlen(s); while (L && s[L - 1] == ' ') s[--L] = 0;
     if (!*s) { set_msg(TR("Type a name first."), MU_C_BAD); return; }
-    if (W.lib && W.nticked == 1 && !mu_rename(W.lib, W.ticked[0], s) && !save_lib()) set_msg(TR("Renamed."), MU_C_GOLD);
+    if (W.ren_team) {
+        if (W.lib && !mu_team_rename(W.lib, W.ren_tid, s) && !save_lib()) { set_msg(TR("Team renamed."), MU_C_GOLD); mu_log("my units: team %s renamed", W.ren_tid); }
+    } else if (W.lib && W.nticked == 1 && !mu_rename(W.lib, W.ticked[0], s) && !save_lib()) set_msg(TR("Renamed."), MU_C_GOLD);
     rename_show(0); refresh();
 }
 static void on_rename_cancel(void *ud, DSLObj w) { (void)ud; (void)w; rename_show(0); }
@@ -378,6 +397,7 @@ static void draw_left(void) {
             }
             float tx = TEAM_H, tw = bw - TEAM_H - 6;
             snprintf(t, sizeof t, "%s (%d)", nm, n); dsi_utf8_fix_end(t);
+            snprintf(W.team_txt[W.nteam_btn], sizeof W.team_txt[0], "%s%s%s", t, has_au ? "|by " : "", has_au ? au : "");
             /* the name on up to two lines (a gallery name is long: "Shield & Greatsword Fellowship"), the builder under it */
             mu_text(b, tx, has_au ? 3 : 6, tw, has_au ? 38 : TEAM_H - 12, t, 14, DSL_TXT_LEFT | DSL_TXT_WRAP, sel ? MU_C_GOLD : MU_C_MAIN);
             if (has_au) { snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by); mu_text(b, tx, 41, tw, 20, by, 12, DSL_TXT_LEFT, MU_C_SUB); }
@@ -418,12 +438,12 @@ static void draw_cards(void) {
             int i = W.page * W.per_page + k; if (i >= W.nsu) break;
             float y = 8 + k * (MU_CARD_H + 8);
             static wk_build b; static mu_card c; static mu_save_extra x; char e[300] = "";
-            snprintf(W.card_guid[W.ncard], 40, "%s", W.su[i].guid); W.card_id[W.ncard][0] = 0; W.card_teams[W.ncard][0] = 0;
+            snprintf(W.card_guid[W.ncard], 40, "%s", W.su[i].guid); W.card_id[W.ncard][0] = 0; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
             mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);
             W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_wticked(W.su[i].guid), on_tick, (void *)(intptr_t)W.ncard);
             if (!mu_save_build_ex(path, W.su[i].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &c)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0);   /* a save's unit: no teams */
+                W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams */
             } else {
                 DSLObj p = U->panel(W.right, 52, y, W.rw - 60, MU_CARD_H, MU_C_ROW);
                 mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
@@ -440,14 +460,14 @@ static void draw_cards(void) {
             : TR("This team has no units."), 16, DSL_TXT_WRAP, MU_C_SUB);
         return;
     }
-    float slot = MU_CARD_H + (W.src_any ? SRC_H : 0) + 8;              /* a list with a snapshot unit: room for its line */
+    float slot = MU_CARD_H + 8;                                        /* every line inside the card: 4 per page at UI scale 1 */
     W.per_page = (int)((W.rh - BOX_DY - 8) / slot); if (W.per_page < 1) W.per_page = 1; if (W.per_page > 16) W.per_page = 16;
     int pages = (W.nids + W.per_page - 1) / W.per_page; if (W.page >= pages) W.page = pages - 1;
     for (int k = 0; k < W.per_page; k++) {
         int i = W.page * W.per_page + k; if (i >= W.nids) break;
         float y = 8 + k * slot;
         wk_build b; mu_card c; char e[300];
-        memcpy(W.card_id[W.ncard], W.ids[i], 17); W.card_teams[W.ncard][0] = 0;
+        memcpy(W.card_id[W.ncard], W.ids[i], 17); W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
         mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
         /* the kit's check box sits 24 from the toggle's right edge (centre): 48 wide puts it in the slot's middle */
         W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
@@ -459,25 +479,36 @@ static void draw_cards(void) {
                 char ids[MU_TEAM_MAX][17]; int k = mu_team_at(W.lib, t, tn[ntn], sizeof tn[0], ids);
                 for (int q = 0; q < k; q++) if (!strcmp(ids[q], W.ids[i])) { dsi_utf8_fix_end(tn[ntn]); tp[ntn] = tn[ntn]; ntn++; break; }
             }
-            W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, nm, 0, NULL, NULL, 0, tp, ntn);
+            /* a snapshot: where and when, on the right of the race line (short forms when the room is small, the full
+               line on hover) */
+            mu_source src; static char sf[4][200]; const char *sp[4]; int nsf = 0;
+            if (mu_source_of(W.lib, W.ids[i], &src)) { nsf = mu_source_forms(&src, sf); for (int q = 0; q < nsf; q++) sp[q] = sf[q]; }
+            W.card[W.ncard] = mu_card_draw(W.right, 52, y, W.rw - 60, &c, nm, 0, NULL, NULL, 0, tp, ntn, nsf ? sp : NULL, nsf, nsf ? sf[0] : NULL);
             snprintf(W.card_teams[W.ncard], sizeof W.card_teams[0], "%s", mu_card_teams_shown());
+            if (nsf) { snprintf(W.card_src[W.ncard], sizeof W.card_src[0], "%s", mu_card_note_shown()); snprintf(W.card_src_full[W.ncard], sizeof W.card_src_full[0], "%s", sf[0]); W.nsrc++; }
         } else {
             DSLObj p = U->panel(W.right, 52, y, W.rw - 60, MU_CARD_H, MU_C_ROW);
             mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e, 14, DSL_TXT_WRAP, MU_C_BAD);
             W.card[W.ncard] = p;
-        }
-        mu_source src;                                                 /* a snapshot: where and when, one line under the card */
-        if (mu_source_of(W.lib, W.ids[i], &src)) {
-            char line[400]; mu_source_line(&src, line, sizeof line);
-            DSLObj band = mu_plate(W.right, 52, y + MU_CARD_H, W.rw - 60, SRC_H - 2, MU_C_BAND);
-            DSLObj t = band ? mu_text(band, 12, 0, W.rw - 84, SRC_H - 2, line, 13, DSL_TXT_LEFT, MU_C_SUB) : NULL;
-            if (W.nsrc < 16) W.src_txt[W.nsrc++] = t;
         }
         W.ncard++;
     }
 }
 /* a button as wide as its label on one line (the label measured at its size + the frame), at least w0. The kit wraps a
    label that does not fit a 40-high button to two lines (DE "Als Team speichern") */
+/* the library buttons of the bottom bar, the shown ones from the left at their label width; too little room: all shrink by
+   the same factor (the kit then sizes the labels down). team = Rename team / Delete team shown (a team's view) */
+static void layout_bottom(int team) {
+    float sum = 0, bx = W.bar_x0; int idx[6], n = 0;
+    for (int i = 0; i < W.bar_n; i++) {
+        if (!team && (W.bar_b[i] == W.b_renteam || W.bar_b[i] == W.b_delteam)) continue;
+        idx[n++] = i; sum += W.bar_w[i];
+    }
+    for (int k = 0; k < n; k++) {
+        float b = sum > W.bar_room ? W.bar_w[idx[k]] * W.bar_room / sum : W.bar_w[idx[k]];
+        U->place(W.bar_b[idx[k]], bx, 2, b - 6, 40); bx += b;
+    }
+}
 static float fit_w(DSLObj b, float w0) {
     float p = b ? cm_text_preferred_w(b) : -1, w = p > 0 ? p + 28 : w0;
     return w > w0 ? w : w0;
@@ -502,6 +533,8 @@ static void refresh(void) {
     U->set_enabled(W.b_delete, W.nticked >= 1);
     if (W.b_edit) U->set_enabled(W.b_edit, W.nticked == 1);
     U->set_active(W.b_delteam, !wv && W.sel_team >= 0);
+    U->set_active(W.b_renteam, !wv && W.sel_team >= 0);
+    if (!wv) layout_bottom(W.sel_team >= 0);
 }
 
 /* the window's widgets; again (same state) when the kit's screen layer changes size: on the very first window of a run
@@ -538,36 +571,34 @@ static int build_ui(void) {
     W.bottom = mu_plate(W.win, 20, by, w - 40, 44, 0);              /* a holder only: a Box panel drew frame lines out of line */
     if (W.bottom) {
         int nb = mu_builder_present() ? 5 : 4;                      /* Edit only with the Unit Builder */
-        float bx = 8, room = w - 40 - 200 - 140 - 8;
+        float bx = 8, room = w - 40 - 160 - 140 - 8;
         W.t_sel = mu_text(W.bottom, bx + 4, 0, 124, 44, "", 14, DSL_TXT_LEFT, MU_C_SUB); bx += 136;   /* 12 from the left, off the edge */
         W.b_team = mu_button(W.bottom, bx, 2, 100, 40, TR("Save as team"), on_save_team, NULL);
         W.b_rename = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename"), on_rename, NULL);
         W.b_edit = nb == 5 ? mu_button(W.bottom, bx, 2, 100, 40, TR("Edit"), on_edit, NULL) : NULL;
         W.b_delete = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete"), on_delete, NULL);
+        W.b_renteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Rename team"), on_renteam, NULL);
         W.b_delteam = mu_button(W.bottom, bx, 2, 100, 40, TR("Delete team"), on_delteam, NULL);
-        /* each button as wide as its label on one line; the room left is shared out evenly; too little room: all shrink
-           by the same factor (the kit then sizes the labels down) */
-        DSLObj bb[5] = { W.b_team, W.b_rename, W.b_delete, W.b_delteam, NULL }; float bw[5], sum = 0;
-        if (W.b_edit) { bb[2] = W.b_edit; bb[3] = W.b_delete; bb[4] = W.b_delteam; }
-        for (int i = 0; i < nb; i++) sum += bw[i] = fit_w(bb[i], 90) + 6;
-        for (int i = 0; i < nb; i++) {
-            float b = sum > room ? bw[i] * room / sum : bw[i] + (room - sum) / nb;
-            U->place(bb[i], bx, 2, b - 6, 40); bx += b;
-        }
+        /* each button as wide as its label on one line, placed by layout_bottom (the team buttons only in a team's view) */
+        nb += 1;                                                    /* Rename team */
+        DSLObj bb[6] = { W.b_team, W.b_rename, W.b_delete, W.b_renteam, W.b_delteam, NULL };
+        if (W.b_edit) { bb[2] = W.b_edit; bb[3] = W.b_delete; bb[4] = W.b_renteam; bb[5] = W.b_delteam; }
+        W.bar_n = nb; W.bar_x0 = bx; W.bar_room = room;
+        for (int i = 0; i < nb; i++) { W.bar_b[i] = bb[i]; W.bar_w[i] = fit_w(bb[i], 90) + 6; }
         /* a world's view: Save snapshot where Save as team is */
         W.b_snap = mu_button(W.bottom, 136 + 8, 2, 160, 40, TR("Save snapshot"), on_snapshot, NULL);
         { float sw = fit_w(W.b_snap, 160); if (sw > room) sw = room; U->place(W.b_snap, 136 + 8, 2, sw, 40); }
         U->tooltip(W.b_snap, TR("Save snapshot"), TR("Copies the ticked units into My Units as they are in this save. Your save is not changed."));
-        W.b_prev = mu_button(W.bottom, w - 40 - 200, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
-        W.t_page = mu_text(W.bottom, w - 40 - 152, 0, 104, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
+        W.b_prev = mu_button(W.bottom, w - 40 - 160, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
+        W.t_page = mu_text(W.bottom, w - 40 - 112, 0, 64, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         W.b_next = mu_button(W.bottom, w - 40 - 44, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
     }
     W.rename_row = U->panel(W.win, 20, by, w - 40, 44, MU_C_BAND);
     if (W.rename_row) {
         mu_text(W.rename_row, 8, 0, 70, 44, TR("Name"), 14, DSL_TXT_LEFT, MU_C_SUB);
-        W.rename_field = U->field(W.rename_row, 80, 2, w - 40 - 80 - 260, 40, TR("Unit name"), "", on_rename_ok, NULL);
+        W.rename_field = U->field(W.rename_row, 80, 2, w - 40 - 80 - 260, 40, W.ren_team ? TR("Team name") : TR("Unit name"), "", on_rename_ok, NULL);
         W.b_rename_ok = mu_button(W.rename_row, w - 40 - 250, 2, 120, 40, TR("Save"), on_rename_ok, NULL);
-        mu_button(W.rename_row, w - 40 - 125, 2, 120, 40, TR("Cancel"), on_rename_cancel, NULL);
+        W.b_rename_cancel = mu_button(W.rename_row, w - 40 - 125, 2, 120, 40, TR("Cancel"), on_rename_cancel, NULL);
         U->set_active(W.rename_row, 0);
     }
     show_box(W.box_on);
@@ -608,7 +639,7 @@ DSLObj mu_window_test_find(const char *n) {
     static const struct { const char *n; DSLObj *o; } map[] = {
         { "add", &W.b_add }, { "new", &W.b_new }, { "close", &W.b_close }, { "box", &W.box }, { "box_field", &W.box_field },
         { "save_team", &W.b_team }, { "rename", &W.b_rename }, { "edit", &W.b_edit }, { "delete", &W.b_delete },
-        { "delete_team", &W.b_delteam }, { "prev", &W.b_prev }, { "next", &W.b_next }, { "rename_field", &W.rename_field }, { "rename_ok", &W.b_rename_ok },
+        { "delete_team", &W.b_delteam }, { "rename_team", &W.b_renteam }, { "prev", &W.b_prev }, { "next", &W.b_next }, { "rename_field", &W.rename_field }, { "rename_ok", &W.b_rename_ok }, { "rename_cancel", &W.b_rename_cancel },
         { "status", &W.status }, { "box_add", &W.box_add }, { "box_cancel", &W.box_cancel }, { "win", &W.win }, { "all", &W.all_btn }, { "right", &W.right },
         { "snapshot", &W.b_snap }, { "dlg", &W.dlg }, { "dlg_units", &W.dlg_units }, { "dlg_only", &W.dlg_only }, { "dlg_cancel", &W.dlg_cancel } };
     for (size_t i = 0; i < sizeof map / sizeof *map; i++) if (!strcmp(n, map[i].n)) return *map[i].o;
@@ -618,7 +649,6 @@ DSLObj mu_window_test_find(const char *n) {
     if (sscanf(n, "card%d", &k) == 1 && k >= 0 && k < W.ncard) return W.card[k];
     if (sscanf(n, "team%d", &k) == 1 && k >= 0 && k < W.nteam_btn) return W.team_btn[k];
     if (sscanf(n, "world%d", &k) == 1 && k >= 0 && k < W.nworld_btn) return W.world_btn[k];
-    if (sscanf(n, "src%d", &k) == 1 && k >= 0 && k < W.nsrc) return W.src_txt[k];
     return NULL;
 }
 static void jesc(char *o, size_t cap, const char *s) { size_t n = 0; for (; *s && n + 3 < cap; s++) { if (*s == '"' || *s == '\\') o[n++] = '\\'; if ((unsigned char)*s < 0x20) continue; o[n++] = *s; } o[n] = 0; }
@@ -635,15 +665,17 @@ size_t mu_window_test_state(char *out, size_t cap) {
     for (int i = 0; W.sel_world >= 0 && i < W.nsu && o + 50 < sizeof gl; i++) o += (size_t)snprintf(gl + o, sizeof gl - o, "%s\"%s\"", i ? "," : "", W.su[i].guid);
     char lp[1200], lpe[1300]; mu_lib_path(lp, sizeof lp); jesc(lpe, sizeof lpe, lp);
     /* the cards on screen: library id ("" = a save's unit) and the teams text each shows */
-    char cl[8000] = ""; o = 0;
-    for (int i = 0; i < W.ncard && o + 900 < sizeof cl; i++) {
-        char te[800]; jesc(te, sizeof te, W.card_teams[i]);
-        o += (size_t)snprintf(cl + o, sizeof cl - o, "%s{\"id\":\"%s\",\"teams\":\"%s\"}", i ? "," : "", W.card_id[i], te);
+    char tr[6000] = ""; o = 0;                                           /* the left list's team rows as drawn */
+    for (int i = 0; i < W.nteam_btn && o + 700 < sizeof tr; i++) { char te[620]; jesc(te, sizeof te, W.team_txt[i]); o += (size_t)snprintf(tr + o, sizeof tr - o, "%s\"%s\"", i ? "," : "", te); }
+    char cl[16000] = ""; o = 0;
+    for (int i = 0; i < W.ncard && o + 2100 < sizeof cl; i++) {
+        char te[800], se[400], fe[800]; jesc(te, sizeof te, W.card_teams[i]); jesc(se, sizeof se, W.card_src[i]); jesc(fe, sizeof fe, W.card_src_full[i]);
+        o += (size_t)snprintf(cl + o, sizeof cl - o, "%s{\"id\":\"%s\",\"teams\":\"%s\",\"src\":\"%s\",\"src_full\":\"%s\"}", i ? "," : "", W.card_id[i], te, se, fe);
     }
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"units\":%d,\"teams\":%d,\"sel_team\":%d,\"shown\":%d,\"cards\":%d,\"ticked\":%d,"
                             "\"page\":%d,\"per_page\":%d,\"box\":%d,\"link\":%d,\"msg\":\"%s\",\"builder\":%d,\"w\":%.0f,\"h\":%.0f,"
-                            "\"worlds\":[%s],\"sel_world\":%d,\"wunits\":[%s],\"wticked\":%d,\"dlg\":%d,\"src_lines\":%d,\"lib\":\"%s\",\"card_list\":[%s],%s}",
+                            "\"worlds\":[%s],\"sel_world\":%d,\"wunits\":[%s],\"wticked\":%d,\"dlg\":%d,\"src_lines\":%d,\"lib\":\"%s\",\"card_list\":[%s],\"team_rows\":[%s],%s}",
                             W.open, W.lib ? (int)mu_count(W.lib) : -1, W.lib ? (int)mu_team_count(W.lib) : -1, W.sel_team, W.nids,
                             W.ncard, W.nticked, W.page, W.per_page, W.box_on, mul_poll(NULL), m, mu_builder_present(), W.w, W.h,
-                            wl, W.sel_world, gl, W.nwticked, W.dlg_on, W.nsrc, lpe, cl, tip);
+                            wl, W.sel_world, gl, W.nwticked, W.dlg_on, W.nsrc, lpe, cl, tr, tip);
 }

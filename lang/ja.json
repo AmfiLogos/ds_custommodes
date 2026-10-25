@@ -216,6 +216,7 @@
  "Reading the link...": "リンクを読み取り中...",
  "Remove": "削除",
  "Rename": "名前変更",
+ "Rename team": "チーム名変更",
  "Renamed.": "名前を変更しました。",
  "Roll %zu": "ロール %zu",
  "Save": "保存",
@@ -242,6 +243,7 @@
  "Skill Trees": "スキルツリー",
  "Skill trees: %s": "スキルツリー：%s",
  "Skills": "スキル",
+ "Snapshot": "スナップショット",
  "Spear": "槍",
  "Special": "特殊",
  "Squad": "部隊",
@@ -264,8 +266,10 @@
   "チームを%d体のユニットとともに削除しました。"
  ],
  "Team deleted. Its units stay in My Units.": "チームを削除しました。ユニットはマイユニットに残ります。",
+ "Team name": "チーム名",
  "Team only": "チームのみ",
  "Team only: the units stay in My Units.": "チームのみ：ユニットはマイユニットに残ります。",
+ "Team renamed.": "チーム名を変更しました。",
  "Team: %s||Teams: %s": [
   "チーム：%s"
  ],

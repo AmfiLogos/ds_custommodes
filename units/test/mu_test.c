@@ -262,6 +262,13 @@ static void t_team_delete(const char *tmpdir, const char *link) {
           "teamdel: team two still holds its unit (%zu teams)", mu_team_count(lib));
     CHECK(mu_team_at(lib, 1, nm, sizeof nm, got) == n, "teamdel: team three still has its %d units", n);
     CHECK(mu_team_split(lib, tid1, NULL, &ngo, &nst) == -1 && mu_team_delete_units(lib, tid1, NULL) == -1, "teamdel: the deleted team is gone");
+    /* Rename team: the name changes, its units and a gallery team's author stay (file read back) */
+    CHECK(!mu_team_set_source(lib, 1, "Author X", "g42") && !mu_team_rename(lib, tid3, "New name") && !mu_save(lib, e, sizeof e), "teamdel: rename team: %s", e);
+    jfree(lib); lib = mu_load(e, sizeof e); if (!lib) { CHECK(0, "teamdel: reload 2: %s", e); return; }
+    char au[128];
+    CHECK(mu_team_at(lib, 1, nm, sizeof nm, got) == n && !strcmp(nm, "New name") && mu_team_author(lib, 1, au, sizeof au) && !strcmp(au, "Author X"),
+          "teamdel: renamed team keeps its %d units and author (%s, %s)", n, nm, au);
+    CHECK(mu_team_rename(lib, "ffffffffffffffff", "x") == -1 && mu_team_rename(lib, tid3, "") == -1, "teamdel: rename an unknown team / to empty refused");
     /* Team only: every unit stays */
     CHECK(!mu_team_delete(lib, tid3) && mu_team_count(lib) == 1 && mu_count(lib) == (size_t)(n + 1), "teamdel: team only keeps the units");
     jfree(lib);

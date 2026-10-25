@@ -55,6 +55,9 @@ int  mu_delete(jv *lib, const char *id);
 /* "Save as team": a new team of these library ids (1..MU_TEAM_MAX, all present). 0 ok (tid_out filled), -1 + err */
 int  mu_team_new(jv *lib, const char *name, char ids[][17], int n, char tid_out[17], char *err, size_t errn);
 int  mu_team_delete(jv *lib, const char *tid);                       /* the units stay. 0 ok, -1 no such team */
+/* the team's name only (its units and a gallery team's author / gallery id stay). 0 ok, -1 no such team or empty name.
+   Does NOT save. */
+int  mu_team_rename(jv *lib, const char *tid, const char *name);
 /* "Delete team" asks each time (owner 2026-10-25): "Team and units" or "Team only". go = the team's units that are in no
    other team (they go with "Team and units"), *nstay = its units also in another team (they stay). Returns the number of
    the team's units, -1 no such team. go may be NULL. */

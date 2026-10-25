@@ -60,12 +60,16 @@ void mu_name_of(const char *key, char *out, size_t cap);
    name / level: what to show (a save unit's localised name; NULL = the card's own). portrait_key overrides the card's
    avatar (a save's own face). bar: the skill bar to show (NULL = the card's own bar). teams: the names of the My Units
    teams the unit is in (owner 2026-10-25), shown after the name on its row as "Teams: A, B", shortened to "A +2" when
-   they do not fit; NULL / 0 = nothing. */
+   they do not fit; NULL / 0 = nothing. note: a line on the right of the race line, inside the card (a snapshot's source:
+   owner 2026-10-25 "only 3 units per line" when it was a line under the card): forms longest first, the first that fits
+   is shown (else the last one cut with "..."); note_tip = the hover card's text (the full line); NULL / 0 = nothing. */
 #define MU_CARD_H 128.f                        /* 4 cards fit the My Units list at UI scale 1 (owner 2026-10-17) */
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
-                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams);
-/* test support: the teams text the last mu_card_draw showed ("" none; the "+N" part included when it was cut) */
+                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
+                    const char *const *note, int nnote, const char *note_tip);
+/* test support: the teams text / note the last mu_card_draw showed ("" none; the teams' "+N" part included when cut) */
 const char *mu_card_teams_shown(void);
+const char *mu_card_note_shown(void);
 
 /* frame tick: fn runs on the game's main thread between frames every ~ms while registered (mu_clip.c, OS timer) */
 int  mu_tick_add(void (*fn)(void));

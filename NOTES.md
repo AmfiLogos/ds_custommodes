@@ -76,3 +76,11 @@
   "A, B +N" (no whole name fits: the first name cut with "..." and "+N" apart). Read from the library at every redraw, so
   Save as team, Delete team, Delete and Rename show it at once. A save's cards show none. 4 cards per page kept (in-card,
   no extra line). Test: worlds_test.py teams_check after each action (all pages, against the file).
+- 0.1.18 (owner 2026-10-25): "there's only 3 units per line": the snapshot's source is now INSIDE the card, on the right of
+  the race line (the race line keeps up to 60 %), longest form that fits: full line, "<world> · snapshot <time>",
+  "<world> · <time>", "<world> · <MM-DD HH:MM>"; the full line is on its hover card ("Snapshot"). Slots are MU_CARD_H + 8
+  again: 4 per page at UI scale 1 (a 4-unit team of snapshots on one page; worlds_test.py fails otherwise).
+- "Rename team" (owner: "no way to rename teams"): a button next to "Delete team" (both only in a team's view), the same
+  name box as the unit rename (field hint "Team name"), the team picked when the box opens (myunits.c mu_team_rename:
+  the name only; units, author and gallery id stay). Bottom bar: the shown buttons at their label width from the left
+  (layout_bottom), so the team buttons do not leave a gap in All units; pager 160 wide.
