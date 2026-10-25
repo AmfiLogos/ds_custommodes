@@ -99,26 +99,38 @@ static void list_ids(void) {
 
 /* ------------------------------------------------------------------ World units */
 /* the folders Load Campaign lists: the game's own saves (DSML_GAME_SAVES) and the modded game's
-   (SaveLoadHelper.GetSaveDirectory, else <persistentDataPath>/Saves) */
-static void load_worlds(const char *pdp) {
+   (SaveLoadHelper.GetSaveDirectory, else <persistentDataPath>/Saves). Shared with Test Fights (mu_worlds.h). */
+int mu_player_worlds(mu_world *out, int max) {
     char g[1100], m[1100] = "";
     mu_game_saves_dir(g, sizeof g);
-    if (cmw_saves_dir(m, sizeof m) && pdp && *pdp) snprintf(m, sizeof m, "%s/Saves", pdp);
+    if (cmw_saves_dir(m, sizeof m)) {
+        char pdp[1200] = ""; cm_m pm = cm_il_method("UnityEngine", "Application", "get_persistentDataPath", 0, NULL);
+        if (pm.fn) cm_il_utf8(CM_CALL(pm, Obj, const void *)(pm.mi), pdp, sizeof pdp);
+        if (pdp[0]) snprintf(m, sizeof m, "%s/Saves", pdp);
+    }
     const char *dirs[2] = { g, m };
-    W.nworlds = mu_worlds_list(dirs, 2, W.worlds, WMAX, tfw_is_test);
+    int n = mu_worlds_list(dirs, 2, out, max, tfw_is_test);
+    mu_log("worlds: %d (game saves %s, modded saves %s)", n, g[0] ? "listed" : "none", m[0] ? "listed" : "none");
+    return n;
+}
+int mu_world_units(const mu_world *w, mu_save_unit *out, int max, char *err, size_t errn) {
+    int n = mu_save_units(w->path, out, max, err, errn);
+    for (int i = 0; i < n; i++) {                                         /* the game's default names are text keys */
+        if (!strncmp(out[i].name, "TEXTKEY_", 8)) { char t[96]; if (!cm_gettext(out[i].name, t, sizeof t)) snprintf(out[i].name, sizeof out[i].name, "%s", t); }
+        if (!out[i].name[0]) snprintf(out[i].name, sizeof out[i].name, "%s", TR("Unit"));
+    }
+    return n;
+}
+static void load_worlds(void) {
+    W.nworlds = mu_player_worlds(W.worlds, WMAX);
     W.sel_world = -1; W.su_for = -1; W.nsu = 0; W.nwticked = 0;
-    mu_log("my units: %d worlds (game saves %s, modded saves %s)", W.nworlds, g[0] ? "listed" : "none", m[0] ? "listed" : "none");
 }
 static void load_world_units(void) {
     if (W.su_for == W.sel_world) return;
     W.nsu = 0; W.su_err[0] = 0; W.su_for = W.sel_world;
     if (W.sel_world < 0 || W.sel_world >= W.nworlds) return;
-    int n = mu_save_units(W.worlds[W.sel_world].path, W.su, NMAX, W.su_err, sizeof W.su_err);
+    int n = mu_world_units(&W.worlds[W.sel_world], W.su, NMAX, W.su_err, sizeof W.su_err);
     W.nsu = n < 0 ? 0 : n;
-    for (int i = 0; i < W.nsu; i++) {                                      /* the game's default names are text keys */
-        if (!strncmp(W.su[i].name, "TEXTKEY_", 8)) { char t[96]; if (!cm_gettext(W.su[i].name, t, sizeof t)) snprintf(W.su[i].name, sizeof W.su[i].name, "%s", t); }
-        if (!W.su[i].name[0]) snprintf(W.su[i].name, sizeof W.su[i].name, "%s", TR("Unit"));
-    }
     for (int i = W.nwticked - 1; i >= 0; i--) {                           /* ticks of units this save does not hold */
         int f = 0; for (int k = 0; k < W.nsu && !f; k++) f = !strcmp(W.su[k].guid, W.wticked[i]);
         if (!f) wuntick(W.wticked[i]);
@@ -614,7 +626,7 @@ void mu_window_open(void) {
     { cm_m m = cm_il_method("UnityEngine", "Application", "get_persistentDataPath", 0, NULL);
       if (m.fn) { cm_il_utf8(CM_CALL(m, Obj, const void *)(m.mi), p, sizeof p); if (p[0]) mu_set_data_dir(p); } }
     load_lib();
-    load_worlds(p);
+    load_worlds();
     if (build_ui()) return;
     W.open = 1;
     mu_tick_add(poll_fn);

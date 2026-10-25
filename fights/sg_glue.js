@@ -2,6 +2,7 @@
 // in the wiki"). Runs in QuickJS (sg_js.c) AFTER the wiki's own data.js, builder.js and savegen.js, downloaded from
 // dungeonsettlers.wiki and never shipped. Nothing here computes a unit or a save: every call hands the wiki's own
 // functions the same arguments its "Test this team in-game" panel (builder.js renderSaveGen / sgBuild) hands them.
+// One exception: nameKeys() below (a text-key unit name, owner 2026-10-25).
 // The reference harness (test/ref_node.js) loads this same file in node, so the in-game result is compared with
 // the wiki's code on V8 byte for byte.
 //
@@ -89,6 +90,23 @@ var CMF = (function () {
     };
   }
 
+  // The one change made to the wiki's save: a clan unit whose name is a text key (a save unit never renamed, as My Units'
+  // snapshot keeps it: TEXTKEY_PLAYERNAME_...) gets that key as DefaultUnitNameTextKey too, as the game keeps such a unit.
+  // savegen.js writes the race's _0 default there, and the game then shows UnitNameTextKey as typed (it takes the unit for
+  // a renamed one: EntityDisplayNameExtensions.GetPlayerUnitDisplayName), so the unit panel and the multi-unit cards
+  // showed "TEXTKEY_PLAYERNAME_Elf_Male_13" (owner 2026-10-25). Nothing to do once the wiki writes the key itself.
+  function nameKeys(save) {
+    var ec = save.EntityComponentSaveData.EntityComponents, uc = save.EntityContainerSaveData.UnitContainerSaveData || {};
+    Object.keys(uc).forEach(function (side) {
+      ((uc[side] || {}).PlayerGuidList || []).forEach(function (g) {
+        (ec[g] || []).forEach(function (c) {
+          var p = c && c.Type === 10 ? c.Data : null, k = p && p.UnitNameTextKey;
+          if (typeof k === 'string' && k.indexOf('TEXTKEY_') === 0 && p.DefaultUnitNameTextKey !== k) p.DefaultUnitNameTextKey = k;
+        });
+      });
+    });
+  }
+
   // opts = the tab's choices: { mode, boss, builds:[stored builds], combat, mgmt, monsters:[{k,n}],
   //   supplies:{key:amount} | [{k,amount}], kits:{id:true} | [id], kitInsc, msat, team }
   // Builds go in as stored (the builder's own build objects, as the wiki's roster keeps them).
@@ -109,6 +127,7 @@ var CMF = (function () {
       kitInsc: o.kitInsc !== false, raw: null, team: o.team == null ? '' : o.team,
       applyDifficulty: false
     }).then(function (r) {
+      nameKeys(r.save);
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
         clan: r.clan };

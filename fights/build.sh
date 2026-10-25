@@ -34,4 +34,6 @@ clang $CF -o $B/sg_cli $H/test/sg_cli.c $OBJS -lm
 clang $CF -o $B/sg_cache_test $H/test/sg_cache_test.c $OBJS -lm
 clang $CF -o $B/gal_test $C/gallery/test/gal_test.c $OBJS -lm
 clang $CF -o $B/wikisave_test $H/test/wikisave_test.c $H/tf_wikisave.c $C/fe/fe_json.c
-echo "built: $B/sg_cli $B/sg_cache_test $B/gal_test $B/wikisave_test $B/fights_solo_check.dylib"
+# World units: a save's units through the generator (test/run_saveunits.sh)
+clang $CF -o $B/saveunits_test $H/test/saveunits_test.c $OBJS $C/units/{mu_save,mu_worlds,myunits,pvp_wiki,pvp_build,mu_card}.c $C/fe/fe_save.c -lz -lm
+echo "built: $B/sg_cli $B/sg_cache_test $B/gal_test $B/wikisave_test $B/saveunits_test $B/fights_solo_check.dylib"
