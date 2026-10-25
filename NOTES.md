@@ -85,7 +85,23 @@
   the name only; units, author and gallery id stay). Bottom bar: the shown buttons at their label width from the left
   (layout_bottom), so the team buttons do not leave a gap in All units; pager 160 wide.
 
-## Test Fights: World units (2026-10-25, 0.1.19, lane dsfights)
+## Default unit names in the saves we write (2026-10-25, 0.1.19)
+- Owner: "when importing units from my save, from the snapshot, they don't have their names saved": in a test fight the
+  Multi-unit view cards (mod multi-bar) showed "TEXTKEY_PLAYERNAME_Elf_Male_13"; the top portrait bar showed "Silvarion".
+- Cause: a save unit never renamed keeps the game's default name KEY (mu_save.c: build name = UnitNameTextKey). The game
+  shows a unit's name through EntityDisplayNameExtensions.GetDisplayName -> GetPlayerUnitDisplayName (decomp 25846389):
+  UnitNameTextKey is localized only when it equals DefaultUnitNameTextKey (or that one is empty); otherwise it is a typed
+  name and shown as it is. A stock unit holds the same key in both fields (wiki base save). The wiki's savegen.js (Test
+  Fights) and our pb_entry (Bring Units) wrote the race's "_0" key as DefaultUnitNameTextKey, so the key was shown raw
+  wherever the game uses GetDisplayName, e.g. the stock unit panel (EntitySummaryUIView) and the multi-bar cards.
+  The portrait bar reads the key itself (SubUI_UnitShortCutParts), hence "Silvarion" there.
+- Fix: a name that starts with TEXTKEY_ goes in both fields: pvp_build.c pb_entry, and fights/sg_glue.js nameKeys() on
+  the wiki's generated save (clan units only; a no-op once the wiki writes it). multi-bar needed no change (it already
+  uses GetDisplayName). The library and saves are not changed: snapshot units already in My Units get their names.
+- Test: units/test/namekey/namekey_test.py (one hidden copy, en + de; the Test Fights save from sg_cli and a pb_entry
+  save; stock panel + multi-bar cards = TextKeyExtensions.GetText(key)). NK_OLD = an older tree: its saves fail.
+
+## Test Fights: World units (2026-10-25, 0.1.20, lane dsfights)
 - Owner: "Test fights should allow to select directly people from one of your current saves." A third source in the
   Test Fights squad picker, labelled "World units" (the same words as My Units' section; on a second row under My Units /
   Wiki Build Gallery: three labels never fit one row, ES "Galería de builds de la wiki").
