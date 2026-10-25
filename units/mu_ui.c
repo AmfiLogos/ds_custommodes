@@ -5,6 +5,7 @@
 #include "mu_look.h"
 #include "i18n/ds_i18n.h"
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -114,7 +115,7 @@ DSLObj mu_backdrop(uint32_t rgba) {
 }
 void mu_centre_scaled(DSLObj w, float bw, float bh) {
     rt_set(w, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ bw, bh }, (V2s){ 0, 0 });
-    set_scale(w, mu_ui_scale());                                       /* KIT-SCALE: 1 once the kit layer is scaled */
+    set_scale(w, mu_ui_scale());                                       /* KIT-SCALE: ours; no dsl_scale_follow on this box */
 }
 /* UX U12: the title's corner buttons (Roadmap, Wishlist, Discord: TitleMenuView._roadmapButton, ...) are drawn on a canvas
    above the kit's screen layer: over our window's corner, not dimmed, and clickable through the backdrop. While one of our
@@ -135,9 +136,18 @@ static void title_icons(int show) {
         if (g && act_self.fn && CM_CALL(act_self, bool, Obj, const void *)(g, act_self.mi)) { cm_set_active(g, false); cm_il_hset(&h_icon[i], g); }
     }
 }
-/* the red X: the kit's copy of the game's close button when the kit has one, else a kit button "X" (an older loader) */
-static DSLObj close_x(DSLObj parent, float x, float y, float s, dsl_ui_cb cb, void *ud) {
-    return U->button(parent, x, y, s, s, "X", cb, ud);
+/* the red X: the kit's copy of the game's close button (DSLUi.close_x, kit bdcb603+); its click runs the close that `win`
+   registered with esc_push, the same action as Escape (every caller pushes the window in the frame it opens it). Read by
+   its place in the loader's own table (appended right after esc_drop) with the wrappers' size check: U is cm_look's copy,
+   cut at the size of the dsl_sdk.h this was built with, and a build with an older copy (the multiplayer pin's) must still
+   get it. NULL (an older kit, or the game's button not found): a kit button "X" */
+static DSLObj close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_cb cb, void *ud) {
+    typedef DSLObj (*xfn)(DSLObj, float, float, float, DSLObj);
+    const DSLUi *k = H ? dsl_ui(H) : NULL;
+    size_t off = offsetof(DSLUi, esc_drop) + sizeof k->esc_drop;
+    xfn f = k && k->size >= off + sizeof(xfn) ? *(const xfn *)(const void *)((const char *)k + off) : NULL;
+    DSLObj b = f ? f(parent, x, y, s, win) : NULL;
+    return b ? b : U->button(parent, x, y, s, s, "X", cb, ud);
 }
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud) {
     memset(s, 0, sizeof *s);
@@ -151,7 +161,7 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
     /* the game's UI scale like the game's own windows: drawn at its size x scale, never cut by the screen layer: fit 0 =
        the room it may take (in its own units) is the layer / scale minus a margin; fit 1 = its size stays, the scale goes
        down until it fits */
-    float sc = mu_ui_scale(), ww = want_w, hh = want_h;                  /* KIT-SCALE: 1 here once the kit layer is scaled */
+    float sc = mu_ui_scale(), ww = want_w, hh = want_h;                  /* KIT-SCALE: ours; no dsl_scale_follow on this window */
     if (!fit) { float aw = lw / sc - 40, ah = lh / sc - 40; if (ww > aw) ww = aw; if (hh > ah) hh = ah; }
     else { if (sc * ww > lw - 40) sc = (lw - 40) / ww; if (sc * hh > lh - 40) sc = (lh - 40) / hh; }
     rt_set(p, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ ww, hh }, (V2s){ 0, 0 });
@@ -162,7 +172,7 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
     if (t) { cm_text_ellipsis(t); cm_raycast(t, false); }
     mu_plate(p, 12, MU_SHELL_BAND - 1, ww - 24, 2, MU_C_COPPER);
     float xs = 38;
-    s->x = close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, on_x, ud);
+    s->x = close_x(p, ww - 16 - xs, (MU_SHELL_BAND - xs) / 2, xs, p, on_x, ud);
     s->win = p;
     if (w) *w = ww;
     if (h) *h = hh;

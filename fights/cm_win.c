@@ -34,7 +34,7 @@ static void *(*x_get_methods)(void *, void **); static const char *(*x_mname)(vo
 static void *(*x_param)(void *, uint32_t); static char *(*x_tname)(void *); static void (*x_free)(void *);
 static void *(*x_class_type)(void *); static void *(*x_type_obj)(void *); static Obj (*x_str_new)(const char *);
 static Obj (*x_obj_new)(void *); static uint16_t *(*x_str_chars)(Obj); static int32_t (*x_str_len)(Obj);
-static void *m_amin, *m_amax, *m_pivot, *m_pos, *m_size, *m_key, *m_cur_es, *m_sel_go, *m_go_get, *m_in_focused,
+static void *m_key, *m_cur_es, *m_sel_go, *m_go_get, *m_in_focused,
             *m_img_sprite, *m_gr_color, *m_go_tr, *m_shot, *k_image, *k_input;
 static void *k_lcr, *m_lcr_ctor, *m_eq_add, *m_save_refresh, *m_find_any, *k_mainflow, *m_pdp, *m_save_dir, *m_try_refresh;
 static int32_t off_disp_eq = -1, off_mf_loader = -1;
@@ -66,9 +66,6 @@ static void unity_init(void) {
     IL(x_param, "il2cpp_method_get_param"); IL(x_tname, "il2cpp_type_get_name"); IL(x_free, "il2cpp_free");
     IL(x_class_type, "il2cpp_class_get_type"); IL(x_type_obj, "il2cpp_type_get_object"); IL(x_str_new, "il2cpp_string_new");
     IL(x_obj_new, "il2cpp_object_new"); IL(x_str_chars, "il2cpp_string_chars"); IL(x_str_len, "il2cpp_string_length");
-    m_amin = mth("UnityEngine", "RectTransform", "set_anchorMin", 1); m_amax = mth("UnityEngine", "RectTransform", "set_anchorMax", 1);
-    m_pivot = mth("UnityEngine", "RectTransform", "set_pivot", 1); m_pos = mth("UnityEngine", "RectTransform", "set_anchoredPosition", 1);
-    m_size = mth("UnityEngine", "RectTransform", "set_sizeDelta", 1);
     m_key = mth("UnityEngine", "Input", "GetKeyDownInt", 1);              /* GetKeyDown(KeyCode) has a string twin: the Int one is unique */
     m_cur_es = mth("UnityEngine.EventSystems", "EventSystem", "get_current", 0);
     m_sel_go = mth("UnityEngine.EventSystems", "EventSystem", "get_currentSelectedGameObject", 0);

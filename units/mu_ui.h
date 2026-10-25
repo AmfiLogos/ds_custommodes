@@ -31,13 +31,16 @@ void mu_ui_init(const DSLHost *host, DSLPlugin *self);    /* cm_units_init */
 void mu_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* the game's UI scale (Settings > UI scale), 1 when unknown. KIT-SCALE: our windows apply it themselves (mu_shell_open,
-   mu_centre_scaled, gallery win_size); when the kit scales its own layer (lane dsuxld, L1) these stop multiplying */
+   mu_centre_scaled, gallery win_size: fit 0 / fit 1 and the 40-unit margin the kit's scale_follow has not). The kit's
+   scale is opt-in per window (dsl_scale_follow, kit bdcb603): never call it on these windows (it would scale them twice) */
 float mu_ui_scale(void);
 /* the one window of Units Laboratory (owner 2026-10-25, UX review U1 / U5): My Units, the Unit Builder, the Wiki Build
    Gallery and Test Fights look and close the same way, as the game's Load Campaign and Option windows: a dim backdrop over
    the whole screen that takes every click (nothing behind the window answers), the window centred at the game's UI scale,
    the game's frame, one body colour, the title centred in the game's title font over a copper line, and the game's red X
-   top right as the only close control (on_x(ud, x) runs on it). Content goes below MU_SHELL_BAND.
+   top right as the only close control. The X is the kit's copy of the game's red X: its click runs the close the caller
+   registers for the window with esc_push in the same frame (= Escape); on_x(ud, x) only runs on an older kit's text "X".
+   Content goes below MU_SHELL_BAND.
    fit 0: the size shrinks to the screen layer (the caller lays out from *w / *h); fit 1: the size stays, the scale shrinks.
    Returns the window panel (NULL = kit not ready); mu_shell_close destroys the window and its backdrop. */
 #define MU_SHELL_BAND 64.f
