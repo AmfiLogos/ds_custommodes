@@ -253,3 +253,35 @@
   Escape only left it again. esc_test case 7 meets it in the player's order (unsaved change first, then the name field).
 - Test: units/test/esc_test.py (one hidden copy, title, real Escape key events through the test module font-probe, test
   library DSMP_UNITS_LIB; the owner's library checked unchanged). It fails with 0.1.18 on the same loader.
+- 0.1.26 (owner asks 1-9, 2026-10-25, task file LANE_TASKS_dsdps): the full numbers stay (no "997.3K"). The Inspect window
+  (SubUI_EntityInspectionStatus.SetBuildingStatus hook) follows too: its Durability rows written again through the
+  game's own SetBuildingStatus each time the value changes, with the bottom panel's StatusReader (the window's own reader
+  is a short-lived object) and DASText.SetText (a TMP set_text on a DASText is replaced by its own copy).
+- DPS meter (fights/tf_meter.c): left side, folds, Start / Stop / Reset, "Start on first hit"; time, damage dealt, DPS,
+  DPS last 5 s, what the scarecrow repaired (StatusSimulator.Simulate hook: Stat Durability on it, the log's Amount);
+  one row per unit (portrait, name, damage, DPS, share, bar), a click shows its skills. The ONE hit list (tf_dps_hits)
+  feeds the meter and the chat. Placed from the game's own panels at run time (resource list, unit panel, an open
+  Inspect window: then right of it), checked at UI 1.0 / 1.4 and 960x540 / 1920x1080. Game clock = TimeHandler
+  _currentTick * TICK_INTERVAL (speed / pause do not use Time.timeScale).
+- Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,
+  DPS log in chat ON, Start on first hit ON. Speech and the "+200" are their view iterators ended at once
+  (AffecterFX_SelfRepair.OnFXCall, StatusResultFX.HandleFX: "<>1__state" = -1); the sim is untouched, the repair goes on.
+- Chat log format (mp_api v3 MP_CHATL_RICH): a header line with the unit's name (gold, bold) when the hitting unit
+  changes, then one indented line per hit: skill (auto attacks SKILL_Basic* / SKILL_NPCBasic* = the game's
+  TEXTKEY_SKILL_BasicAttack_NAME "Basic Attack"), damage in a monospaced column, "Crit" in orange. Names escaped.
+  Open choice (owner): the table flag IsBasicAttackSkill would also call Twin Thrust, Rapid Fire, Fire Missile and Healing
+  Touch "Basic Attack"; the key prefix keeps their names.
+- Restart test (tf_worlds.c tf_restart, in every test world; a small panel with only that button outside DPS Check): the
+  start save kept by tfw_write is written and loaded again by the Start path. A restart passes through the title scene
+  (the title background world loads first): the "--- restart ---" chat line waits until the world shows 30 frames.
+- 0.1.27 (owner ask 10 + answers, 2026-10-25): the log shows every damage, heal, shield absorb and effect put on where a
+  squad unit or the scarecrow takes part (hooks DamageSimulator / HealSimulator / AffecterSimulator / StatusSimulator.Simulate,
+  read only). One indented line per source and game tick (TimeHandler._currentTick), parts joined by " · ": "<source>[ ×n]
+  » <targets>: -X[ Crit]" (damage), "+X" (heal, green), "<shield> (<owner>): absorbed X" (StatType Barrier before - after;
+  the absorbed part is no damage), "<effect> » <targets>" (quiet; only effects the game names; switch "Effects in log", on).
+  The arrow is "»": the chat's fonts have no "→" (it showed "?"). Basic attacks (SkillTableData.IsBasicAttackSkill, class
+  Util.Sheet) read "<name> (basic)". A source with no skill behind it (an item such as a torch) is named by its key.
+  Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
+  max health and max health + the added part only), so "(n over)" never shows yet.
+- Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
+- With the Fix mod live-hp loaded, our panel/Inspect follow steps aside (live-hp makes every building follow).

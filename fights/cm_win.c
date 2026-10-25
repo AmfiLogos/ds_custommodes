@@ -203,7 +203,7 @@ int cmw_saves_dir(char *out, size_t n) {
     snprintf(out, n, "%s/Saves", g_data); return 0;
 }
 
-#define NTICK 8
+#define NTICK 16
 static struct { void (*fn)(void *); void *ud; } ticks[NTICK]; static int nticks;
 int cmw_tick_add(void (*tick)(void *), void *ud) {
     if (nticks >= NTICK) return -1;
@@ -416,6 +416,7 @@ __attribute__((visibility("default"))) int cmf_test(const char *s, char *out, si
 static DSLObj find_in(const char *pre, const char *name) { char full[96]; snprintf(full, sizeof full, "%s:%s", pre, name); Reg *r = reg_find(full); return r ? r->w : NULL; }
 static DSLObj find_fights(const char *name) { return find_in("fights", name); }
 static DSLObj find_gallery(const char *name) { return find_in("gallery", name); }
+static DSLObj find_dps(const char *name) { return find_in("dps", name); }        /* the DPS meter (tf_meter.c) */
 /* test: the save the title's Continue button would load (TitleMenuView._continueSaveName) */
 static void continue_name(char *out, size_t n) {
     static int32_t off = -2; out[0] = 0;
@@ -442,7 +443,7 @@ int cmw_init(const DSLHost *host, DSLPlugin *self) {
     unity_init();                                                     /* the folders are read in the first frame (dirs_read) */
     int r = host->hook_method(self, "Refactor.Main.InputModule", "InputDispatcher", "Update", 0, (void *)h_disp_update, (void **)&o_disp_update);
     if (r) { cmw_log("cm_win: frame hook InputDispatcher.Update refused (%d)", r); U = NULL; return -1; }
-    cm_test_register("fights", find_fights, short_state); cm_test_register("gallery", find_gallery, NULL);
+    cm_test_register("fights", find_fights, short_state); cm_test_register("gallery", find_gallery, NULL); cm_test_register("dps", find_dps, NULL);
     const char *t = getenv("CMF_TEST");
     if (t && *t) { snprintf(test_dir, sizeof test_dir, "%s", t); cmw_log("cm_win: test commands from %s", test_dir); }
     return 0;

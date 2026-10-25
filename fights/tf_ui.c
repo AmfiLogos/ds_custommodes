@@ -5,6 +5,7 @@
 #include "cm_win.h"
 #include "cm_work.h"
 #include "tf_worlds.h"
+#include "tf_dps.h"
 #include "sg_js.h"
 #include "sg_cache.h"
 #include "myunits.h"
@@ -924,7 +925,7 @@ static void paint_right(void) {
     else if (!strcmp(mode_id(), "arena")) snprintf(md, sizeof md, "%s", TR("The same boss room with the boss taken out and the monsters you choose put in instead."));
     else snprintf(md, sizeof md, "%s", TR("A fully built base with all research done. Your squad walks in ready to play."));
     y += txt(right, "fights:r.modedesc", 12, y, w - 12, md, 15, SUB) + 10;
-    if (!strcmp(mode_id(), "dps")) y += dps_card(right, y, w) + 10;
+    if (!strcmp(mode_id(), "dps")) { y += dps_card(right, y, w) + 10; y += tf_dps_setup_rows(right, y, w) + 6; }   /* its switches (tf_dps.c) */
     /* Which fight / Which room */
     if (is_fight() && P.nbosses) {
         y += head(right, 0, y, w, !strcmp(mode_id(), "boss") ? TR("Which fight") : TR("Which room"));
