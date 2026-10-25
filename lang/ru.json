@@ -5,6 +5,16 @@
   " %d юнитов остаются: они также состоят в другой команде."
  ],
  "%d SP": "%d SP",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "%d предмет из сумки, неизвестный игре, не переносится.",
+  "%d предмета из сумки, неизвестных игре, не переносятся.",
+  "%d предметов из сумки, неизвестных игре, не переносятся."
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "%d эффект, неизвестный игре, не переносится.",
+  "%d эффекта, неизвестных игре, не переносятся.",
+  "%d эффектов, неизвестных игре, не переносятся."
+ ],
  "%d main SP": "основные SP: %d",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "Найдена %d проблема — тестовый мир НЕ создан.",
@@ -101,6 +111,7 @@
  "Boss": "Босс",
  "Boss fight": "Бой с боссом",
  "Bow": "Лук",
+ "Bring buffs and effects from the save": "Перенести баффы и эффекты из сохранения",
  "Building your save file...": "Создание файла сохранения...",
  "Builds by %s": "Сборки: %s",
  "Can learn": "Можно изучить",

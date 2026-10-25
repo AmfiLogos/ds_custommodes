@@ -379,6 +379,47 @@ int mu_save_build(const char *save_path, const char *guid, wk_build *out, char *
     return mu_save_build_ex(save_path, guid, out, NULL, err, errn);
 }
 
+/* Test Fights' World units: what a clan unit carries beside its build (see mu_save.h). The bag's item entities are copied
+   whole (their components as the save holds them: durability, rolls, their own holders). */
+int mu_save_unit_carry(const char *save_path, const char *guid, jv **bag, jv **aff, char *err, size_t errn) {
+    if (err && errn) err[0] = 0;
+    if (bag) *bag = NULL;
+    if (aff) *aff = NULL;
+    LOCK();
+    const jv *s = save_of(save_path, err, errn), *comps = NULL;
+    if (s) {
+        const jv *gs[512]; int ng = clan_guids(s, gs, 512);
+        for (int i = 0; i < ng && !comps; i++)
+            if (guid && strlen(guid) == gs[i]->n && !memcmp(guid, gs[i]->s, gs[i]->n)) comps = jget(jpath(s, "EntityComponentSaveData.EntityComponents"), guid);
+        if (!comps) snprintf(err, errn, "%s", TR("This unit is not one of your clan's units in this save."));
+    }
+    if (!comps) { UNLOCK(); return -1; }
+    const jv *ec = jpath(s, "EntityComponentSaveData.EntityComponents"), *ics = jpath(s, "EntityContainerSaveData.ItemContainerSaveData");
+    if (bag) {
+        jv *out = jarr(); const jv *sl = jget(fe_comp(comps, 5), "ItemSlots");          /* Type 5: the unit's backpack */
+        for (size_t i = 0; sl && sl->t == JN_ARR && i < sl->cnt; i++) {
+            const jv *k = jget(sl->v[i], "Key"), *g = jget(sl->v[i], "Guid"), *am = jget(sl->v[i], "Amount");
+            if (!k || k->t != JN_STR || !k->n || zero_guid(g)) continue;
+            char ig[64]; snprintf(ig, sizeof ig, "%.*s", (int)(g->n < 63 ? g->n : 63), g->s);
+            jv *e = jobj();
+            jset(e, "slot", jnum_i((long long)i)); jset(e, "key", jcopy(k));
+            jset(e, "amount", am && am->t == JN_NUM ? jcopy(am) : jnum_i(1));
+            jset(e, "fixed", jbool(jtruthy(jget(sl->v[i], "AutoFixed"))));
+            for (size_t c = 0; ics && ics->t == JN_OBJ && c < ics->cnt; c++) {       /* ItemContainerSaveData.<side>.ItemAutoFixable */
+                const jv *af = jget(jget(ics->v[c], "ItemAutoFixable"), ig);
+                if (af) { jset(e, "autofix", jbool(jtruthy(af))); break; }
+            }
+            const jv *ent = jget(ec, ig);
+            if (ent) jset(e, "comps", jcopy(ent));
+            jpush(out, e);
+        }
+        *bag = out;
+    }
+    if (aff) { const jv *h = jget(fe_comp(comps, 3), "AffecterHolders"); *aff = h && h->t == JN_ARR ? jcopy(h) : jarr(); }
+    UNLOCK();
+    return 0;
+}
+
 /* fe_game.c fe_list_saves: the name filter and the newest-first order (no header parse here) */
 int mu_save_files(const char *dir, char (*out)[1024], int max) {
     DIR *dp = dir ? opendir(dir) : NULL; if (!dp) return 0;

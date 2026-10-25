@@ -4,6 +4,14 @@
   " %d unités restent : elles sont aussi dans une autre équipe."
  ],
  "%d SP": "%d SP",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "%d objet du sac que le jeu ne connaît pas est laissé de côté.",
+  "%d objets du sac que le jeu ne connaît pas sont laissés de côté."
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "%d effet que le jeu ne connaît pas est laissé de côté.",
+  "%d effets que le jeu ne connaît pas sont laissés de côté."
+ ],
  "%d main SP": "%d SP principaux",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "%d problème trouvé : le monde de test n'a PAS été créé.",
@@ -92,6 +100,7 @@
  "Boss": "Chef",
  "Boss fight": "Combat contre le chef",
  "Bow": "Arc",
+ "Bring buffs and effects from the save": "Apporter les bonus et effets de la sauvegarde",
  "Building your save file...": "Création de votre fichier de sauvegarde...",
  "Builds by %s": "Builds de %s",
  "Can learn": "Apprenables",
