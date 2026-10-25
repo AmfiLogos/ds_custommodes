@@ -170,8 +170,8 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
     DSLObj p = close ? dsl_window_std(U, &o, &parts) : NULL;
     if (p) {
         s->std = 1; s->esc_ok = 1; s->back = parts.backdrop; s->x = parts.close_x;
-        /* the template's backdrop is a flat panel, and the kit's flat colour (dsl_ui_flat) turns a panel's clicks off: a click
-           beside the window reached the title page (ux_test U1, kit d529f52). It must take every click: on again */
+        /* the template's backdrop must take every click: kits d529f52 .. a4408f1 left its clicks off (dsl_ui_flat; a click
+           beside the window reached the title page, ux_test U1); 6e6071a+ turns them on itself, this is then a no-op */
         if (s->back) cm_raycast(s->back, true);
     }
     else {                                                             /* an older kit: our own frame, the template's layout */
