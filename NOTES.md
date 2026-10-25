@@ -384,3 +384,8 @@
 - Test (saveunits_game_test.py, fails on main e059e4f: 35/39): team picture click 3 / 0, card click ticks / unticks,
   Pick 1-4 on a folded world = the bar order's first 4 + Squad 4 / 4 + world still folded, and the same save loaded in
   the game shows those 4 first on its own portrait bar.
+- 0.1.40 (lead 2026-10-25, the kit templates d529f52): the shell and the Delete Team box say they apply UI Scale themselves
+  (dsl_rules_own DSL_RULE_SCALE: the kit's UI-RULE guard); the Delete Team box has the red X = Cancel (its Escape close);
+  My Units' cards and Test Fights' world cards and team rows use the kit's card template (dsl_card_toggle on a holder
+  with the card and its box) instead of an invisible button. Builds need the loader's sdk/ (build.sh stops on an older
+  dsl_sdk.h copy). ux_test fails on any UI-RULE line (title part / test world part) and on CLOSE-TEXT-X.
