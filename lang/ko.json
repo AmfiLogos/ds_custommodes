@@ -266,6 +266,9 @@
  "Team deleted. Its units stay in My Units.": "팀을 삭제했습니다. 유닛은 내 유닛에 남습니다.",
  "Team only": "팀만",
  "Team only: the units stay in My Units.": "팀만: 유닛은 내 유닛에 남습니다.",
+ "Team: %s||Teams: %s": [
+  "팀: %s"
+ ],
  "Teams": "팀",
  "Test": "테스트",
  "Test Fight": "테스트 전투",

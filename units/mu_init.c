@@ -82,7 +82,7 @@ TEST_API int mu_test_overflow(const char *s, char *out, size_t cap) {
    Returns malloc'd JSON. */
 static char *dupf(const char *fmt, const char *a) { size_t n = strlen(fmt) + (a ? strlen(a) : 0) + 1; char *s = malloc(n); if (s) snprintf(s, n, fmt, a ? a : ""); return s; }
 char *mu_rig_exec(const char *cmd, const char *line) {
-    static char out[8192];
+    static char out[32768];
     if (!strcmp(cmd, "mu_open")) { void mu_window_open(void); mu_window_open(); mu_window_test_state(out, sizeof out); return dupf("%s", out); }
     if (!strcmp(cmd, "mu_state")) { mu_window_test_state(out, sizeof out); return dupf("%s", out); }
     if (!strcmp(cmd, "mu_overflow")) {

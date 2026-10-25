@@ -296,6 +296,11 @@
  "Team deleted. Its units stay in My Units.": "Команда удалена. Её юниты остаются в «Моих юнитах».",
  "Team only": "Только команда",
  "Team only: the units stay in My Units.": "Только команда: юниты остаются в «Моих юнитах».",
+ "Team: %s||Teams: %s": [
+  "Команда: %s",
+  "Команды: %s",
+  "Команды: %s"
+ ],
  "Teams": "Команды",
  "Test": "Тест",
  "Test Fight": "Тестовый бой",

@@ -58,10 +58,14 @@ void mu_name_of(const char *key, char *out, size_t cap);
 
 /* Compact Plus card (owner 2026-10-15) drawn at x, y in parent, width w; returns its root panel, *h the height used.
    name / level: what to show (a save unit's localised name; NULL = the card's own). portrait_key overrides the card's
-   avatar (a save's own face). bar: the skill bar to show (NULL = the card's own bar). */
+   avatar (a save's own face). bar: the skill bar to show (NULL = the card's own bar). teams: the names of the My Units
+   teams the unit is in (owner 2026-10-25), shown after the name on its row as "Teams: A, B", shortened to "A +2" when
+   they do not fit; NULL / 0 = nothing. */
 #define MU_CARD_H 128.f                        /* 4 cards fit the My Units list at UI scale 1 (owner 2026-10-17) */
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
-                    const char *portrait_key, const char *const *bar, int nbar);
+                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams);
+/* test support: the teams text the last mu_card_draw showed ("" none; the "+N" part included when it was cut) */
+const char *mu_card_teams_shown(void);
 
 /* frame tick: fn runs on the game's main thread between frames every ~ms while registered (mu_clip.c, OS timer) */
 int  mu_tick_add(void (*fn)(void));

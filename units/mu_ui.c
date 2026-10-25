@@ -143,8 +143,38 @@ static void icon_row(DSLObj card, float x, float y, float right, float s, const 
         cx += step;
     }
 }
+/* the width a one-line text takes at size (a measuring text, destroyed again) */
+static float text_w(DSLObj parent, const char *s, float size) {
+    DSLObj m = U->text(parent, 0, 0, 2000, 30, s, mu_text_size(size), DSL_TXT_LEFT, MU_C_SUB);
+    float pw = m ? cm_text_preferred_w(m) : -1;
+    if (m) U->destroy(m);
+    return pw;
+}
+/* the unit's teams after its name: all names when they fit; else as many whole names as fit + " +N"; else the first
+   name cut with "..." and " +N" at the right end (the count stays readable) */
+static char teams_shown[600];
+const char *mu_card_teams_shown(void) { return teams_shown; }
+static void teams_row(DSLObj card, float x, float y, float room, const char *const *teams, int n) {
+    char list[500], t[600], more[24];
+    for (int k = n; k >= 1; k--) {
+        size_t o = 0; list[0] = 0;
+        for (int i = 0; i < k && o + 4 < sizeof list; i++) o += (size_t)snprintf(list + o, sizeof list - o, "%s%s", i ? ", " : "", teams[i]);
+        if (k < n) snprintf(list + strlen(list), sizeof list - strlen(list), " +%d", n - k);
+        snprintf(t, sizeof t, TRN("Team: %s", "Teams: %s", n), list); dsi_utf8_fix_end(t);
+        float pw = text_w(card, t, 13);
+        if (pw >= 0 && pw <= room) { mu_text(card, x, y, room, 26, t, 13, DSL_TXT_LEFT, MU_C_SUB); snprintf(teams_shown, sizeof teams_shown, "%s", t); return; }
+    }
+    /* not even one whole name: the first one cut, the count apart on the right */
+    float mw = 0; more[0] = 0;
+    if (n > 1) { snprintf(more, sizeof more, "+%d", n - 1); mw = text_w(card, more, 13) + 6; if (mw < 0 || mw > room / 2) mw = room / 2; }
+    snprintf(t, sizeof t, TRN("Team: %s", "Teams: %s", n), teams[0]); dsi_utf8_fix_end(t);
+    mu_text(card, x, y, room - mw, 26, t, 13, DSL_TXT_LEFT, MU_C_SUB);
+    if (more[0]) mu_text(card, x + room - mw + 6, y, mw - 6, 26, more, 13, DSL_TXT_LEFT, MU_C_SUB);
+    snprintf(teams_shown, sizeof teams_shown, "%s%s%s", t, more[0] ? " " : "", more);
+}
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
-                    const char *portrait_key, const char *const *bar, int nbar) {
+                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams) {
+    teams_shown[0] = 0;
     if (!U || !c) return NULL;
     DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, 0);            /* the game's own panel (a dark tint drew it black) */
     if (!card) return NULL;
@@ -168,7 +198,13 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     char nm[128];
     if (name && *name) snprintf(nm, sizeof nm, "%s", name);
     else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : TR("Unit"));
-    mu_text(card, x0, 5, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);   /* clear of the frame's top edge (it pressed on it) */
+    DSLObj nt = mu_text(card, x0, 5, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);   /* clear of the frame's top edge (it pressed on it) */
+    if (teams && nteams > 0 && nt) {                                   /* the teams after the name: the name keeps up to 55 % */
+        float pw = cm_text_preferred_w(nt), nw = tw * 0.55f;
+        if (pw >= 0 && pw + 2 < nw) nw = pw + 2;
+        U->place(nt, x0, 5, nw, 28);
+        teams_row(card, x0 + nw + 14, 7, tw - nw - 14, teams, nteams);
+    }
     char line[300], bg[96] = ""; if (c->bg) mu_name_of(c->bg, bg, sizeof bg);
     snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? weapon_word(c->weapon) : "");
     dsi_utf8_fix_end(line);

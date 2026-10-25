@@ -281,6 +281,10 @@
  "Team deleted. Its units stay in My Units.": "Equipo eliminado. Sus unidades siguen en Mis unidades.",
  "Team only": "Solo equipo",
  "Team only: the units stay in My Units.": "Solo equipo: las unidades siguen en Mis unidades.",
+ "Team: %s||Teams: %s": [
+  "Equipo: %s",
+  "Equipos: %s"
+ ],
  "Teams": "Equipos",
  "Test": "Prueba",
  "Test Fight": "Combate de prueba",

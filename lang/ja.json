@@ -266,6 +266,9 @@
  "Team deleted. Its units stay in My Units.": "チームを削除しました。ユニットはマイユニットに残ります。",
  "Team only": "チームのみ",
  "Team only: the units stay in My Units.": "チームのみ：ユニットはマイユニットに残ります。",
+ "Team: %s||Teams: %s": [
+  "チーム：%s"
+ ],
  "Teams": "チーム",
  "Test": "テスト",
  "Test Fight": "テスト戦闘",

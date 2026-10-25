@@ -266,6 +266,9 @@
  "Team deleted. Its units stay in My Units.": "队伍已删除。其单位保留在我的单位中。",
  "Team only": "仅队伍",
  "Team only: the units stay in My Units.": "仅队伍：单位保留在我的单位中。",
+ "Team: %s||Teams: %s": [
+  "队伍：%s"
+ ],
  "Teams": "队伍",
  "Test": "测试",
  "Test Fight": "测试战斗",
