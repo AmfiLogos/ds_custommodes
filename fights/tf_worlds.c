@@ -104,6 +104,8 @@ static int world_has_files(const char *saves, const char *g) {
 #endif
 }
 
+static char *keep; static size_t keep_n;                            /* the last test world's start save (Restart test) */
+static int in_test;
 int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *err, size_t errn) {
     reg_load();
     jv *s = jparse(save, n, err, errn); if (!s) return -1;
@@ -133,9 +135,27 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
 #else
     if (rename(t, p)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
 #endif
-    snprintf(name_out, name_n, "%s", name); free(name); free(fixed);
+    snprintf(name_out, name_n, "%s", name); free(name);
+    if (save != keep) { char *k = malloc(n); if (k) { memcpy(k, save, n); free(keep); keep = k; keep_n = n; } }   /* for Restart test */
+    free(fixed);
     cmw_log("tf: test world %s written (%zu bytes)", name_out, n);
     return 0;
+}
+/* Restart test (owner 2026-10-25, every Test Fights world): the save the Start wrote, written and loaded again by the same
+   path as Start (tfw_write, tfw_loading, the game's LoadCampaignRequested): the same map, squad, difficulty and kits, from
+   a fresh state, without the title */
+int tf_restart_ready(void) { return keep && in_test; }
+int tf_restart(void) {
+    if (!tf_restart_ready()) return -1;
+    char *c = malloc(keep_n), name[300], err[300]; if (!c) return -1;
+    memcpy(c, keep, keep_n);
+    int r = tfw_write(c, keep_n, name, sizeof name, err, sizeof err);
+    free(c);
+    if (r) { cmw_log("tf: Restart test: %s", err); return -1; }
+    tfw_loading(); tf_dps_restarting();
+    r = cmw_load_campaign(name);
+    cmw_log("tf: Restart test: %s %s", name, r ? "NOT queued" : "queued");
+    return r;
 }
 
 /* Leaving a test world: back on the title, its saves are removed (the game's own Remove is switched off in this build:
@@ -146,7 +166,7 @@ int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *e
  * (LoadCampaign: MoveSceneToTitle, then TryLoad), so "the title is gone" alone would remove the world it is loading.
  * Checked every 30 frames. */
 static int loading, frames;
-static int in_test, load_seen;                                    /* a test world is loaded; TryLoad hooked (below) */
+static int load_seen;                                             /* TryLoad hooked (below); in_test: a test world is loaded */
 static void og_restore(void);
 void tfw_loading(void) { loading = 1; }
 static void tick(void *ud) {
