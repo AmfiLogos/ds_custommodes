@@ -27,7 +27,14 @@
 #include <ctype.h>
 
 #define WIN_W 1040.0f
-#define WIN_H 728.0f                                       /* the body as before under the template's 72 header */
+/* the window's height: 728 (the body as before under the template's 72 header), taller when the screen has the room at
+   the game's UI Scale, up to 940 (owner 2026-10-25: World units "only ever displays two units at once ... It should display
+   more": at 940 a world shows 4 unit cards at once). Set when the window opens (build_window); the scale never changes
+   for it (mu_shell_open fit 1: the size stays, the scale goes down only below 728's room). */
+#define WIN_H_MIN 728.0f
+#define WIN_H_MAX 940.0f
+static float win_h = WIN_H_MIN;
+#define WIN_H win_h
 #define BODY_H (WIN_H - CMW_BAND - 1)
 #define PANEL_H (BODY_H - 110 - foot_x)     /* the two lists: shorter while a long status message needs more lines */
 #define LX 24.0f
@@ -631,6 +638,7 @@ static void waff_change(void *ud, DSLObj w) { (void)ud; st.waff = U->toggle_get(
    open world shows its save's units as cards (read only), each with a tick */
 static void paint_worlds(float y, float lh, float ky) {
     DSLObj sc = U->scroll(left, 0, y, LW, lh); float sy = 0, uw = LW - 16;
+    cmw_named(sc, CMW_TEXT, "fights:l.list", NULL, NULL, "");          /* test: the list's view (its rect is the viewport's) */
     char sq[700]; size_t k = 0; sq[0] = 0;
     for (int q = 0; q < st.nsv; q++) { k += (size_t)snprintf(sq + k, sizeof sq - k, "%s%s", k ? ", " : "", st.sv[q].name); if (k >= sizeof sq) break; }
     char line[900];
@@ -680,21 +688,24 @@ static void paint_worlds(float y, float lh, float ky) {
         if (!open) continue;
         world_units_load();
         if (!nwu) { sy += txt(sc, "fights:l.werr", 12, sy, uw - 12, wu_err[0] ? wu_err : TR("No units of your clan are stored in this save."), 15, wu_err[0] ? WARN : SUB) + 8; continue; }
+        /* the cards in the card template's compact form (owner 2026-10-25: "only ever displays two units at once"): the
+           name and the race line on one row, 106 high instead of 128 */
+        const float ch = mu_card_h(MU_CARD_COMPACT);
         for (int u = 0; u < nwu; u++) {
             char tn[40], cn[40]; snprintf(tn, sizeof tn, "fights:l.wtick%d", u); snprintf(cn, sizeof cn, "fights:l.wcard%d", u);
-            DSLObj hd = card_holder(sc, 0, sy, uw, MU_CARD_H), cp = hd ? hd : sc; float hy = hd ? 0 : sy;
-            mu_plate(cp, 0, hy + (MU_CARD_H - 44) / 2, 40, 44, MU_C_BAND);
+            DSLObj hd = card_holder(sc, 0, sy, uw, ch), cp = hd ? hd : sc; float hy = hd ? 0 : sy;
+            mu_plate(cp, 0, hy + (ch - 44) / 2, 40, 44, MU_C_BAND);
             /* the kit's check box sits 24 from the toggle's right edge: 48 wide from -4 puts it in the slot's middle */
-            DSLObj tick = cmw_named(U->toggle(cp, -4, hy + (MU_CARD_H - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
+            DSLObj tick = cmw_named(U->toggle(cp, -4, hy + (ch - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
             static wk_build b; static mu_card cd; static mu_save_extra x; char e[300] = ""; DSLObj card;
             if (!mu_save_build_ex(wl[i].path, wu[u].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &cd)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                card = mu_card_draw(cp, 44, hy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams, no note */
-            } else if ((card = U->panel(cp, 44, hy, uw - 44, MU_CARD_H, MU_C_ROW)))   /* this unit only: the others still show */
-                mu_text(card, 12, 10, uw - 68, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
+                card = mu_card_draw_ex(cp, 44, hy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL, MU_CARD_COMPACT);   /* a save's unit: no teams, no note */
+            } else if ((card = U->panel(cp, 44, hy, uw - 44, ch, MU_C_ROW)))   /* this unit only: the others still show */
+                mu_text(card, 12, 10, uw - 68, ch - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
             if (card) cmw_named(card, CMW_TEXT, cn, NULL, NULL, wu[u].guid);
             if (hd && tick) dsl_card_toggle(U, hd, tick, NULL, NULL);
-            sy += MU_CARD_H + 8;
+            sy += ch + 8;
         }
     }
     U->scroll_height(sc, sy + 8);
@@ -1144,6 +1155,8 @@ static void closed(void *ud) {
 static void retry_click(void *ud, DSLObj w) { (void)ud; (void)w; if (engine_state == 3) { engine_state = 0; engine_open(); paint_all(); } }
 static void build_window(void) {
     U = cmw_ui(); if (!U) return;
+    float room = mu_shell_room_h();                                    /* taller lists when the screen has the room */
+    win_h = room > WIN_H_MAX ? WIN_H_MAX : room > WIN_H_MIN ? room : WIN_H_MIN;
     body = cmw_open("fights", TR("Test Fights"), WIN_W, WIN_H, closed, NULL);
     if (!body) return;
     left = right = right_sc = NULL;

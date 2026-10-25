@@ -146,16 +146,20 @@ DSLObj mu_close_x(DSLObj parent, float x, float y, float s, DSLObj win, dsl_ui_c
 /* our own frame on an older kit: its Escape (Back first, then the Close) and its X (the Close) */
 static void shell_esc(void *ud) { mu_shell *s = ud; if (!s || !s->win) return; if (s->back_fn && s->back_fn(s->ud)) return; if (s->close) s->close(s->ud); }
 static void shell_x(void *ud, DSLObj w) { (void)w; mu_shell *s = ud; if (s && s->win && s->close) s->close(s->ud); }
+/* the screen layer's size (a probe panel: the layer before a window is made); 1920 x 1080 when it cannot be read */
+static void layer_size(float *lw, float *lh) {
+    *lw = 0; *lh = 0;
+    DSLObj pr = U ? U->panel(NULL, 0, 0, 10, 10, 0) : NULL;
+    if (!pr || cm_rect_size(cm_parent(pr), lw, lh) || *lw < 100 || *lh < 100) { *lw = 1920; *lh = 1080; }
+    if (pr) U->destroy(pr);
+}
+float mu_shell_room_h(void) { float lw, lh; layer_size(&lw, &lh); return (lh - 40) / mu_ui_scale(); }   /* fit 1's own test */
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h,
                      void (*close)(void *ud), int (*back)(void *ud), void *ud) {
     memset(s, 0, sizeof *s);
     if (!U) return NULL;
     s->close = close; s->back_fn = back; s->ud = ud;
-    /* the room on the screen layer (a probe panel: the layer's size before the window is made) */
-    float lw = 0, lh = 0;
-    { DSLObj pr = U->panel(NULL, 0, 0, 10, 10, 0);
-      if (!pr || cm_rect_size(cm_parent(pr), &lw, &lh) || lw < 100 || lh < 100) { lw = 1920; lh = 1080; }
-      if (pr) U->destroy(pr); }
+    float lw, lh; layer_size(&lw, &lh);                                 /* the room on the screen layer */
     /* the game's UI scale like the game's own windows: drawn at its size x scale, never cut by the screen layer: fit 0 =
        the room it may take (in its own units) is the layer / scale minus a margin; fit 1 = its size stays, the scale goes
        down until it fits */
@@ -284,22 +288,31 @@ static void note_row(DSLObj card, float x, float y, float room, const char *cons
     mu_text(h ? h : card, h ? 0 : x, h ? 0 : y, room, 22, forms[k], 13, DSL_TXT_RIGHT, MU_C_SUB);
     snprintf(note_shown, sizeof note_shown, "%s", forms[k]);
 }
+float mu_card_h(int flags) { return flags & MU_CARD_COMPACT ? MU_CARD_H_COMPACT : MU_CARD_H; }
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
                     const char *const *note, int nnote, const char *note_tip) {
+    return mu_card_draw_ex(parent, x, y, w, c, name, level, portrait_key, bar, nbar, teams, nteams, note, nnote, note_tip, 0);
+}
+DSLObj mu_card_draw_ex(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
+                       const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
+                       const char *const *note, int nnote, const char *note_tip, int flags) {
     teams_shown[0] = 0; note_shown[0] = 0; note_obj = NULL;
     if (!U || !c) return NULL;
-    DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, 0);            /* the game's own panel (a dark tint drew it black) */
+    int compact = (flags & MU_CARD_COMPACT) != 0;
+    if (compact) { teams = NULL; nteams = 0; note = NULL; nnote = 0; }
+    DSLObj card = U->panel(parent, x, y, w, mu_card_h(flags), 0);     /* the game's own panel (a dark tint drew it black) */
     if (!card) return NULL;
     cm_raycast(card, false);
     if (ncards < 256) { cards[ncards] = card; in_card = ncards++; }
     /* avatar + level */
     const char *face = portrait_key && *portrait_key ? portrait_key : c->avatar;
     char rn[96]; mu_name_of(c->race, rn, sizeof rn);
-    if (face && cm_icon(CM_ICON_PORTRAIT, face)) mu_icon(card, 8, 8, 72, CM_ICON_PORTRAIT, face, 0, NULL);
-    else mu_icon(card, 8, 8, 72, CM_ICON_AFFECTER, c->race, 0, rn);
+    float ay = compact ? 6 : 8;
+    if (face && cm_icon(CM_ICON_PORTRAIT, face)) mu_icon(card, 8, ay, 72, CM_ICON_PORTRAIT, face, 0, NULL);
+    else mu_icon(card, 8, ay, 72, CM_ICON_AFFECTER, c->race, 0, rn);
     char lv[64]; snprintf(lv, sizeof lv, TR("Lv %d"), level > 0 ? level : c->lvl);
-    mu_text(card, 4, 82, 80, 24, lv, 14, DSL_TXT_CENTER, MU_C_GOLD);
+    mu_text(card, 4, compact ? 78 : 82, 80, compact ? 22 : 24, lv, 14, DSL_TXT_CENTER, MU_C_GOLD);
     /* the in-game character (race, face, worn gear), drawn by the game (mu_look.c), top right; a narrow card (Test Fights'
        squad list, about 300 wide) leaves it out: the name and the icon rows need the room, the portrait shows the face */
     float lookw = 0;
@@ -312,25 +325,27 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     char nm[128];
     if (name && *name) snprintf(nm, sizeof nm, "%s", name);
     else snprintf(nm, sizeof nm, "%s", c->name[0] ? c->name : TR("Unit"));
-    DSLObj nt = mu_text(card, x0, 5, tw, 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);   /* clear of the frame's top edge (it pressed on it) */
-    if (teams && nteams > 0 && nt) {                                   /* the teams after the name: the name keeps up to 55 % */
+    DSLObj nt = mu_text(card, x0, compact ? 4 : 5, tw, compact ? 26 : 28, nm, 17, DSL_TXT_LEFT, MU_C_MAIN);   /* clear of the frame's top edge (it pressed on it) */
+    float rx = x0, ry = 31;                                            /* the race line's place: its own row, or after the name */
+    if (((teams && nteams > 0) || compact) && nt) {                    /* the teams / race line after the name: the name keeps up to 55 % */
         float pw = cm_text_preferred_w(nt), nw = tw * 0.55f;
         if (pw >= 0 && pw + 2 < nw) nw = pw + 2;
-        U->place(nt, x0, 5, nw, 28);
-        teams_row(card, x0 + nw + 14, 7, tw - nw - 14, teams, nteams);
+        U->place(nt, x0, compact ? 4 : 5, nw, compact ? 26 : 28);
+        if (compact) { rx = x0 + nw + 10; ry = 7; }                    /* on the name's baseline (13 under 17) */
+        else teams_row(card, x0 + nw + 14, 7, tw - nw - 14, teams, nteams);
     }
     char line[300], bg[96] = ""; if (c->bg) mu_name_of(c->bg, bg, sizeof bg);
     snprintf(line, sizeof line, "%s%s%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg, c->weapon ? "  \xC2\xB7  " : "", c->weapon ? weapon_word(c->weapon) : "");
     dsi_utf8_fix_end(line);
     /* one size on every card: a line too long for 13 drops its weapon word (the weapon is the first worn-item icon below)
        instead of the kit shrinking each card to its own size and cutting the weapon with "..." (RU) */
-    float rw = note && nnote > 0 ? tw * 0.6f : tw;                     /* with a note: the race line keeps up to 60 % */
+    float rw = note && nnote > 0 ? tw * 0.6f : x0 + tw - rx;           /* with a note: the race line keeps up to 60 % */
     if (c->weapon) {
-        DSLObj m = U->text(card, x0, 31, tw, 22, line, mu_text_size(13), DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
+        DSLObj m = U->text(card, rx, ry, tw, 22, line, mu_text_size(13), DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
         if (m) U->destroy(m);
         if (pw > rw) { snprintf(line, sizeof line, "%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg); dsi_utf8_fix_end(line); }
     }
-    DSLObj rt = mu_text(card, x0, 31, rw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
+    DSLObj rt = mu_text(card, rx, ry, rw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
     if (note && nnote > 0) {
         float pw = rt ? cm_text_preferred_w(rt) : -1;
         if (pw >= 0 && pw + 2 < rw) { rw = pw + 2; U->place(rt, x0, 31, rw, 22); }
@@ -341,20 +356,21 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     for (int i = 0; i < c->neq && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_ITEM, c->eq[i].item, 0 }; gr[n++] = 0; }
     int nb = bar ? nbar : c->nbar;
     for (int i = 0; i < nb && n < MUC_MAX * 2; i++) { const char *k = bar ? bar[i] : c->bar[i]; if (k && *k) { ic[n] = (IconRef){ CM_ICON_SKILL, k, 0 }; gr[n++] = 1; } }
-    icon_row(card, x0, 54, w - 8 - lookw, 24, ic, gr, n);
+    float r0 = compact ? 32 : 54;                                      /* the three icon rows, 25 apart */
+    icon_row(card, x0, r0, w - 8 - lookw, 24, ic, gr, n);
     /* row B: branches ACTIVE | PASSIVE (dim = nothing learned in it) | banked milestones */
     n = 0;
     for (int i = 0; i < c->nactive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->active[i].tree, !c->active[i].invested }; gr[n++] = 0; }
     for (int i = 0; i < c->npassive; i++) { ic[n] = (IconRef){ CM_ICON_TREE, c->passive[i].tree, !c->passive[i].invested }; gr[n++] = 1; }
     for (int i = 0; i < c->nstacks; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->stacks[i].skill, !c->stacks[i].learned }; gr[n++] = 2; }
-    icon_row(card, x0, 79, w - 8 - lookw, 24, ic, gr, n);
+    icon_row(card, x0, r0 + 25, w - 8 - lookw, 24, ic, gr, n);
     /* row C: passive skills | inscriptions | soul stones | traits acquired in play */
     n = 0;
     for (int i = 0; i < c->npass && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_SKILL, c->pass[i].skill, 0 }; gr[n++] = 0; }
     for (int i = 0; i < c->ninsc && n < MUC_MAX * 2; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->insc[i], 0 }; gr[n++] = 1; }
     for (int i = 0; i < c->nsouls && n < MUC_MAX * 2 + WK_MAX_LIST; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->souls[i], 0 }; gr[n++] = 2; }
     for (int i = 0; i < c->nacq && n < MUC_MAX * 3; i++) { ic[n] = (IconRef){ CM_ICON_AFFECTER, c->acq[i], 0 }; gr[n++] = 3; }
-    icon_row(card, x0, 104, w - 8 - lookw, 20, ic, gr, n);
+    icon_row(card, x0, r0 + 50, w - 8 - lookw, 20, ic, gr, n);
     in_card = -1;
     return card;
 }

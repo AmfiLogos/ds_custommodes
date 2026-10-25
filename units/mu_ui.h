@@ -48,6 +48,9 @@ typedef struct mu_shell { DSLObj back, win, x; int std, esc_ok; void (*close)(vo
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h,
                      void (*close)(void *ud), int (*back)(void *ud), void *ud);
 void   mu_shell_close(mu_shell *s);
+/* the height a fit-1 window may have at the game's UI scale before its scale goes down ((the screen layer's height - the
+   shell's 40 margin) / UI scale): a window that grows with the screen (Test Fights' lists) asks this before mu_shell_open */
+float  mu_shell_room_h(void);
 int    mu_shell_count(void);                               /* shells open now (test) */
 /* a backdrop over the whole kit screen layer: dims what is under it and takes its clicks (the game's notice look) */
 DSLObj mu_backdrop(uint32_t rgba);
@@ -89,6 +92,16 @@ void mu_name_of(const char *key, char *out, size_t cap);
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
                     const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
                     const char *const *note, int nnote, const char *note_tip);
+/* the same card with flags. MU_CARD_COMPACT (owner 2026-10-25, Test Fights: the World units list "only ever displays two
+   units at once ... It should display more"): the name and the race line share the first row (the name keeps up to 55 %,
+   the race line drops its weapon word, then ends in "..."), so the card is MU_CARD_H_COMPACT high; the portrait, the level,
+   the three icon rows and every text size stay. No teams / note row in this form (pass NULL / 0). */
+#define MU_CARD_COMPACT 1
+#define MU_CARD_H_COMPACT 106.f
+DSLObj mu_card_draw_ex(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
+                       const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
+                       const char *const *note, int nnote, const char *note_tip, int flags);
+float  mu_card_h(int flags);                   /* the card's height for these flags */
 /* test support: the teams text / note the last mu_card_draw showed ("" none; the teams' "+N" part included when cut) */
 const char *mu_card_teams_shown(void);
 const char *mu_card_note_shown(void);

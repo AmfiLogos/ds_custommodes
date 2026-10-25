@@ -20,7 +20,9 @@ Fails when (the breaks this catches):
     owner's save folders: its HOME, data folder and game saves folder are its own.)
   - a click on a team row's picture or on a World units card does not tick / untick it like its box (CARD RULE);
   - "Pick 1-4" on a folded world does not pick the save's first 4 units in the order of the game's own portrait bar
-    (checked by loading that save copy in the game and reading the bar), Squad does not show 4 / 4, or the world opens.
+    (checked by loading that save copy in the game and reading the bar), Squad does not show 4 / 4, or the world opens;
+  - fewer than 4 of the open world's unit cards are wholly inside the list's view as it opens (owner: "only ever displays
+    two units at once"), or the window's size on the screen changes when units are ticked and unticked.
   The running game's units are read from a save the game itself writes of the test world right after the load, paused
   (tf_test_save: the game's own CampaignSaveLoader.Save).
   saveunits_game_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer,
@@ -232,6 +234,26 @@ def teams_folded_part():
     check('a click on the team row (its picture, not the box) adds all its units, a second one takes them out', n1 == 3 and n0 == 0, (n1, n0))
 
 
+def full_cards(n):
+    """the open world's cards wholly inside the list's view (screen rects of the list viewport and of each card)"""
+    vr = req('rect', target='fights:l.list').get('at') or [0, 0, 0, 0]
+    rs = [req('rect', target=f'fights:l.wcard{u}').get('at') or [0, 0, 0, 0] for u in range(n)]
+    return [u for u, r in enumerate(rs) if r[3] - r[1] > 10 and r[1] >= vr[1] - 1 and r[3] <= vr[3] + 1], vr, rs
+
+
+def list_view_part(n):
+    """owner 2026-10-25: the World units list "only ever displays two units at once, which is wrong. It should display
+    more"; "for each unit that I select, the zoom of the DPS check window changes". Leaves no unit picked."""
+    full, vr, rs = full_cards(n)
+    check(f'World units: at least 4 unit cards wholly in view at once, the list as it opens (a world of {n} units)', n >= 5 and len(full) >= 4, (full, vr, rs[:5]))
+    shot(f'list_{LANG or "en"}')
+    sizes = [req('rect', target='fights:title').get('at')]
+    for t in ('fights:l.wtick0', 'fights:l.wcard0', 'fights:l.wcard1', 'fights:l.wtick1'):     # on, off, on, off: box and card
+        click(t, 1.5); sizes.append(req('rect', target='fights:title').get('at'))
+    same = all(s and sizes[0] and max(abs(a - b) for a, b in zip(s, sizes[0])) <= 1 for s in sizes)
+    check('the window keeps its size on the screen (its scale) while units are ticked and unticked', same and not tf().get('spicks'), sizes)
+
+
 def pick_rat():
     for i in range(4):
         if tf().get('mode') == 'arena':
@@ -292,6 +314,7 @@ def run():
           and req('rect', target='fights:l.wtick1').get('rc', -1) > 0, (gi, len(us)))
     if len(us) < 2:
         return
+    list_view_part(len(us))
     check('"Bring buffs and effects from the save" starts off', tf().get('waff') == 0 and req('rect', target='fights:l.waff').get('rc', -1) > 0, tf().get('waff'))
     # CARD RULE: a click anywhere on a unit's card (its middle, not the box) ticks it, a second click unticks it
     click('fights:l.wcard1', 1.5); on = [p.split('/')[1] for p in (tf().get('spicks') or '').split(',') if '/' in p]
