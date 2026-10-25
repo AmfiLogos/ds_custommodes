@@ -1,5 +1,16 @@
 # Notes
 
+## RULE for every window (owner 2026-10-25: Escape; read before adding a window, box or panel)
+- Every window, panel or box of this mod registers with the loader kit's Escape stack where it is built or shown
+  (`dsl_esc_push`, dsl_sdk.h; `dsl_esc_drop` where it hides; a destroyed one drops itself). One press acts on the TOP
+  window only, as its own button does, with the same cleanup: a sub-page with a Back button goes Back one level first
+  (cm_win.c `cmw_set_back`), a confirm box = Cancel (the kit's notice box is pushed by the kit), a focused text field =
+  only leave the field (an edit row or box also cancels: `DSL_ESC_EDIT`), else the window's own Close / X / Cancel. The game
+  never gets that press. A HUD panel with no Close (DPS meter, DPS log): `DSL_ESC_HUD`.
+- A new window without it is a bug: add a case to units/test/esc_test.py. In test copies the kit logs `ESC-MISSING` for a
+  root panel with no registration, and the test's sweep fails on it.
+- Full rule and how-to: ds_modloader loader/NOTES.md "Escape".
+
 ## Where this repo comes from (2026-10-16)
 - History = `git subtree split -P custom` of ds_multiplayer main 1c8f1af (40 commits, last 8a7c362). Tag `v13` = 8a7c362:
   its files are the same as ds_multiplayer v13 (29f0fa6) custom/ (tree 1f55b21).
