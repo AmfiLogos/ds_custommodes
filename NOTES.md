@@ -317,3 +317,16 @@
   its own AffecterSimulator call (key / stack / duration swapped, then put back), because the fixture squad never casts
   a skill (no Auto Skill: see 0.1.35). dps_test.py --heal 10/10: 32 absorbs, 30 fully blocked hits logged as 0 damage,
   meter Absorbed 1605.62 = the absorb lines it measured.
+- 0.1.35: test-fight units cast their skills (lead 2026-10-25: "a DPS check where units never use their skills measures
+  the wrong thing"). Two causes, both from the game's own code:
+  1. The game's "Auto Skill" is BehaviourOption AutoAttack (1) (TEXTKEY_SummaryOptionUI_AutoAttack_NAME; a new unit starts
+     with 0: EntityInfoComponent.Init). Without it DecidePlayerCombatBehaviour.DecideSkill returns the basic attack only,
+     whatever the bar and AutoUse say. The wiki's generator writes Option 0 | Hold Position (2): sg_glue.js autoSkill() now
+     ORs Auto Skill onto every clan unit of every Test Fights world (the per-skill AutoUse stays the generator's: all on).
+     Monster fight: Sweeping Cleave, Fire Cloak (with its own Barrier), Strange Seed now cast (dps_test --heal 10/10).
+  2. DecideSkill only looks at the bar when CombatUtility.GetClosestSingleEnemy finds a combatable hostile UNIT
+     (GetClosestCombatableHostiles): a building never counts, so on the scarecrow alone skills never fired. In a DPS Check
+     world, for a squad unit with no hostile unit about, tf_dps.c h_cse answers the scarecrow (IEntity, the method's own
+     return type); range, cooldown, energy, target and per-skill auto-use stay the game's checks. It starts with the
+     scarecrow's first hit (its handle is taken then).
+  dps_test.py check: hits of active skills in the first 30 s of the fight (Piercing Thrust, Sweeping Cleave); 35/35.

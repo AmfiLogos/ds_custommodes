@@ -96,6 +96,7 @@ static void fmt_sep(double v, char *o, size_t n) {
 
 /* ---------------------------------------------------------------- the inspect panel's durability */
 static uintptr_t h_view, h_sr;                           /* the panel and the StatusReader of the building it shows */
+static uintptr_t h_dummy_ent;                            /* the scarecrow (h_cse) */
 static uint8_t shown_g[16]; static float shown_c = -1, shown_m = -1;
 static int live = 1;                                     /* test switch: 0 = the stock panel (no follow) */
 static int live_hp = -1;                                 /* the Fix mod live-hp runs (1): it makes every building's panel follow (asked each 30 frames) */
@@ -337,7 +338,22 @@ static int ent_of(Obj e) {                               /* the entity table: sq
     if (is_unit && m_port.fn) cm_il_utf8(CM_CALL(m_port, Obj, Obj, const void *)(e, m_port.mi), u->portrait, sizeof u->portrait);
     u->is_player = e && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(e, m_isplayer.mi);
     u->is_dummy = is_b && is_dummy_e(e);
+    if (u->is_dummy) cm_il_hset(&h_dummy_ent, e);         /* for h_cse */
     return nunit++;
+}
+/* Auto Skill on the scarecrow (lead 2026-10-25: a DPS Check must measure the skills). The game's skill pick
+   (DecidePlayerCombatBehaviour.DecideSkill) only looks at the skill bar when CombatUtility.GetClosestSingleEnemy finds a
+   combatable hostile UNIT (IInMapDataSupplier.GetClosestCombatableHostiles): a building never counts, so a squad on the
+   scarecrow alone only ever used its basic attack. In a DPS Check world, for a squad unit, with no hostile unit about, the
+   answer becomes the scarecrow (an IEntity, the method's own return type). The skill's range, cooldown, energy, target and
+   per-skill auto-use checks stay the game's. */
+typedef Obj (*cse_fn)(Obj user, Obj inmap, const void *mi);
+static cse_fn o_cse;
+static Obj h_cse(Obj user, Obj inmap, const void *mi) {
+    Obj r = o_cse(user, inmap, mi);
+    if (r || !dps_on || title_up || !user || !h_dummy_ent || !m_isplayer.fn) return r;
+    Obj d = cm_il_hget(h_dummy_ent);
+    return d && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi) ? d : r;
 }
 static int involved(Obj user, Obj tgt) {                 /* a squad unit or the scarecrow takes part */
     return (tgt && is_dummy_e(tgt)) || (user && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi))
@@ -703,7 +719,7 @@ void tf_dps_world(const char *stem) {
     if (on) { log_clear(); fb_off = 0; fb_n = (size_t)-1; restart_line = restarting ? 30 : 0; restarting = 0; }   /* the line once the world shows */
                                                          /* (a restart also loads the title's background world first: not that one) */
     cm_il_hset(&h_view, NULL); cm_il_hset(&h_sr, NULL); shown_c = shown_m = -1;
-    cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1;
+    cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1; cm_il_hset(&h_dummy_ent, NULL);
     dps_on = on;
 }
 void tf_dps_restarting(void) { restarting = dps_on; }
@@ -776,6 +792,10 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     if (f_al_key >= 0 && f_al_tgt >= 0) {
         int r = H->hook_method(self, "Refactor.Combat.ExecutionProcess", "AffecterSimulator", "Simulate", 4, (void *)h_asim, (void **)&o_asim);
         cmw_log("tf: DPS Check: effects in the log %s (%d)", r ? "hook refused" : "on", r);
+    }
+    if (m_isplayer.fn) {
+        int r = H->hook_method(self, "Refactor.Combat", "CombatUtility", "GetClosestSingleEnemy", 2, (void *)h_cse, (void **)&o_cse);
+        cmw_log("tf: DPS Check: Auto Skill on the scarecrow %s (%d)", r ? "hook refused" : "on", r);
     }
     k_fxd = cm_il_class(RC, "FXCallExecutionData"); f_fx_user = cm_il_field(k_fxd, "<User>k__BackingField");
     f_ins_el = cm_il_field(cm_il_class(RU, "SubUI_EntityInspectionStatus"), "_buildingElements");
