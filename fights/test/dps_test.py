@@ -560,7 +560,10 @@ def group_check(L, E, kinds=(0, 1, 2)):
                     bad.append({'line': plain[:160], 'want': [kind, nm, w]})
                 continue
             g = next((p for p in got if p['name'].startswith(nm.split('...')[0][:20])), None)
-            if not g or g['n'] != w['n'] or abs(sum(abs(a) for a in g['amts']) - round(w['tot'])) > max(1, w['n']):
+            shown = sum(abs(a) for a in g['amts']) if g else 0
+            if g and len(g['amts']) == 1:                         # every target got the same amount: shown once, after the last target
+                shown *= len(g['rest'].split(': ')[0].split(', '))
+            if not g or g['n'] != w['n'] or abs(shown - round(w['tot'])) > max(1, w['n']):
                 bad.append({'line': plain[:160], 'want': [kind, nm, w], 'got': got[:3]})
             elif kind == 1 and ('<color=#7EC86B>' not in raw or '+' not in g.get('rest', '')):
                 bad.append({'line': raw[:200], 'heal_not_green_or_unsigned': nm})
@@ -610,7 +613,7 @@ def run_heal():
     t0 = time.time()
     while time.time() - t0 < 40 and (dps('state').get('ev') or {}).get('dmg', 0) < 5:   # the fight is on
         time.sleep(1)
-    b = dps('barrier 400 600 8')                                  # test only: the next effects on each squad unit (twice) become the game's Barrier
+    b = dps('barrier 150 600 4')                                  # test only: the next 4 effects on squad units become the game's Barrier (small: hits still get through, the healer heals)
     check('test barrier armed (the game\'s Barrier through its own AffecterSimulator)', b.get('ok') == 1, b)
     t0 = time.time()
     while time.time() - t0 < 120:
