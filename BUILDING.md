@@ -33,7 +33,7 @@ Never commit these.
 | ds_multiplayer clone | https://github.com/AmfiLogos/ds_multiplayer. Gives the headers (`src/`), `sdk/dsl_sdk.h` and the Windows build. `build.sh` clones it into `build/ds_multiplayer` when missing. | `MP_REPO` |
 | DS wiki site source (optional) | The DPS check picture of Test Fights (`assets/img/tour/sg-dps-map.png`, game art: never in git) is copied into the mod as `art/dps_check.png`. Missing = the card shows without it. | `DS_WIKI_SITE` (default `dungeonsettlersdb/site` in your home folder) |
 | Multiplayer pin | The ds_multiplayer commit to build against: first line of `mp_pin.txt`. `build.sh` exports it read only into `build/mp/<sha>/`. | `MP_PIN` |
-| Loader SDK | Folder with `dsl_sdk.h`. Default: `sdk/` of the pinned tree. | `SDK` |
+| Loader SDK | Folder with `dsl_sdk.h`. Default: `sdk/` of the pinned tree; it must have the kit templates (`dsl_window_std`, ds_modloader d529f52+), else use `<ds_modloader>/loader/sdk`. | `SDK` |
 | Windows game folder (Windows only) | `win/25846389` of ds_multiplayer: copies of the Windows game files of Steam build 25846389 and the Il2CppDumper dump. ds_multiplayer `BUILDING.md` says how to make it. | `MP_GAME` (default `$MP_REPO/win/25846389`) |
 | Mac dump (Windows only) | ds_multiplayer `win/win_map.py` also reads the Mac dump and the Mac GameAssembly arm64 slice. See ds_multiplayer `BUILDING.md`. | none (fixed paths in those scripts) |
 

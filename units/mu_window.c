@@ -38,7 +38,7 @@ static struct {
     DSLObj team_btn[64]; int nteam_btn; DSLObj all_btn; char team_txt[64][300];   /* team rows and their texts (tests) */
     float bar_x0, bar_room, bar_w[6]; DSLObj bar_b[6]; int bar_n;   /* the bottom bar's library buttons (layout_bottom) */
     int ren_team, ren_on; char ren_tid[17];   /* the name box renames: 0 the ticked unit, 1 the team ren_tid (selected when opened); ren_on = it shows */
-    DSLObj tick[16], card[16], row[16], note[16]; char card_id[16][17]; char card_guid[16][40]; char card_teams[16][400]; int ncard;
+    DSLObj tick[16], card[16], note[16]; char card_id[16][17]; char card_guid[16][40]; char card_teams[16][400]; int ncard;
     float w, h, rx, ry, rw, rh, lw, lh, scale;
     jv *lib; char err[400];
     int sel_team;                     /* -1 = All units */
@@ -54,7 +54,7 @@ static struct {
     /* library cards with a source (a snapshot): the line inside the card (nsrc = drawn on this page; their text) */
     int nsrc; char card_src[16][200], card_src_full[16][400];
     /* "Delete team" box: Cancel / Team only / Team and units */
-    int dlg_on; DSLObj dlg, dlg_units, dlg_only, dlg_cancel;
+    int dlg_on; DSLObj dlg, dlg_units, dlg_only, dlg_cancel, dlg_x;
     mu_shell sh;                      /* the window's shell: backdrop, frame, title, red X (mu_ui.h) */
     int on_title, title_poll;         /* opened on the title screen: closed when the title goes away (U1) */
 } W = { .sel_team = -1, .sel_world = -1, .su_for = -1 };
@@ -243,14 +243,10 @@ static void on_tick(void *ud, DSLObj w) {
     else untick(id);
     refresh();
 }
-/* CARD RULE (owner 2026-10-25): a click anywhere on a card toggles its tick, as its check box. The card is drawn inside a
-   button of its size (row[i]): a click on the card, its texts, icons or the snapshot line (which takes the hover) goes up
-   to that button. */
-static void on_card(void *ud, DSLObj w) {
-    (void)w; int i = (int)(intptr_t)ud; if (i < 0 || i >= W.ncard || !W.tick[i]) return;
-    U->toggle_set(W.tick[i], !U->toggle_get(W.tick[i]));
-    on_tick(ud, W.tick[i]);
-}
+/* CARD RULE (owner 2026-10-25): a click anywhere on a card toggles its tick, as its check box. The kit's template
+   (dsl_card_toggle): each card and its tick sit in one holder; a click on the holder that is not on its own buttons
+   flips the tick (its change callback runs), hover cards still show. */
+static DSLObj card_holder(float y) { return mu_plate(W.right, 2, y, W.rw - 10, MU_CARD_H, 0); }
 /* "Save snapshot": the ticked units of the world's newest save become normal My Units units, each with its source */
 static void on_snapshot(void *ud, DSLObj w) {
     (void)ud; (void)w; if (W.sel_world < 0 || W.sel_world >= W.nworlds || W.nwticked < 1) return;
@@ -342,7 +338,7 @@ static void on_delete(void *ud, DSLObj w) {
 /* "Delete team" asks each time (owner 2026-10-25): a box with Cancel, "Team only" and "Team and units" (the game's notice
    box has two buttons). It says how many units go; a unit also in another team stays. As the game's notice box (UX U4):
    the whole screen dimmed under it, Cancel first (left), the choice that deletes the most last. */
-static void dlg_close(void) { if (W.dlg) { dsl_esc_drop(U, W.dlg); U->destroy(W.dlg); } W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = NULL; W.dlg_on = 0; }
+static void dlg_close(void) { if (W.dlg) { dsl_esc_drop(U, W.dlg); U->destroy(W.dlg); } W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = W.dlg_x = NULL; W.dlg_on = 0; }
 static void dlg_done(int with_units) {
     if (!W.open || !W.lib || W.sel_team < 0) { dlg_close(); return; }
     char tid[17]; int gone = 0;
@@ -380,8 +376,10 @@ static void dlg_show(void) {
     DSLObj box = U->panel(W.dlg, 0, 0, bw, bh, 0);
     if (!box) return;
     mu_centre_scaled(box, bw, bh);
+    dsl_rules_own(U, W.dlg, DSL_RULE_SCALE);                          /* KIT-SCALE: the box is scaled by mu_centre_scaled */
     mu_plate(box, 6, 6, bw - 12, bh - 12, MU_C_BODY);
-    U->text(box, 20, 12, bw - 40, 34, TR("Delete Team"), 22, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+    U->text(box, 60, 12, bw - 120, 34, TR("Delete Team"), 22, DSL_TXT_CENTER | DSL_TXT_TITLE, 0);
+    W.dlg_x = mu_close_x(box, bw - 16 - 34, 12, 34, W.dlg, on_dlg_cancel, NULL);   /* the red X = Cancel (its Escape close) */
     char t[1200], a[300], b[300] = "", q[300];
     snprintf(q, sizeof q, TR("Delete the team \"%s\"?"), nm);
     snprintf(a, sizeof a, TRN("Team and units: %d unit goes.", "Team and units: %d units go.", ngo), ngo);
@@ -483,17 +481,18 @@ static void draw_cards(void) {
             float y = 8 + k * (MU_CARD_H + 8);
             static wk_build b; static mu_card c; static mu_save_extra x; char e[300] = "";
             snprintf(W.card_guid[W.ncard], 40, "%s", W.su[i].guid); W.card_id[W.ncard][0] = 0; W.note[W.ncard] = NULL; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
-            mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);
-            W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_wticked(W.su[i].guid), on_tick, (void *)(intptr_t)W.ncard);
-            DSLObj row = W.row[W.ncard] = U->button(W.right, 52, y, W.rw - 60, MU_CARD_H, "", on_card, (void *)(intptr_t)W.ncard);
+            DSLObj hd = card_holder(y), cp = hd ? hd : W.right; float hx = hd ? 0 : 2, hy = hd ? 0 : y;
+            mu_plate(cp, hx, hy + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);
+            W.tick[W.ncard] = U->toggle(cp, hx, hy + (MU_CARD_H - 36) / 2, 48, "", is_wticked(W.su[i].guid), on_tick, (void *)(intptr_t)W.ncard);
             if (!mu_save_build_ex(path, W.su[i].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &c)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                W.card[W.ncard] = mu_card_draw(row ? row : W.right, row ? 0 : 52, row ? 0 : y, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams */
+                W.card[W.ncard] = mu_card_draw(cp, hx + 50, hy, W.rw - 60, &c, W.su[i].name, W.su[i].level, W.su[i].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams */
             } else {
-                DSLObj p = U->panel(row ? row : W.right, row ? 0 : 52, row ? 0 : y, W.rw - 60, MU_CARD_H, MU_C_ROW);
+                DSLObj p = U->panel(cp, hx + 50, hy, W.rw - 60, MU_CARD_H, MU_C_ROW);
                 mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
                 W.card[W.ncard] = p;
             }
+            if (hd) dsl_card_toggle(U, hd, W.tick[W.ncard], NULL, NULL);
             W.ncard++;
         }
         return;
@@ -513,11 +512,10 @@ static void draw_cards(void) {
         float y = 8 + k * slot;
         wk_build b; mu_card c; char e[300];
         memcpy(W.card_id[W.ncard], W.ids[i], 17); W.note[W.ncard] = NULL; W.card_teams[W.ncard][0] = W.card_src[W.ncard][0] = W.card_src_full[W.ncard][0] = 0;
-        mu_plate(W.right, 2, y + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
+        DSLObj hd = card_holder(y), cp = hd ? hd : W.right; float hx = hd ? 0 : 2, hy = hd ? 0 : y, cx = hx + 50, cy = hy;
+        mu_plate(cp, hx, hy + (MU_CARD_H - 44) / 2, 48, 44, MU_C_BAND);   /* a plain slot (the panel sprite drew orange lines) */
         /* the kit's check box sits 24 from the toggle's right edge (centre): 48 wide puts it in the slot's middle */
-        W.tick[W.ncard] = U->toggle(W.right, 2, y + (MU_CARD_H - 36) / 2, 48, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
-        DSLObj row = W.row[W.ncard] = U->button(W.right, 52, y, W.rw - 60, MU_CARD_H, "", on_card, (void *)(intptr_t)W.ncard);
-        DSLObj cp = row ? row : W.right; float cx = row ? 0 : 52, cy = row ? 0 : y;     /* the card inside its button */
+        W.tick[W.ncard] = U->toggle(cp, hx, hy + (MU_CARD_H - 36) / 2, 48, "", is_ticked(W.ids[i]), on_tick, (void *)(intptr_t)W.ncard);
         if (!mu_build_of(W.lib, W.ids[i], &b, e, sizeof e) && !mu_card_of(&b, &c)) {
             char nm[64]; name_of(W.ids[i], nm, sizeof nm);
             /* the teams it is in (owner 2026-10-25), from the library as it is now: every action draws the cards again */
@@ -539,6 +537,7 @@ static void draw_cards(void) {
             mu_text(p, 12, 10, W.rw - 84, MU_CARD_H - 20, e, 14, DSL_TXT_WRAP, MU_C_BAD);
             W.card[W.ncard] = p;
         }
+        if (hd) dsl_card_toggle(U, hd, W.tick[W.ncard], NULL, NULL);
         W.ncard++;
     }
 }
@@ -594,7 +593,7 @@ static int build_ui(void) {
     if (!W.win) { mu_log("my units: kit not ready"); return -1; }
     dsl_esc_push(U, W.win, esc_win, NULL, 0);                         /* first: its boxes go on top of it */
     W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = W.nworld_btn = 0; W.b_snap = NULL;
-    W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = NULL;
+    W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = W.dlg_x = NULL;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* top bar under the header (the red X closes: no Close button) */
     float x = 20, y = MU_SHELL_BAND + 10;
@@ -693,7 +692,7 @@ DSLObj mu_window_test_find(const char *n) {
         { "save_team", &W.b_team }, { "rename", &W.b_rename }, { "edit", &W.b_edit }, { "delete", &W.b_delete },
         { "delete_team", &W.b_delteam }, { "rename_team", &W.b_renteam }, { "prev", &W.b_prev }, { "next", &W.b_next }, { "rename_field", &W.rename_field }, { "rename_ok", &W.b_rename_ok }, { "rename_cancel", &W.b_rename_cancel },
         { "status", &W.status }, { "box_add", &W.box_add }, { "box_cancel", &W.box_cancel }, { "win", &W.win }, { "all", &W.all_btn }, { "right", &W.right },
-        { "snapshot", &W.b_snap }, { "dlg", &W.dlg }, { "dlg_units", &W.dlg_units }, { "dlg_only", &W.dlg_only }, { "dlg_cancel", &W.dlg_cancel } };
+        { "snapshot", &W.b_snap }, { "dlg", &W.dlg }, { "dlg_units", &W.dlg_units }, { "dlg_only", &W.dlg_only }, { "dlg_cancel", &W.dlg_cancel }, { "dlg_x", &W.dlg_x } };
     for (size_t i = 0; i < sizeof map / sizeof *map; i++) if (!strcmp(n, map[i].n)) return *map[i].o;
     int k;
     if (sscanf(n, "tip%d", &k) == 1) return mu_tip_test_target(k);       /* the k-th icon with a game hover card */

@@ -598,15 +598,14 @@ static void wunit_flip(int i) {
 }
 static void wunit_toggle(void *ud, DSLObj w) { (void)w; wunit_flip((int)(intptr_t)ud); }
 /* CARD RULE (owner 2026-10-25: "Clicking on the cards doesn't allow to turn on or off select - it's a basic UX
-   requirement"): a click anywhere on a card or a row does what its box does. An invisible button under the card or row:
-   the card's own parts let clicks through (raycast off), its box and buttons sit above it. */
-static DSLObj click_area(DSLObj parent, float x, float y, float w, float h, dsl_ui_cb cb, void *ud, const char *name) {
-    DSLObj b = U->button(parent, x, y, w, h, "", cb, ud);
-    if (!b) return NULL;
-    cm_set_sprite(b, NULL, 0x00000000u); cm_raycast(b, true);
-    return cmw_named(b, CMW_BUTTON, name, cb, ud, "");
+   requirement"): a click anywhere on a card or a row does what its box does. The kit's template (dsl_card_toggle): the card
+   or row and its box sit in one holder; a click on the holder that is not on its own buttons flips the box (its change
+   callback runs), hover cards still show. */
+static DSLObj card_holder(DSLObj parent, float x, float y, float w, float h) {
+    DSLObj p = U->panel(parent, x, y, w, h, 0);
+    if (p) { cm_set_sprite(p, NULL, 0x00000000u); cm_raycast(p, false); }
+    return p;
 }
-static void wcard_click(void *ud, DSLObj w) { (void)w; wunit_flip((int)(intptr_t)ud); }
 /* "Pick 1-4" on a world row (owner 2026-10-25: "Add a button to select the leading 4 units of the save (1 to 4)"): the
    save's first units in the order of the game's own unit portrait bar (mu_save_bar_order), up to the squad size; they
    replace the picks. The world stays as it is (folded or open). */
@@ -683,18 +682,18 @@ static void paint_worlds(float y, float lh, float ky) {
         if (!nwu) { sy += txt(sc, "fights:l.werr", 12, sy, uw - 12, wu_err[0] ? wu_err : TR("No units of your clan are stored in this save."), 15, wu_err[0] ? WARN : SUB) + 8; continue; }
         for (int u = 0; u < nwu; u++) {
             char tn[40], cn[40]; snprintf(tn, sizeof tn, "fights:l.wtick%d", u); snprintf(cn, sizeof cn, "fights:l.wcard%d", u);
-            mu_plate(sc, 0, sy + (MU_CARD_H - 44) / 2, 40, 44, MU_C_BAND);
+            DSLObj hd = card_holder(sc, 0, sy, uw, MU_CARD_H), cp = hd ? hd : sc; float hy = hd ? 0 : sy;
+            mu_plate(cp, 0, hy + (MU_CARD_H - 44) / 2, 40, 44, MU_C_BAND);
             /* the kit's check box sits 24 from the toggle's right edge: 48 wide from -4 puts it in the slot's middle */
-            cmw_named(U->toggle(sc, -4, sy + (MU_CARD_H - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
-            char an[40]; snprintf(an, sizeof an, "fights:l.wcard%d.click", u);
-            click_area(sc, 44, sy, uw - 44, MU_CARD_H, wcard_click, (void *)(intptr_t)u, an);   /* under the card: a click on it ticks */
+            DSLObj tick = cmw_named(U->toggle(cp, -4, hy + (MU_CARD_H - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
             static wk_build b; static mu_card cd; static mu_save_extra x; char e[300] = ""; DSLObj card;
             if (!mu_save_build_ex(wl[i].path, wu[u].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &cd)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                card = mu_card_draw(sc, 44, sy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams, no note */
-            } else if ((card = U->panel(sc, 44, sy, uw - 44, MU_CARD_H, MU_C_ROW)))   /* this unit only: the others still show */
+                card = mu_card_draw(cp, 44, hy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams, no note */
+            } else if ((card = U->panel(cp, 44, hy, uw - 44, MU_CARD_H, MU_C_ROW)))   /* this unit only: the others still show */
                 mu_text(card, 12, 10, uw - 68, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
             if (card) cmw_named(card, CMW_TEXT, cn, NULL, NULL, wu[u].guid);
+            if (hd && tick) dsl_card_toggle(U, hd, tick, NULL, NULL);
             sy += MU_CARD_H + 8;
         }
     }
@@ -752,11 +751,11 @@ static void paint_left(void) {
             mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
             int open = i < sizeof team_open && team_open[i];
             float row0 = sy;
-            snprintf(nm, sizeof nm, "fights:l.team%zu.click", i);
-            DSLObj ra = click_area(sc, 32, sy, uw - 32, 48, team_click, (void *)(intptr_t)i, nm);   /* the icon and the author line tick the team too */
             snprintf(nm, sizeof nm, "fights:l.team%zu.open", i);
             fold_arrow(sc, 0, sy + 6, open, team_fold_click, (void *)(intptr_t)i, nm);
-            DSLObj ib = U->panel(sc, 32, sy, 40, 40, 0x1E1C21FFu);  /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
+            /* the row (icon, name, count, author line) in one holder: a click on it ticks the team (CARD RULE) */
+            DSLObj ra = card_holder(sc, 32, sy, uw - 32, 48), rp = ra ? ra : sc; float ox = ra ? 32 : 0, oy = ra ? sy : 0;
+            DSLObj ib = U->panel(rp, 32 - ox, sy - oy, 40, 40, 0x1E1C21FFu);  /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
             snprintf(nm, sizeof nm, "fights:l.team%zu.icon", i); if (ib) cmw_named(ib, CMW_TEXT, nm, NULL, NULL, "");
             Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
             if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
@@ -767,7 +766,7 @@ static void paint_left(void) {
             /* the name on one line at the unit rows' size (ends in "..."), the count apart before the tick box: as one kit
                label it wrapped to two smaller lines with "(0/4)" on the border */
             const float tx = 78;
-            DSLObj tg = cmw_named(U->toggle(sc, tx, sy + 2, uw - tx, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
+            DSLObj tg = cmw_named(U->toggle(rp, tx - ox, sy + 2 - oy, uw - tx, "", n && nin == n, team_click, (void *)(intptr_t)i), CMW_TOGGLE, nm, team_click, (void *)(intptr_t)i, lab);
             if (tg) { char c[24]; snprintf(c, sizeof c, "%d/%d", nin, n);
                       /* the count measured, right-aligned 9 before the tick box; the name gets the row up to 10 before it */
                       float ce = uw - tx - 44; DSLObj ct = mu_text(tg, ce - 46, 6, 46, 24, c, 15, DSL_TXT_RIGHT, nin ? GOLD : SUB);
@@ -777,9 +776,10 @@ static void paint_left(void) {
             if (team_author(i, au, sizeof au)) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
                 snprintf(nm, sizeof nm, "fights:l.team%zu.by", i);
-                sy += txt(sc, nm, tx, sy - 2, uw - tx, by, 14, SUB);
+                sy += txt(rp, nm, tx - ox, sy - 2 - oy, uw - tx, by, 14, SUB);
                 if (ra) U->place(ra, 32, row0, uw - 32, sy - row0);
             }
+            if (ra && tg) dsl_card_toggle(U, ra, tg, NULL, NULL);
             for (int k = 0; k < n; k++) {
                 mu_info in; size_t ui;
                 if (unit_info_by_id(ids[k], &in, &ui)) continue;
