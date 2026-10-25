@@ -4,6 +4,14 @@
   " %d Einheiten bleiben: Sie sind auch in einem anderen Team."
  ],
  "%d SP": "%d SP",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "%d Gegenstand aus der Tasche, den das Spiel nicht kennt, bleibt weg.",
+  "%d Gegenstände aus der Tasche, die das Spiel nicht kennt, bleiben weg."
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "%d Effekt, den das Spiel nicht kennt, bleibt weg.",
+  "%d Effekte, die das Spiel nicht kennt, bleiben weg."
+ ],
  "%d main SP": "%d Primär-SP",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "%d Problem gefunden - die Testwelt wurde NICHT erstellt.",
@@ -92,6 +100,7 @@
  "Boss": "Boss",
  "Boss fight": "Bosskampf",
  "Bow": "Bogen",
+ "Bring buffs and effects from the save": "Buffs und Effekte mitnehmen",
  "Building your save file...": "Dein Spielstand wird erstellt...",
  "Builds by %s": "Builds von %s",
  "Can learn": "Erlernbar",

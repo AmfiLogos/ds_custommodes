@@ -47,6 +47,19 @@ int tfc_unit_stats(const char *key, float out[TFC_N]) {
     return 0;
 }
 
+int tfc_known(int kind, const char *key) {
+    static cm_m m_item, m_aff; static int tried;
+    if (!tried) { tried = 1; m_item = cm_il_method("Refactor.Util", "DataSheetManager", "GetItemData", 1, "System.String");
+                  m_aff = cm_il_method("Refactor.Util", "DataSheetManager", "GetAffecterData", 1, "System.String");
+                  cmw_log("tf: table check: items %s, affecters %s", m_item.fn ? "yes" : "NO", m_aff.fn ? "yes" : "NO"); }
+    init();
+    cm_m m = kind ? m_aff : m_item;
+    if (!key || !*key) return 0;
+    Obj dsm = k_dsm ? cm_find(k_dsm, true) : NULL;
+    if (!m.fn || !cm_alive(dsm) || (m_ready.fn && !CM_CALL(m_ready, bool, Obj, const void *)(dsm, m_ready.mi))) return 1;
+    return CM_CALL(m, Obj, Obj, Obj, const void *)(dsm, cm_il_str(key), m.mi) != NULL;
+}
+
 static Obj body_sprite(Obj unit_obj) {
     if (!cm_alive(unit_obj) || !k_sr || !m_kids.fn || !m_sprite.fn) return NULL;
     Obj go = cm_go(unit_obj); if (!go) return NULL;

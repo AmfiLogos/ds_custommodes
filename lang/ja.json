@@ -3,6 +3,12 @@
   " %d体のユニットは、別のチームにも入っているため残ります。"
  ],
  "%d SP": "SP %d",
+ "%d bag item the game does not know is left out.||%d bag items the game does not know are left out.": [
+  "ゲームが知らないバッグのアイテム%d個は持ち込まれません。"
+ ],
+ "%d effect the game does not know is left out.||%d effects the game does not know are left out.": [
+  "ゲームが知らない効果%d個は持ち込まれません。"
+ ],
  "%d main SP": "メインSP %d",
  "%d problem found - the test world was NOT made.||%d problems found - the test world was NOT made.": [
   "問題が%d件見つかりました。テスト用ワールドは作成されませんでした。"
@@ -83,6 +89,7 @@
  "Boss": "ボス",
  "Boss fight": "ボス戦",
  "Bow": "弓",
+ "Bring buffs and effects from the save": "セーブのバフと効果を持ち込む",
  "Building your save file...": "セーブファイルを作成中...",
  "Builds by %s": "%s のビルド",
  "Can learn": "習得可能",

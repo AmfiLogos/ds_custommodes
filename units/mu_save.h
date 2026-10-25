@@ -31,6 +31,14 @@ typedef struct mu_save_extra {
 } mu_save_extra;
 int  mu_save_build_ex(const char *save_path, const char *guid, wk_build *out, mu_save_extra *x, char *err, size_t errn);
 
+/* Test Fights' World units (owner 2026-10-25: units straight from a save bring "the items they carry" and, on request,
+ * "their affecters ... as is"): what the unit carries beside its build. bag = its backpack (component Type 5), one entry per
+ * filled slot: {"slot": i, "key": K, "amount": n, "fixed": AutoFixed, "autofix": ItemAutoFixable (when the save has it),
+ * "comps": the item entity's components, as the save holds them}. aff = its AffecterHolders as the save holds them.
+ * bag / aff may be NULL (not wanted); the caller jfree's what it gets. 0 ok, -1 + err. The save is only read. */
+struct jv;
+int  mu_save_unit_carry(const char *save_path, const char *guid, struct jv **bag, struct jv **aff, char *err, size_t errn);
+
 /* The save files of a folder, newest first (the fe_game.c fe_list_saves name filter: *.json, not mp_sync*, MPFE_*,
  * *SaveHeaderCache*). out[i] = full path. No file is parsed here. Returns the count (0 when the folder is missing). */
 int  mu_save_files(const char *dir, char (*out)[1024], int max);
