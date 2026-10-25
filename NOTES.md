@@ -302,4 +302,4 @@
 - Who follows (lead 2026-10-25: "the DPS Check is a test tool and must always show live HP"): with the Fix live-hp running,
   live-hp only (every building; our hooks add the number form); without it, our own live_tick / ins_tick (scarecrow only).
   One owner per hook site holds: ours is a frame poll, live-hp's is EntitySummaryUIPresenter.RefreshOnFrame. Units
-  Laboratory 0.1.28 / 0.1.29 (7a77697, a97607e) had no own follow: dps_test --no-live-hp fails there ((b), (b2)), passes on 0.1.30.
+  Laboratory 0.1.28 / 0.1.29 (7a77697, a97607e) had no own follow: dps_test --no-live-hp fails there ((b), (b2)), passes on 0.1.31.
