@@ -663,7 +663,10 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
         k += (size_t)snprintf(t + k, sizeof t - k, "  \xC2\xB7  %s %s%s", stat_name(g->extra[e].key), v, g->extra[e].pct ? "%" : "");
     }
     dsi_utf8_fix_end(t);
-    txt(c, x0, 38, right - x0 - (pick_cb ? 230 : 0), 20, t, 14, DSL_TXT_LEFT, SUB);   /* clear of "Use this unit" */
+    /* picking for the Unit Builder: the line goes under "Use This Unit" across the whole width (UX U8: beside the button it
+       was cut, "... Life S...") */
+    float ly = pick_cb ? 50 : 38;
+    txt(c, x0, ly, right - x0, 20, t, 14, DSL_TXT_LEFT, SUB);
     /* the six major stats; a talent colours the value (the game's talent gems) and is named after it */
     k = 0; t[0] = 0;
     for (int m = 0; m < 6 && k < sizeof t; m++) {
@@ -675,7 +678,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
                               tk[0] ? " (" : "", tk[0] ? cm_gw(tk, g->talents[m]) : "", tk[0] ? ")" : "");
     }
     dsi_utf8_fix_end(t);
-    float yy = 60;
+    float yy = ly + 22;
     if (t[0]) { DSLObj mt = txt(c, x0, yy, right - x0, 40, t, 14, DSL_TXT_LEFT | DSL_TXT_WRAP, MAIN);
                 float pw = mt ? cm_text_preferred_w(mt) : -1, th = pw > right - x0 ? 40 : 20;   /* one line or two */
                 if (mt) U->place(mt, x0, yy, right - x0, th); yy += th + 6; }

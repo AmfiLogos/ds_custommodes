@@ -866,12 +866,19 @@ static float dps_card(DSLObj parent, float y, float w) {
     cmw_named(card, CMW_TEXT, "fights:r.dpscard", NULL, NULL, stats);
     return H;
 }
+static int boss_cut;                                                  /* test: boss card stat names that did not fit (UX U7) */
+static float label_px(DSLObj p, const char *s, float size) {          /* a one-line text's width at its size (measured) */
+    DSLObj m = U->text(p, 0, 0, 2000, 30, s, size, DSL_TXT_LEFT, SUB);
+    float pw = m ? cm_text_preferred_w(m) : -1;
+    if (m) U->destroy(m);
+    return pw;
+}
 static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
-    const float H = 156, A = 132;
+    const float A = 132;
+    float H = 156;
     DSLObj card = cmw_flat(U->panel(parent, 0, y, w, H, 0), 0x2D2A31FFu);
     if (!card) return 0;
-    cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu);
-    cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
+    DSLObj top = cmw_flat(U->panel(card, 0, 0, w, 1, 0), 0xB6835AFFu), foot = cmw_flat(U->panel(card, 0, H - 1, w, 1, 0), 0x633D33FFu);
     DSLObj box = cmw_flat(U->panel(card, 12, 12, A, A, 0), 0x1E1C21FFu);
     Obj sp = tfc_unit_art(b->key);                                   /* cut to its visible pixels: it fills the box */
     DSLObj art = sp && box ? U->panel(box, 4, 4, A - 8, A - 8, 0xFFFFFFFFu) : NULL;
@@ -880,17 +887,34 @@ static float boss_card(DSLObj parent, float y, float w, const Boss *b) {
     DSLObj nmt = U->text(card, x, 10, cw, 32, b->tn[0] ? b->tn : b->n, 20, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
     if (nmt) { cm_text_ellipsis(nmt); cmw_named(nmt, CMW_TEXT, "fights:r.bossname", NULL, NULL, b->tn[0] ? b->tn : b->n); }
     float v[TFC_N];
+    boss_cut = 0;
     if (tfc_unit_stats(b->key, v)) { txt(card, "fights:r.bossstats", x, 46, cw, TR("The game's data for this boss is not loaded yet."), 14, SUB); return H; }
-    /* the wiki unit card's rows: HP, attacks, attack speed, critical chance, resistances, movement speed */
-    char stats[1200]; size_t k = 0;
-    float colw = cw / 2, ry = 46;
+    /* the wiki unit card's rows: HP, attacks, attack speed, critical chance, resistances, movement speed; the game's stat names.
+       Two columns when every name fits its half at its size, else one stat per row across the card (UX U7: de / ru names
+       were cut and shrunk to different sizes: "Maximale Lebensp...", "Шанс критическо...") */
+    const char *lab[TFC_N]; char key[TFC_N][96];
+    float colw = cw / 2, ry = 46, need = 0;
     for (int i = 0; i < TFC_N; i++) {
-        char key[96], val[40]; snprintf(key, sizeof key, "TEXTKEY_STATUS_%s_NAME", tfc_field[i]);
-        const char *lab = cm_gw(key, tfc_field[i]);
+        snprintf(key[i], sizeof key[i], "TEXTKEY_STATUS_%s_NAME", tfc_field[i]);
+        lab[i] = cm_gw(key[i], tfc_field[i]);
+        char keep[160]; snprintf(keep, sizeof keep, "%s", lab[i]);     /* cm_gw's buffers rotate: measure a copy */
+        float pw = label_px(card, keep, 14); if (pw > need) need = pw;
+    }
+    int cols = need > 0 && need <= colw - 76 ? 2 : 1;
+    if (cols == 1) colw = cw;
+    int rows = (TFC_N + cols - 1) / cols;
+    if (ry + (float)rows * 24 + 10 > H) {                              /* taller: the card grows, its foot line moves down */
+        H = ry + (float)rows * 24 + 10;
+        U->place(card, 0, y, w, H); U->place(foot, 0, H - 1, w, 1);
+    }
+    (void)top;
+    char stats[1200]; size_t k = 0;
+    for (int i = 0; i < TFC_N; i++) {
+        char name[160], val[40]; snprintf(name, sizeof name, "%s", cm_gw(key[i], tfc_field[i]));
         fmt_stat(i, v[i], val, sizeof val);
-        float cx = x + (i % 2) * colw, cy = ry + (float)(i / 2) * 24;
-        DSLObj l = U->text(card, cx, cy, colw - 76, 24, lab, 14, DSL_TXT_LEFT, SUB);   /* clear of the value's box */
-        if (l) cm_text_ellipsis(l);
+        float cx = x + (float)(i % cols) * colw, cy = ry + (float)(i / cols) * 24;
+        DSLObj l = U->text(card, cx, cy, colw - 76, 24, name, 14, DSL_TXT_LEFT, SUB);   /* clear of the value's box */
+        if (l) { cm_text_ellipsis(l); float pw = cm_text_preferred_w(l); if (pw > colw - 76 + 0.5f) boss_cut++; }
         U->text(card, cx + colw - 74, cy, 64, 24, val, 15, DSL_TXT_RIGHT, MAIN);
         if (k + 100 < sizeof stats) k += (size_t)snprintf(stats + k, sizeof stats - k, "%s%s=%s", i ? ";" : "", tfc_field[i], val);
     }
@@ -1115,10 +1139,10 @@ static void test_state(char *out, size_t n) {
     for (int i = 0; i < st.nsv && c + 70 < sizeof ps; i++) c += (size_t)snprintf(ps + c, sizeof ps - c, "%s%s/%s", i ? "," : "", st.sv[i].world, st.sv[i].guid);
     for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
     snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
-             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d}",
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d,\"boss_cut\":%d}",
              engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
              P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
-             P.max_squad, ws, wsel, us, wu_err, ps, st.waff);
+             P.max_squad, ws, wsel, us, wu_err, ps, st.waff, boss_cut);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 

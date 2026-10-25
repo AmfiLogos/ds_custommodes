@@ -31,7 +31,7 @@
 #define SCRIPTS_MAX_AGE (6 * 3600)          /* same as Test Fights: the wiki's scripts are asked again after 6 h */
 enum { SEC_RACE, SEC_BG, SEC_TRAITS, SEC_SKILLS, SEC_GEAR, SEC_INSC, SEC_LEVEL, SEC_PRESETS, SEC_N };
 static const char *const SEC_NAME[SEC_N] = { TR_NOOP("Race"), TR_NOOP("Background"), TR_NOOP("Traits"), TR_NOOP("Skills"), TR_NOOP("Gear"), TR_NOOP("Inscriptions"),
-                                             TR_NOOP("Level-ups"), TR_NOOP("Presets") };   /* English: also the test names */
+                                             TR_NOOP("Level-Ups"), TR_NOOP("Presets") };   /* English: also the test names */
 static const int NAV_ORDER[SEC_N] = { SEC_PRESETS, SEC_RACE, SEC_BG, SEC_TRAITS, SEC_LEVEL, SEC_SKILLS, SEC_GEAR, SEC_INSC };   /* top to bottom */
 static const char *sec_label(int i) { return i == SEC_SKILLS ? cm_gw("TEXTKEY_GAMEGUIDE_SkillsAbility_NAME", SEC_NAME[i]) : TR(SEC_NAME[i]); }
 enum { ENG_NONE, ENG_OPENING, ENG_READY, ENG_FAILED };
@@ -109,6 +109,7 @@ static struct {
     int saving, take_name;                 /* take_name: the next load names the unit (a gallery build) */
     int dirty; char name0[96];             /* a change since the window opened (Cancel asks); the name field as loaded */
     float ty;                              /* the top row's y (name, level, Save) under the shell's header */
+    int tal_cut;                           /* test: Level-ups' talent chips whose tier name did not fit (UX U6) */
     mu_shell sh;                           /* the window's shell: backdrop, frame, title, red X = Cancel (mu_ui.h) */
     int on_title, title_poll;              /* opened on the title screen: closed when the title goes away (U1) */
     struct { char name[120]; DSLObj o; } reg[REGMAX]; int nreg;
@@ -398,6 +399,13 @@ static float label_w(const char *s, float size) {          /* a first guess, the
     float w = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) { if ((*p & 0xC0) == 0x80) continue; w += *p < 0x80 ? size * 0.56f : size * 1.05f; }
     return w;
 }
+static float label_px(DSLObj p, const char *s, float size) {  /* a one-line text's width at size (measured, -1 = no kit) */
+    DSLObj m = U->text(p, 0, 0, 2000, 30, s, mu_text_size(size), DSL_TXT_LEFT, MU_C_MAIN);
+    float pw = m ? cm_text_preferred_w(m) : -1;
+    if (m) U->destroy(m);
+    return pw;
+}
+static int chips_cut;                                       /* fixed cells whose label did not fit at its size (test) */
 static DSLObj chip(DSLObj p, float x, float y, float w, float h, const char *label, int on, dsl_ui_cb cb, void *ud, float *used) {
     int grow = w <= 0;
     if (w <= 0) w = label_w(label, 14) + 26;
@@ -405,6 +413,7 @@ static DSLObj chip(DSLObj p, float x, float y, float w, float h, const char *lab
     if (!b) { if (used) *used = w; return NULL; }
     DSLObj t = mu_text(b, 8, 0, w - 16, h, label, 14, DSL_TXT_CENTER, on ? MU_C_GOLD : MU_C_MAIN);
     float pw = t ? cm_text_preferred_w(t) : -1;
+    if (!grow && pw > w - 16 + 0.5f) chips_cut++;
     if (t && pw > w - 16 && grow) {                          /* the box grows to its label; a fixed cell (talent tier,
                                                                 elixir +/-) keeps its size and its label shrinks / ends in "..." */
         w = pw + 18;
@@ -833,18 +842,37 @@ static float draw_level(DSLObj p, float y) {
       for (int i = 0; i < 4; i++) { DSLObj c = flow_chip(&fa, al[i], 0, on_tal_all, UD(i == 3 ? -1 : i)); char rn[40]; snprintf(rn, sizeof rn, "+talall:%d", i); reg(rn, c); }
       y = flow_end(&fa) + 2; }
     const jv *tl = arr("tal");
-    float nw = 150, cw = ti && ti->cnt ? (LW - nw - 12 - (ti->cnt - 1) * 6) / ti->cnt : 100;
+    /* the tier chips (UX U6: equal fifths cut "Outstandi...", "Außergewöhnli / ch"): each tier's column as wide as its label
+       at its size + the frame, the stat names' column as wide as the longest name, the room left shared out. No room for
+       both on one line: each stat name on its own line and its chips under it across the whole width */
+    int nt = ti ? (int)ti->cnt : 0; if (nt > 8) nt = 8;
+    float tw[8], tsum = 0, nw = 90;
+    for (int i = 0; i < nt; i++) { char tk[40], tn[80]; sraw(jget(ti->v[i], "k"), tk, sizeof tk); sraw(jget(ti->v[i], "n"), tn, sizeof tn);
+                                   float pw = label_px(p, tier_word(tk, tn), 14); tw[i] = (pw > 0 ? pw : label_w(tier_word(tk, tn), 14)) + 22; tsum += tw[i]; }
+    for (size_t m = 0; tl && m < tl->cnt; m++) { char mk[40], mn[80]; sraw(jget(tl->v[m], "m"), mk, sizeof mk); sraw(jget(tl->v[m], "n"), mn, sizeof mn);
+                                                 float pw = label_px(p, stat_word(mk, mn), 15) + 14; if (pw > nw) nw = pw; }
+    float gaps = nt > 1 ? (float)(nt - 1) * 6 : 0, one = LW - 6 - nw - 6;
+    int two = tsum + gaps > one;
+    float cx0 = two ? 6 : 6 + nw + 6, avail = two ? LW - 12 : one, k = 1, extra = 0;
+    if (tsum + gaps > avail) k = (avail - gaps) / tsum;                 /* not even a line of its own: all narrower (last resort) */
+    else extra = (avail - tsum - gaps) / (nt ? nt : 1);
+    chips_cut = 0;
     for (size_t m = 0; tl && m < tl->cnt; m++) {
         char mk[40], mn[80], cur[40]; sraw(jget(tl->v[m], "m"), mk, sizeof mk); sraw(jget(tl->v[m], "n"), mn, sizeof mn); sraw(jget(tl->v[m], "t"), cur, sizeof cur);
-        text_fit(p, 6, y, nw - 8, 34, stat_word(mk, mn), 15, DSL_TXT_LEFT, MU_C_MAIN);
-        for (size_t i = 0; ti && i < ti->cnt; i++) {
+        text_fit(p, 6, y, two ? LW - 12 : nw, two ? 26 : 34, stat_word(mk, mn), 15, DSL_TXT_LEFT, MU_C_MAIN);
+        if (two) y += 28;
+        float cx = cx0;
+        for (int i = 0; i < nt; i++) {
             char tk[40], tn[80]; sraw(jget(ti->v[i], "k"), tk, sizeof tk); sraw(jget(ti->v[i], "n"), tn, sizeof tn);
-            DSLObj c = chip(p, nw + i * (cw + 6), y, cw, 34, tier_word(tk, tn), !strcmp(cur, tk), on_tal, UD(((int)m << 8) | (int)i), NULL);
+            float cw = tw[i] * k + extra;
+            DSLObj c = chip(p, cx, y, cw, 34, tier_word(tk, tn), !strcmp(cur, tk), on_tal, UD(((int)m << 8) | i), NULL);
+            cx += cw + 6;
             if (c) { char tip[200]; snprintf(tip, sizeof tip, TR("+%d to +%d per level"), num(ti->v[i], "lo"), num(ti->v[i], "hi")); U->tooltip(c, tier_word(tk, tn), tip);
                      char rn[120]; snprintf(rn, sizeof rn, "+tal:%s:%s", mk, tk); reg(rn, c); }
         }
         y += 40;
     }
+    W.tal_cut = chips_cut;
     { jv *ts = jget(W.st, "talSum");
       snprintf(t, sizeof t, TR("Talent sum: %d. A recruit rolls a sum from %d to %d."), num(ts, "v"), num(ts, "lo"), num(ts, "hi"));
       y = note(p, y, LW, t, 22) + 6; }
@@ -1347,9 +1375,9 @@ size_t bld_test_state(char *out, size_t cap) {
     for (size_t t = 0; trees && t < trees->cnt; t++) { jv *rows = jget(trees->v[t], "rows");
         for (size_t r = 0; rows && r < rows->cnt; r++) for (size_t c = 0; rows->v[r]->t == JN_ARR && c < rows->v[r]->cnt; c++) learned += jtruthy(jget(rows->v[r]->v[c], "on")); }
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"engine\":%d,\"busy\":%d,\"saving\":%d,\"section\":%d,\"edit\":\"%s\",\"msg\":\"%s\",\"eng_msg\":\"%s\","
-                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f,\"dirty\":%d,\"slot\":%d}",
+                            "\"name\":\"%s\",\"race\":\"%s\",\"bg\":\"%s\",\"lvl\":%d,\"learned\":%d,\"widgets\":%d,\"w\":%.0f,\"h\":%.0f,\"dirty\":%d,\"slot\":%d,\"tal_cut\":%d}",
                             W.open, eng, bld_work_busy(), W.saving, W.section, W.unit_id, m, em, nm, race, bg, W.st ? num(W.st, "lvl") : 0, learned,
-                            W.nreg, W.w, W.h, W.dirty, W.open_slot);
+                            W.nreg, W.w, W.h, W.dirty, W.open_slot, W.tal_cut);
 }
 /* test: keys the window lists now, "key,on,locked;..." for kind races|bgs|inds|treeCands|inscs|acq|souls|portraits|skills|items:<Slot> */
 int bld_test_keys(const char *kind, char *out, size_t n) {

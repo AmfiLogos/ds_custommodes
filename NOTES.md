@@ -285,3 +285,27 @@
   max health and max health + the added part only), so "(n over)" never shows yet.
 - Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
 - With the Fix mod live-hp loaded, our panel/Inspect follow steps aside (live-hp makes every building follow).
+
+## One window style, UX review fixes (2026-10-25, 0.1.29, lane dsuxcm; UX_REVIEW_2026-10-25.md U1, U3-U12)
+- One shell for the four windows (units/mu_ui.c `mu_shell_open`, owner decision): a backdrop over the whole screen layer
+  (0x0000009E, raycast on: nothing behind answers a click), the window centred at the game's UI scale, one body colour,
+  the title centred in Cinzel over a copper line (Load Campaign / Option look) and the red X top right as the only close
+  control. My Units and the Unit Builder use it directly (`fit` 0: the size shrinks to the layer); cm_win (Gallery, Test
+  Fights) through cmw_open (`fit` 1: the size stays, the scale shrinks). My Units has no "Close" button and the Builder no
+  "Cancel" button any more: their X does the same (the Builder still asks "Discard your changes?"). Test names kept:
+  `mu:close`, `bld:cancel`, `<win>:close` are the X; `<win>:title` is the window.
+- U1: My Units and the Builder remember whether they opened on the title screen; when the title goes away (a world loads,
+  a soft restart) they close (checked about once a second in their poll; cmw_title_shown). A Builder opened in a world
+  (Bring Units) is not affected.
+- U4: the Delete Team box is on the screen layer above the window (mu_backdrop 0x000000C0 + a box at the UI scale,
+  mu_centre_scaled): the whole screen dimmed, buttons Cancel | Team Only | Team and Units (the game's order).
+- U6: talent tier chips as wide as their labels (measured); no room: the stat name on its own line above its chips.
+  U7: boss card in two columns only when every stat name fits its half, else one stat per row (the card grows).
+  U8: picking for the Builder, the Details stat line goes under "Use This Unit" (full width).
+- U11: World units sorted by the save time they show (header SaveTime to the second; the file time when there is none).
+- Words: ru Discard = "Сбросить", Keep Editing = "Вернуться к редактированию" ("Отменить" is Cancel everywhere);
+  "Save to My Units" de "Zu Meinen Einheiten", ru "В «Мои юниты»"; de unit level = "Stufe" (the game's
+  TEXTKEY_STATUS_Level_NAME). English Title Case on buttons, rows, headings (keys renamed in all 10 languages).
+- Tests: units/test/ux_test.py (language files + one hidden copy per language: backdrop takes the page's clicks, X square
+  top right in all four windows, Delete Team box order and full-screen dim, talent / boss / pick-details text fit, My Units
+  closes when a world loads); units/test/save (World units by save time).
