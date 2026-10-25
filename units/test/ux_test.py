@@ -25,13 +25,29 @@ if '--lang' in sys.argv: del sys.argv[sys.argv.index('--lang'):sys.argv.index('-
 if not [a for a in sys.argv[1:] if not a.startswith('--')]: sys.argv.insert(1, os.path.join(REPO, 'build', 'ux_test_' + LANG))
 sys.path.insert(0, HERE)
 import esc_test as E  # noqa: E402  (its globals follow sys.argv / env: OUT, X, LIB, DRV)
-from esc_test import check, req, st, cm, click, until, wait_for, home_on, mu_on, bld_on, wins, log  # noqa: E402
+from esc_test import check, st, cm, click, until, wait_for, home_on, mu_on, bld_on, wins, log  # noqa: E402
 LANGTYPE = {'en': 0, 'de': 3, 'ru': 4}
 # the title column shows the translated label ("Einheitenlabor"); the home page's buttons are found by their English key
 TITLE = 'title:' + (json.load(open(os.path.join(REPO, 'lang', LANG + '.json'), encoding='utf-8')).get('Units Laboratory', 'Units Laboratory') if LANG != 'en' else 'Units Laboratory')
 def open_home():
     E.to_title(); click(TITLE); return until(home_on)
 E.open_home = open_home
+
+
+def req(cmd, timeout=20, **kw):
+    """esc_test's req, the request written as UTF-8 (the driver reads no \\u escapes: a Russian label was not found)"""
+    E.SEQ[0] += 1; q = dict(kw, seq=E.SEQ[0], cmd=cmd)
+    tmp = os.path.join(E.DRV, 'req.json.tmp'); open(tmp, 'w', encoding='utf-8').write(json.dumps(q, ensure_ascii=False)); os.replace(tmp, os.path.join(E.DRV, 'req.json'))
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            j = json.load(open(os.path.join(E.DRV, 'resp.json'), encoding='utf-8'))
+            if j.get('seq') == E.SEQ[0]: return j
+        except (OSError, ValueError): pass
+        time.sleep(0.05)
+        if not E.game_pids(): raise RuntimeError('the game copy is gone (crash?)')
+    return {'timeout': q}
+E.req = req
 
 
 # ------------------------------------------------------------------ part 1: the language files

@@ -90,7 +90,7 @@ static void page_done(cm_job *j) {
             if (pv >= 0) { pv = -1; for (int i = 0; i < nitems; i++) if (!strcmp(items[i].id, pv_id)) { pv = i; break; } }
             more = b->pg.more && page < GAL_MAX_PAGE; page = b->page;
             status[0] = 0;                                                 /* picking: the hint stays until a state replaces it */
-            if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
+            if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\".")); status_warn = 0; }
             int shown = 0; for (int i = 0; i < nitems; i++) shown += visible(&items[i]);
             if (s_name[0] && shown < SEARCH_MIN && more) {                /* a name search: look further down the list */
                 gal_page_free(&b->pg); free(b);
@@ -855,9 +855,9 @@ void gal_open(void) {
     w_prev = cmw_named(mu_button(body, WW - 24 - 270, BH - 56, 46, 44, "<", prev_click, NULL), CMW_BUTTON, "gallery:prev", prev_click, NULL, "<");
     w_page = cmw_named(mu_text(body, WW - 24 - 220, BH - 56, 174, 44, "", 15, DSL_TXT_CENTER, SUB), CMW_TEXT, "gallery:page", NULL, NULL, "");
     w_next = cmw_named(mu_button(body, WW - 24 - 46, BH - 56, 46, 44, ">", next_click, NULL), CMW_BUTTON, "gallery:next", next_click, NULL, ">");
-    if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\".")); status_warn = 0; }
+    if (pick_cb) { snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\".")); status_warn = 0; }
     fetch(0);
-    if (pick_cb) snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use this unit\"."));
+    if (pick_cb) snprintf(status, sizeof status, "%s", TR("Choose a build, open its Details, then press \"Use This Unit\"."));
     paint();
 }
 /* the picker door for the Unit Builder (lane cmbuilder, weak import): the gallery opens; "Use this unit" in a build's

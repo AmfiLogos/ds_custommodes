@@ -227,7 +227,7 @@ static void on_world(void *ud, DSLObj w) {
     (void)w; int i = (int)(intptr_t)ud; if (i < 0 || i >= W.nworlds) return;
     if (i != W.sel_world) W.nwticked = 0;
     W.sel_world = i; W.sel_team = -1; W.page = 0;
-    set_msg(TR("Read only: these units are in your save. Tick units, then press \"Save snapshot\" to copy them to My Units."), MU_C_SUB);
+    set_msg(TR("Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units."), MU_C_SUB);
     refresh();
 }
 static void on_tick(void *ud, DSLObj w) {
@@ -492,7 +492,7 @@ static void draw_cards(void) {
     if (!W.lib) { mu_text(W.right, 16, 16, W.rw - 32, 60, W.err, 15, DSL_TXT_WRAP, MU_C_BAD); return; }
     if (!W.nids) {
         mu_text(W.right, 16, 16, W.rw - 32, 90, W.sel_team < 0
-            ? TR("No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from wiki link\".")
+            ? TR("No units yet. On the wiki, open the Unit Builder, copy the link of a unit or a team, then press \"Add from Wiki Link\".")
             : TR("This team has no units."), 16, DSL_TXT_WRAP, MU_C_SUB);
         return;
     }
