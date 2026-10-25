@@ -285,3 +285,9 @@
   max health and max health + the added part only), so "(n over)" never shows yet.
 - Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
 - With the Fix mod live-hp loaded, our panel/Inspect follow steps aside (live-hp makes every building follow).
+- 0.1.29: effects in the log start with the fight's first damage of any kind (they waited for a scarecrow hit, so a fight
+  without the scarecrow showed none). dps_test.py --heal: a healer (Healing Touch) + barrier squad in a Custom fight
+  (plain Grey Monster Rats + Blue Goblins attack it), the log and meter forced on there by the test switch "force 1" (same
+  code as in a DPS Check). Proven: heals "+X" in green under the healer's header, the meter's Healing = the heal lines it
+  measured, each unit's Healing = its skills', heals never in damage dealt. Not produced yet: shield absorbs (no unit of the
+  fixture squad put on a Barrier in 3 runs: Fire Cloak and Iron Clad were never cast; Shield Up raises guard, not Barrier).
