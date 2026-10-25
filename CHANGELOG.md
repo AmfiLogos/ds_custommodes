@@ -4,7 +4,7 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.43)
+### 0.1.43 (2026-10-25)
 
 Windows:
 - My Units, the Unit Builder, the Wiki Build Gallery and Test Fights have one window style: a dim backdrop that blocks
