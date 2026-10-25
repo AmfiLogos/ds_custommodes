@@ -133,8 +133,18 @@
   computed bar, checked by mutation). fights/test/saveunits_game_test.py (one hidden copy: World units tab, open the save
   copy's world, tick 2, Custom fight with one Weak Grey Rat, Start, the squad = the picked units by name with their save
   levels, combat, the rat killed, back to the title, test world removed; LANGTYPE = shots + card text fit only).
+- Renamed units in Test Fights (lead 2026-10-25, 0.1.21): Test Fights handed the wiki's generator the stored build, so a
+  unit renamed in My Units (mu_rename / the launcher change the entry's name, never the build's) fought under its old
+  name. Now fights/tf_ui.c takes myunits.c mu_fight_build_json: the build with the My Units name when the unit was
+  renamed. Not a rename: the entry shows the build's own name; a default name key whose entry shows the key's game text
+  (cm_gettext; the snapshot's case: the key stays, the game names it per language); an unnamed build whose entry shows
+  the "<Race> <level>" label. A snapshot taken in another language whose name text differs counts as renamed (it shows the
+  snapshot's text; the "language at snapshot time" point is left as it is). Bring Units unchanged (mu_build_of: the
+  library name always wins). Test: fights/test/rename_game_test.py (real Test Fights tab, My Units source, 4 units:
+  renamed key / not renamed key / renamed typed / typed; stock panel + multi-bar cards): main e5e1099 FAIL ("Old Name",
+  "R'dor"), this 11/11 en + de.
 
-## A Test Fight leaves the title and the player's records as they were (2026-10-25, 0.1.21)
+## A Test Fight leaves the title and the player's records as they were (2026-10-25, 0.1.22)
 - Owner (v0.1.27, custom-modes 0.1.16): "when we do a test, we then have the homepage homescreen changed to the base of the
   save we imported our units to for the test - shouldn't be the case". Found on today's build (fights/test/title_test.py):
   - title background = the test world (TitleBasePreviewSaveSelector picks the newest save; the test world's saves are
