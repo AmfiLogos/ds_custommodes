@@ -8,13 +8,14 @@ Fails when (the breaks this catches):
   (a) the inspect panel's durability text "<now> / <max>" wraps (more than one line) or runs past the panel's bar at
       1,000,000 / 1,000,000 or 999,999 / 1,000,000 (stock: "1000000" wrapped its last "0" onto a second line);
   (b) the scarecrow's panel (selected, the mouse kept on it) does not follow its durability while it takes damage (stock:
-      it stays as it was when the panel was filled; the run shows that with our follow switched off);
+      it stays as it was when the panel was filled). The follow is the loader's Fix live-hp (HM_BUILD/mods/live-hp, in
+      the kit here); Units Laboratory puts its number form on what that fix draws;
   (c) the logged hits do not add up to the durability it lost over the burst (self repair counted apart: a rise between
       two reads);
   (d) a hit is missing from the chat over a 30 s burst (every logged line, in order, in the multiplayer chat's local lines).
   --no-mp: the multiplayer mod off: (d) reads our own log panel's lines instead (it shows; its line count = the hits).
   dps_test.py [--no-mp]   env: HM_BUILD = a loader build folder (dsload.dylib with the dev key, mods/multiplayer,
-                                mods/custom-modes); LD_ROOT = a ds_modloader checkout (loader/test helpers; ~/ds_launcher);
+                                mods/custom-modes, mods/live-hp); LD_ROOT = a ds_modloader checkout (loader/test helpers; ~/ds_launcher);
                                 LANGTYPE = the game's language (3 de, 4 ru, 7 ja; default en)
 Output: DPS_OUT (default <HM_BUILD>/../test_env/dps/<time>): results.json, frames in drv/cap/."""
 import json, os, re, shutil, subprocess, sys, threading, time, traceback, zipfile
@@ -301,11 +302,7 @@ def run():
     if PLACE:
         time.sleep(4); placement(PLACE); return
     placement(f'{LANG or "en"}_1.0_960')
-    # (b) stock: the panel stands still while the mouse stays on it; ours follows
-    dps('live 0'); s0 = dps('state'); time.sleep(4); s1 = dps('state')
-    info['stock_panel_still'] = (s0.get('cur') or {}).get('text') == (s1.get('cur') or {}).get('text') and s1.get('dur') < s0.get('dur')
-    log('stock (follow off): panel', (s0.get('cur') or {}).get('text'), '->', (s1.get('cur') or {}).get('text'), 'while durability', s0.get('dur'), '->', s1.get('dur'))
-    dps('live 1'); time.sleep(0.5)
+    # (b) the panel follows while the mouse stays on it (live-hp; the stock game keeps the value it had when filled)
     ok, seen = True, []
     for _ in range(8):                                            # the read is between frames: the text may be one frame behind
         time.sleep(0.5); s = dps('state'); t = (s.get('cur') or {}).get('text') or ''; seen.append((t, s.get('dur')))
@@ -486,8 +483,9 @@ def main():
     try:
         make_library()
         HP.make_copy(X)
-        pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg()}
-        HP.kit(X, pk, ['custom-modes', 'font-probe'], (['custom-modes', 'font-probe'] if NO_MP else ['multiplayer', 'custom-modes', 'font-probe']))
+        pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg(),
+              'live-hp': zip_dir(os.path.join(HP.BUILD, 'mods', 'live-hp'), 'live-hp')}
+        HP.kit(X, pk, ['custom-modes', 'live-hp', 'font-probe'], (['custom-modes', 'live-hp', 'font-probe'] if NO_MP else ['multiplayer', 'custom-modes', 'live-hp', 'font-probe']))
         if WIN:                                                   # another window size: the copy's settings and its start arguments
             ww, wh = (int(v) for v in WIN.split('x'))
             lrig.win_size = lambda: (ww, wh)
