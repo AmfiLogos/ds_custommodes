@@ -84,3 +84,25 @@
   name box as the unit rename (field hint "Team name"), the team picked when the box opens (myunits.c mu_team_rename:
   the name only; units, author and gallery id stay). Bottom bar: the shown buttons at their label width from the left
   (layout_bottom), so the team buttons do not leave a gap in All units; pager 160 wide.
+
+## Escape closes our windows (owner 2026-10-25, 0.1.19: "make sure Escape works to close our custom windows")
+- The loader kit owns the key (kit 0.1.28, dsl_sdk.h `esc_push` / `esc_drop`, wrappers `dsl_esc_push` / `dsl_esc_drop`):
+  each window pushes itself when it shows, one press calls the close of the top-most one that still shows, and the game
+  never sees that press. Pushed here, close = the window's own button: the home page (Back), My Units (Close), its paste
+  box and name box (their Cancel, `DSL_ESC_EDIT`: also while their field has the keyboard), its Delete team box (Cancel),
+  the Unit Builder (Cancel: unsaved changes -> the game's notice, which the kit pushes itself: Escape there = "Keep
+  editing"), a gear slot's item list in the Builder (closes the list), the Gallery and Test Fights (cm_win X).
+  Plain fields (Builder name / search, Gallery and Test Fights search): the 1st press only leaves the field.
+  Gallery Details: Escape closes the whole window (as before).
+- A window rebuilt (screen size, UI scale, language) is pushed again with its open boxes after it. Hidden with
+  set_active = esc_drop; destroyed = the kit drops it.
+- cm_win's own Escape polling (win_tick) runs only for a window the kit did not take (an older loader): never two closes
+  for one press. With an older loader My Units, the Builder and the home page have no Escape (as before 0.1.19).
+- Builds need the loader's sdk/ (kit 0.1.28): an older dsl_sdk.h stops the build (#error in home/cm_look.c), so a build
+  can never ship without Escape. build.sh: `SDK=<ds_modloader>/loader/sdk` until the multiplayer pin's sdk/ has it.
+- Open (kit, reported to lane dsesc 2026-10-25): a field the Escape left stays the EventSystem's selection; when the
+  window survives the next Escape (Builder Cancel showing "Discard your changes?") the field gets the keyboard again, so
+  the 3rd Escape only leaves the field and the 4th answers the notice. A SetSelectedGameObject(null) in the close callback
+  does not help (TMP re-selects itself in that frame); the kit's "left a text field" branch can clear the selection.
+- Test: units/test/esc_test.py (one hidden copy, title, real Escape key events through the test module font-probe, test
+  library DSMP_UNITS_LIB; the owner's library checked unchanged). It fails with 0.1.18 on the same loader.

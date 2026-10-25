@@ -220,7 +220,7 @@ static void h_disp_update(Obj self, const void *mi) {
 }
 
 /* ---------------------------------------------------------------- windows */
-typedef struct { char id[24]; DSLObj back, win, body; void (*closed)(void *); void *ud; unsigned seq; } Win;
+typedef struct { char id[24]; DSLObj back, win, body; void (*closed)(void *); void *ud; unsigned seq; int kit_esc; } Win;
 #define NWIN 4
 static Win wins[NWIN]; static unsigned win_seq;
 static Win *win_of(const char *id) { for (int i = 0; i < NWIN; i++) if (wins[i].win && !strcmp(wins[i].id, id)) return &wins[i]; return NULL; }
@@ -235,6 +235,9 @@ static void win_destroy(Win *w) {
     if (closed) closed(ud);
 }
 static void x_click(void *ud, DSLObj w) { (void)w; Win *v = ud; win_destroy(v); }
+/* Escape: the kit owns the key (kit 0.1.28): the window is on its Escape stack and a press closes it as its X does (the
+   entry goes when U->destroy takes the window). An older kit: win_tick polls the key itself, as before */
+static void esc_close(void *ud) { Win *v = ud; if (v && v->win) { cmw_log("cm_win: %s closed (Escape)", v->id); win_destroy(v); } }
 DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*closed)(void *), void *ud) {
     if (!U) return NULL;
     cmw_close(id);
@@ -266,13 +269,14 @@ DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*clos
     U->tooltip(x, NULL, TR("Close (Esc)"));
     v->body = cmw_flat(U->panel(v->win, 0, CMW_BAND + 1, w, h - CMW_BAND - 1, 0), 0x00000000);
     v->closed = closed; v->ud = ud; v->seq = ++win_seq;
+    v->kit_esc = dsl_esc_push(U, v->win, esc_close, v, 0) == 0;
     return v->body;
 }
 void cmw_close(const char *id) { win_destroy(win_of(id)); }
 int  cmw_is_open(const char *id) { return win_of(id) != NULL; }
-static void win_tick(void) {
+static void win_tick(void) {                                          /* an older kit only: never two closes for one press */
     Win *t = top_win();
-    if (t && esc_down() && !typing()) win_destroy(t);
+    if (t && !t->kit_esc && esc_down() && !typing()) win_destroy(t);
 }
 
 /* ---------------------------------------------------------------- test registry + command file */
