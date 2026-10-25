@@ -116,6 +116,25 @@ void mu_centre_scaled(DSLObj w, float bw, float bh) {
     rt_set(w, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ 0.5f, 0.5f }, (V2s){ bw, bh }, (V2s){ 0, 0 });
     set_scale(w, mu_ui_scale());
 }
+/* UX U12: the title's corner buttons (Roadmap, Wishlist, Discord: TitleMenuView._roadmapButton, ...) are drawn on a canvas
+   above the kit's screen layer: over our window's corner, not dimmed, and clickable through the backdrop. While one of our
+   windows is open they are hidden; when the last one closes, the ones hidden here come back (the game's own state else) */
+static int nshell; static uintptr_t h_icon[3];
+static void title_icons(int show) {
+    static void *k_tmv; static int32_t off[3] = { -2, -2, -2 }; static cm_m act_self;
+    static const char *const F[3] = { "_roadmapButton", "_wishlistButton", "_discordButton" };
+    if (show) {
+        for (int i = 0; i < 3; i++) { Obj g = cm_il_hget(h_icon[i]); if (g && cm_alive(g)) cm_set_active(g, true); cm_il_hset(&h_icon[i], NULL); }
+        return;
+    }
+    if (!k_tmv) { k_tmv = cm_il_class("Refactor.UI", "TitleMenuView"); act_self = cm_il_method("UnityEngine", "GameObject", "get_activeSelf", 0, NULL); }
+    Obj v = k_tmv ? cm_find(k_tmv, false) : NULL;
+    for (int i = 0; v && i < 3; i++) {
+        if (off[i] == -2) off[i] = cm_il_field(k_tmv, F[i]);
+        Obj b = off[i] >= 0 ? CM_AT(v, off[i], Obj) : NULL, g = b && cm_alive(b) ? cm_go(b) : NULL;
+        if (g && act_self.fn && CM_CALL(act_self, bool, Obj, const void *)(g, act_self.mi)) { cm_set_active(g, false); cm_il_hset(&h_icon[i], g); }
+    }
+}
 /* the red X: the kit's copy of the game's close button when the kit has one, else a kit button "X" (an older loader) */
 static DSLObj close_x(DSLObj parent, float x, float y, float s, dsl_ui_cb cb, void *ud) {
     return U->button(parent, x, y, s, s, "X", cb, ud);
@@ -123,9 +142,10 @@ static DSLObj close_x(DSLObj parent, float x, float y, float s, dsl_ui_cb cb, vo
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud) {
     memset(s, 0, sizeof *s);
     if (!U) return NULL;
+    if (nshell++ == 0) title_icons(0);
     s->back = mu_backdrop(0x0000009Eu);                                /* the title (or the world) dimmed, its clicks taken */
     DSLObj p = U->panel(NULL, 0, 0, want_w, want_h, 0);
-    if (!p) { if (s->back) U->destroy(s->back); s->back = NULL; return NULL; }
+    if (!p) { if (s->back) U->destroy(s->back); s->back = NULL; if (--nshell == 0) title_icons(1); return NULL; }
     float lw = 0, lh = 0;
     if (cm_rect_size(cm_parent(p), &lw, &lh) || lw < 100 || lh < 100) { lw = 1920; lh = 1080; }
     /* the game's UI scale like the game's own windows: drawn at its size x scale, never cut by the screen layer: fit 0 =
@@ -149,11 +169,13 @@ DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h,
     return p;
 }
 void mu_shell_close(mu_shell *s) {
-    if (!U || !s) return;
-    if (s->win) U->destroy(s->win);
+    if (!U || !s || !s->win) return;
+    U->destroy(s->win);
     if (s->back) U->destroy(s->back);
     memset(s, 0, sizeof *s);
+    if (nshell > 0 && --nshell == 0) title_icons(1);
 }
+int mu_shell_count(void) { return nshell; }
 
 /* the card's weapon word (mu_card_tables.h MUC_ITEM_WLABEL, the wiki's English label): the game's own text of that item
    type when the game has one (TEXTKEY), else TR of the label */

@@ -85,8 +85,16 @@ def x_ok(name, xt, wt):
           abs(xw - xh) <= 2 and w[2] - x[2] < ww * 0.06 and w[3] - x[3] < wh * 0.08, (x, w))
 
 
+def corner(name):
+    """the title's corner buttons shown now (Roadmap, Discord: TitleMenuUI/EtcButtonHolderTransform), from the active texts"""
+    req('fonts', name=name, all=0); f = os.path.join(E.DRV, f'fonts_{name}.jsonl')
+    return [json.loads(l).get('text') for l in open(f, encoding='utf-8', errors='replace') if 'EtcButtonHolderTransform' in l] if os.path.exists(f) else None
+
+
 def cases():
     lib0 = E.fstate(E.LIB)
+    E.to_title(); c0 = corner('u12_title')
+    check('U12 (setup) the title shows its corner buttons', bool(c0), c0)
     gal = lambda s: cm(s, 'fights').get('gal') or {}
     tf = lambda s: cm(s, 'fights').get('tf') or {}
     # U1: My Units over the home page takes the clicks of the page (Back under the backdrop)
@@ -95,6 +103,8 @@ def cases():
     click('home:Back', 1.2); s = st()
     check('U1 a click on the page\'s Back beside My Units does nothing (both stay)', home_on(s) and mu_on(s), (home_on(s), mu_on(s)))
     x_ok('My Units', 'mu:close', 'mu:win')
+    c1 = corner('u12_mu_open')
+    check('U12 the title\'s corner buttons do not show over an open window (they drew over its corner, clickable)', c1 == [], c1)
     # U4: the Delete Team box
     click('mu:team0'); click('mu:delete_team'); s = until(lambda s: cm(s, 'mu').get('dlg') == 1)
     d, w = rect('mu:dlg'), rect('mu:win')
@@ -114,8 +124,10 @@ def cases():
     check('the X closes the Builder with no change (no notice), My Units stays', not bld_on(s) and mu_on(s), (bld_on(s), mu_on(s)))
     click('mu:close', 1.2); s = st()
     check('the X closes My Units', not mu_on(s) and home_on(s), (mu_on(s), home_on(s)))
+    c2 = corner('u12_mu_closed')
+    check('U12 the corner buttons are back when our windows are closed', sorted(c2 or []) == sorted(c0 or []), (c2, c0))
     # U1: the Unit Builder from the home page also takes the page's clicks
-    click('home:Unit Builder', 1.5); s = until(bld_on)
+    E.open_home(); click('home:Unit Builder', 1.5); s = until(bld_on)
     click('home:Back', 1.2); s = st()
     check('U1 a click on the page\'s Back beside the Unit Builder does nothing', home_on(s) and bld_on(s), (home_on(s), bld_on(s)))
     click('bld:cancel', 1.5)
@@ -125,10 +137,13 @@ def cases():
     x_ok('Wiki Build Gallery', 'gallery:close', 'gallery:title')
     click('gallery:c0.view', 1.5); s = until(lambda s: gal(s).get('preview', -1) >= 0)
     check('U8 picking: Details shows "Use This Unit"', rect('gallery:p.pick0') is not None, gal(s).get('preview'))
+    cr, pk = rect('gallery:p.crumb0'), rect('gallery:p.pick0')
+    check('U8 picking: the stat line is under "Use This Unit", across the whole width (not cut beside it)',
+          bool(cr and pk) and cr[3] <= pk[1] + 1 and cr[2] >= pk[2] - 2, (cr, pk))
     check('U8 picking: no text cut in Details', gal(s).get('cut') == 0, gal(s).get('cut'))
     req('call', fn='cmf_test', s='{"cmd":"close","win":"gallery"}'); time.sleep(1.0)
     # U7: Test Fights' boss card
-    click('home:Test Fights', 1.5)
+    E.open_home(); click('home:Test Fights', 1.5)
     s = wait_for(lambda: (lambda s: s if tf(s).get('engine') in (2, 3) else None)(st()), 90) or st()
     x_ok('Test Fights', 'fights:close', 'fights:title')
     r = req('call', fn='cmf_test', s='{"cmd":"set","name":"fights:r.mode","index":1}'); time.sleep(1.5); s = st()

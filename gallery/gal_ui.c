@@ -666,7 +666,7 @@ static float unit_full(DSLObj p, float x, float y, float w, const gal_item *it, 
     /* picking for the Unit Builder: the line goes under "Use This Unit" across the whole width (UX U8: beside the button it
        was cut, "... Life S...") */
     float ly = pick_cb ? 50 : 38;
-    txt(c, x0, ly, right - x0, 20, t, 14, DSL_TXT_LEFT, SUB);
+    { char nm[40]; snprintf(nm, sizeof nm, "gallery:p.crumb%d", u); cmw_named(txt(c, x0, ly, right - x0, 20, t, 14, DSL_TXT_LEFT, SUB), CMW_TEXT, nm, NULL, NULL, t); }
     /* the six major stats; a talent colours the value (the game's talent gems) and is named after it */
     k = 0; t[0] = 0;
     for (int m = 0; m < 6 && k < sizeof t; m++) {
@@ -805,7 +805,8 @@ static void paint_status(void) {
 }
 static void paint(void) {
     if (!cmw_is_open("gallery") || !body) return;
-    cmw_forget("gallery:c"); cmw_forget("gallery:f."); cmw_forget("gallery:p.");
+    for (int d = 0; d <= 9; d++) { char pre[16]; snprintf(pre, sizeof pre, "gallery:c%d", d); cmw_forget(pre); }   /* the cards, not "gallery:close" */
+    cmw_forget("gallery:f."); cmw_forget("gallery:p.");
     trk_clear(); ncards_drawn = nsprites = 0;
     grid_holder = K(cmw_flat(U->panel(body, 0, 0, WW, BH - 70, 0), 0x00000000));
     cm_raycast(grid_holder, false);                                  /* the search row under it (made once) keeps its clicks */

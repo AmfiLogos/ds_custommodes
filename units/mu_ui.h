@@ -43,6 +43,7 @@ float mu_ui_scale(void);
 typedef struct mu_shell { DSLObj back, win, x; } mu_shell;
 DSLObj mu_shell_open(mu_shell *s, const char *title, float want_w, float want_h, int fit, float *w, float *h, dsl_ui_cb on_x, void *ud);
 void   mu_shell_close(mu_shell *s);
+int    mu_shell_count(void);                               /* shells open now (test) */
 /* a backdrop over the whole kit screen layer: dims what is under it and takes its clicks (the game's notice look) */
 DSLObj mu_backdrop(uint32_t rgba);
 /* place w at the game's UI scale, centred on the screen layer (a widget made on the layer, design size bw x bh) */
