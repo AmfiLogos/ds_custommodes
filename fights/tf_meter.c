@@ -411,8 +411,8 @@ static int build_full(void) {
     b_reset = cmw_named(U->button(p_body, PAD + 2 * (bw + 6), Y_BTN, bw, 30, TR("Reset"), reset_click, NULL), CMW_BUTTON, "dps:reset", reset_click, NULL, TR("Reset"));
     const char *lf = tf_dps_switch_label(TFD_SW_FIRSTHIT);
     t_first = cmw_named(U->toggle(p_body, PAD, Y_FIRST, RW, lf, tf_dps_switch(TFD_SW_FIRSTHIT), first_change, NULL), CMW_TOGGLE, "dps:firsthit", first_change, NULL, lf);
-    const char *lab[NVAL] = { cm_gw("TEXTKEY_Shared_Time_NAME", TR_NOOP("Time")), cm_gw("TEXTKEY_STATUS_DamageDealtBonus_NAME", TR_NOOP("Damage dealt")),
-                              TR("DPS"), TR("DPS (last 5 s)"), TR("Repaired by the scarecrow"), TR("Absorbed") };
+    const char *lab[NVAL] = { cm_gw("TEXTKEY_Shared_Time_NAME", TR_NOOP("Time")), cm_gw("TEXTKEY_STATUS_DamageDealtBonus_NAME", TR_NOOP("Damage Dealt")),
+                              TR("DPS"), TR("DPS (Last 5 s)"), TR("Repaired by the Scarecrow"), TR("Absorbed") };
     for (int i = 0; i < NVAL; i++) {
         float y = Y_STATS + (float)i * LINE_H;
         txt(p_body, PAD, y, RW - 112, LINE_H, lab[i], 14, DSL_TXT_LEFT, SUB);
@@ -431,7 +431,7 @@ static int build_full(void) {
         t_sw[k] = cmw_named(U->toggle(p_body, PAD, Y_ROWS, RW, l, tf_dps_switch(sw_of[k]), sw_change, (void *)(intptr_t)sw_of[k]),
                             CMW_TOGGLE, sw_name[k], sw_change, (void *)(intptr_t)sw_of[k], l);
     }
-    b_restart = U->button(p_body, PAD, Y_ROWS, RW, 32, TR("Restart test"), restart_click, NULL);
+    b_restart = U->button(p_body, PAD, Y_ROWS, RW, 32, TR("Restart Test"), restart_click, NULL);
     cm_raycast(p_root, true);                             /* the panel takes the clicks over it */
     if (!prefs_read) { char v[8]; if (!cm_pref_get("dps_meter_folded", v, sizeof v)) folded = v[0] == '1'; prefs_read = 1; }
     fold_apply();
@@ -447,7 +447,7 @@ static int build_small(void) {
     plate(s_root, 0, 0, SW, BAR, BAND);
     plate(s_root, 0, BAR, SW, 1, COPPER);
     txt(s_root, PAD + 4, 0, SW - 2 * PAD - 4, BAR, TR("Test Fights"), 17, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
-    s_btn = U->button(s_root, PAD, BAR + 8, SW - 2 * PAD, 32, TR("Restart test"), restart_click, NULL);
+    s_btn = U->button(s_root, PAD, BAR + 8, SW - 2 * PAD, 32, TR("Restart Test"), restart_click, NULL);
     cm_raycast(s_root, true);
     return 0;
 }
@@ -697,8 +697,8 @@ static void show_mode(int m) {
     act(p_root, m == 1);
     act(s_root, m == 2);
     mode = m; PL.x = PL.y = -1; m_layout = 1;
-    if (m == 1 && b_restart) cmw_named(b_restart, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart test"));
-    if (m == 2 && s_btn) cmw_named(s_btn, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart test"));
+    if (m == 1 && b_restart) cmw_named(b_restart, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test"));
+    if (m == 2 && s_btn) cmw_named(s_btn, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test"));
 }
 static void tick(void *ud) {
     (void)ud; fr++;

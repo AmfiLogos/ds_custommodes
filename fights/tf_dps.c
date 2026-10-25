@@ -198,9 +198,9 @@ void tf_dps_switch_set(int w, int on) {
     sw_val[w] = on != 0; cm_pref_set(SW_KEY[w], on ? "1" : "0");
 }
 const char *tf_dps_switch_label(int w) {
-    return w == TFD_SW_SPEECH ? TR("Scarecrow speech") : w == TFD_SW_HEALNUM ? TR("Scarecrow heal numbers")
-         : w == TFD_SW_CHATLOG ? TR("DPS log in chat") : w == TFD_SW_FIRSTHIT ? TR("Start on first hit")
-         : w == TFD_SW_EFFECTS ? TR("Effects in log") : "";
+    return w == TFD_SW_SPEECH ? TR("Scarecrow Speech") : w == TFD_SW_HEALNUM ? TR("Scarecrow Heal Numbers")
+         : w == TFD_SW_CHATLOG ? TR("DPS Log in Chat") : w == TFD_SW_FIRSTHIT ? TR("Start on First Hit")
+         : w == TFD_SW_EFFECTS ? TR("Effects in Log") : "";
 }
 static void sw_click(void *ud, DSLObj w) { int k = (int)(intptr_t)ud; tf_dps_switch_set(k, U->toggle_get(w)); }
 float tf_dps_setup_rows(DSLObj parent, float y, float w) {   /* the DPS Check's switches in the Test Fights setup */

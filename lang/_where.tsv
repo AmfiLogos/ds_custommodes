@@ -1,5 +1,5 @@
 " %d unit stays: it is also in another team.|| %d units stay: they are also in another team."	units/mu_window.c:370
-" (%.0f over)"	fights/tf_dps.c:387
+" (%.0f over)"	fights/tf_dps.c:401
 "%d SP"	builder/bld_ui.c:913
 "%d bag item the game does not know is left out.||%d bag items the game does not know are left out."	fights/tf_ui.c:620
 "%d effect the game does not know is left out.||%d effects the game does not know are left out."	fights/tf_ui.c:621
@@ -17,7 +17,7 @@
 "%s  -  weapon tree, Main SP, from an inscription"	builder/bld_ui.c:895
 "%s  Lv %d"	gallery/gal_ui.c:267 gallery/gal_ui.c:581 fights/tf_ui.c:743 fights/tf_ui.c:755
 "%s %.*s is not in this game version"	units/pvp_wiki.c:278
-"%s (basic)"	fights/tf_dps.c:299
+"%s (basic)"	fights/tf_dps.c:313
 "%s cannot go in the %s slot"	units/pvp_build.c:207
 "%s could not be read from the save: %s"	fights/tf_ui.c:344
 "%s is not in one of this unit's skill trees"	units/pvp_build.c:219
@@ -95,12 +95,12 @@
 "Could not save the snapshot: %s"	units/mu_window.c:251
 "Custom fight"	fights/tf_ui.c:920
 "DPS"	fights/tf_meter.c:415 fights/tf_meter.c:424
-"DPS (last 5 s)"	fights/tf_meter.c:415
-"DPS Check"	fights/tf_dps.c:547 fights/tf_meter.c:404 fights/tf_ui.c:920
-"DPS log in chat"	fights/tf_dps.c:188
+"DPS (Last 5 s)"	fights/tf_meter.c:415
+"DPS Check"	fights/tf_dps.c:561 fights/tf_meter.c:404 fights/tf_ui.c:920
+"DPS Log in Chat"	fights/tf_dps.c:202
 "Dagger"	units/mu_ui.c:117
 "Damage"	fights/tf_meter.c:422
-"Damage dealt"	fights/tf_meter.c:414
+"Damage Dealt"	fights/tf_meter.c:414
 "Day %d"	fights/tf_ui.c:938
 "Delete"	units/mu_window.c:324 units/mu_window.c:606
 "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed."	units/mu_window.c:322
@@ -115,7 +115,7 @@
 "Each level-up adds a random amount to every stat, inside the range of its talent tier (%s: %s to %s per level). Worst takes the lowest amount at every level, average the middle, best the highest."	builder/bld_ui.c:820
 "Each ticked kit is packed into the personal backpack of every character going in, so the squad walks in carrying it."	fights/tf_ui.c:991
 "Edit"	units/mu_window.c:605
-"Effects in log"	fights/tf_dps.c:189
+"Effects in Log"	fights/tf_dps.c:203
 "Every character gains %s so the load is carryable."	fights/tf_ui.c:1032
 "Extra skill trees"	builder/bld_ui.c:997
 "Female"	builder/bld_ui.c:735
@@ -212,9 +212,9 @@
 "Rename"	units/mu_window.c:604
 "Rename team"	units/mu_window.c:607
 "Renamed."	units/mu_window.c:309
-"Repaired by the scarecrow"	fights/tf_meter.c:415
+"Repaired by the Scarecrow"	fights/tf_meter.c:415
 "Reset"	fights/tf_meter.c:411 fights/tf_meter.c:411
-"Restart test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
+"Restart Test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
 "Roll %zu"	builder/bld_ui.c:961
 "Running"	fights/tf_meter.c:582
 "Save"	units/mu_window.c:627 builder/bld_ui.c:1245 builder/bld_ui.c:1249
@@ -228,8 +228,8 @@
 "Saved to My Units: %s"	gallery/gal_ui.c:294
 "Saves this unit in My Units. Use it in Bring Units (Foreign Expedition, PvP) and Test Fights."	builder/bld_ui.c:1249
 "Saving..."	gallery/gal_ui.c:304 builder/bld_ui.c:219
-"Scarecrow heal numbers"	fights/tf_dps.c:187
-"Scarecrow speech"	fights/tf_dps.c:187
+"Scarecrow Heal Numbers"	fights/tf_dps.c:201
+"Scarecrow Speech"	fights/tf_dps.c:201
 "Search"	gallery/gal_ui.c:846 gallery/gal_ui.c:846
 "Search monsters by name..."	fights/tf_ui.c:945
 "Search: name, author, race, background or weapon"	gallery/gal_ui.c:844
@@ -247,7 +247,7 @@
 "Squad: %d / %d"	fights/tf_ui.c:1045
 "Start"	fights/tf_meter.c:408 fights/tf_ui.c:1062 fights/tf_ui.c:1090 fights/tf_ui.c:1090
 "Start from a gallery build"	builder/bld_ui.c:1040 builder/bld_ui.c:1042
-"Start on first hit"	fights/tf_dps.c:188
+"Start on First Hit"	fights/tf_dps.c:202
 "Stat elixirs"	builder/bld_ui.c:850
 "Stat gain per level"	builder/bld_ui.c:808
 "Stop"	fights/tf_meter.c:410 fights/tf_meter.c:410
@@ -349,7 +349,7 @@
 "Your squad standing at a boss door, boss alive and never beaten."	fights/tf_ui.c:924
 "a file from the wiki arrived incomplete"	fights/sg_cache.c:190
 "a team holds 1 to %d units"	units/myunits.c:157 units/myunits.c:219
-"absorbed"	fights/tf_dps.c:371
+"absorbed"	fights/tf_dps.c:385
 "acquired trait"	units/pvp_wiki.c:351
 "average"	builder/bld_ui.c:810
 "background %.*s is not in this game version"	units/pvp_wiki.c:292
