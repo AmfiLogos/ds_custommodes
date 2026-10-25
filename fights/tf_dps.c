@@ -20,6 +20,7 @@
 #include "i18n/ds_i18n.h"
 #include "cm_prefs.h"
 #include "tf_meter.h"
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -434,26 +435,38 @@ static void finalize(int all, long long now) {           /* the groups of finish
     }
     ngrp = k;
 }
-/* DamageExecutionLog: ResultType, _user, _target, TotalDamage (the floating number shows TotalDamage "F0"), shield before /
-   after (ActualSieldDamage = absorbed) */
-static int32_t f_log_shb = -1, f_log_sha = -1;
-static int bar_left, bar_seen; static float bar_stack, bar_dur; static Obj bar_done[8]; static int nbar_done;   /* TEST ONLY, see h_asim */
-static void on_damage(Obj data, Obj log) {
+/* DamageExecutionLog: ResultType, _user, _target, TotalDamage (the floating number shows TotalDamage "F0": the hit before the
+   shield). The shield: the damage step (CalculateApplyDamageToUnitShield) takes the hit off the Barrier stacks as
+   AffecterApplyData {Key AFFECTER_Barrier, Stack -n} in the apply list; a full block takes (int)damage stacks and leaves no
+   damage. The log's TargetShield_Before / _After stay equal in this build (its ctor matches another key), so they cannot
+   tell (lane dsdps 2026-10-25: barrier 400 -> 368 while the log said 400 -> 400). */
+static void *k_aad; static int32_t f_aad_tgt = -1, f_aad_key = -1, f_aad_stk = -1;
+static float shield_taken(Obj apl, Obj tgt, float tot) {
+    if (!apl || !k_aad || f_aad_tgt < 0 || f_aad_key < 0 || f_aad_stk < 0) return 0;
+    Obj items = FLD(apl, 0x10, Obj); int32_t n = FLD(apl, 0x18, int32_t); float t = 0;   /* List<IApplyData> _items, _size */
+    for (int32_t i = 0; items && i < n; i++) {
+        Obj a = FLD(items, 0x20 + 8 * (size_t)i, Obj);
+        if (!a || x_obj_class(a) != k_aad || FLD(a, f_aad_tgt, Obj) != tgt || FLD(a, f_aad_stk, int32_t) >= 0) continue;
+        char k[32]; cm_il_utf8(FLD(a, f_aad_key, Obj), k, sizeof k);
+        if (!strcmp(k, "AFFECTER_Barrier")) t -= (float)FLD(a, f_aad_stk, int32_t);
+    }
+    return t > 0 && t >= floorf(tot) ? tot : t;          /* a full block: the whole hit */
+}
+static int bar_left; static float bar_stack, bar_dur; static Obj bar_done[8]; static int nbar_done;   /* TEST ONLY, see h_asim */
+static void on_damage(Obj data, Obj log, Obj apl) {
     Obj tgt = FLD(log, f_log_target, Obj), user = FLD(log, f_log_user, Obj);
     if (!tgt || !involved(user, tgt)) return;
     char key[80]; int basic; pub_info(data, f_dd_exec, key, sizeof key, &basic);
     int res = FLD(log, f_log_res, int32_t);
-    float sh = f_log_shb >= 0 && f_log_sha >= 0 ? FLD(log, f_log_shb, float) - FLD(log, f_log_sha, float) : 0;
-    for (int i = 0; i < nbar_done && bar_seen < 12 && f_log_shb >= 0 && f_log_sha >= 0; i++)
-        if (bar_done[i] == tgt) { bar_seen++; cmw_log("tf: DPS Check TEST: hit on a Barrier unit: total %.1f shield %.1f -> %.1f", FLD(log, f_log_total, float), FLD(log, f_log_shb, float), FLD(log, f_log_sha, float)); break; }
-    ev_add(TFK_DMG, user, tgt, key, basic, FLD(log, f_log_total, float) - (sh > 0 ? sh : 0), 0, res);   /* the absorbed part is no damage */
+    float tot = FLD(log, f_log_total, float), sh = shield_taken(apl, tgt, tot);
+    ev_add(TFK_DMG, user, tgt, key, basic, tot - sh, 0, res);   /* the absorbed part is no damage */
     if (sh > 0.0f) ev_add(TFK_ABSORB, user, tgt, "STATUS_Barrier", 0, sh, 0, TFD_NORMAL);   /* StatType Barrier (10) */
 }
 typedef Obj (*sim_fn)(Obj self, Obj data, float last, float cur, Obj *apply, const void *mi);
 static sim_fn o_sim, o_ssim, o_hsim, o_asim;
 static Obj h_sim(Obj self, Obj data, float last, float cur, Obj *apply, const void *mi) {
     Obj log = o_sim(self, data, last, cur, apply, mi);
-    if (dps_on && log && data) on_damage(data, log);
+    if (dps_on && log && data) on_damage(data, log, apply ? *apply : NULL);
     return log;
 }
 /* heals: HealExecutionLog TargetHealth_Before / _After (health total); the part past max health = over */
@@ -742,7 +755,8 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     k_mainflow = cm_il_class("Refactor.Main", "MainFlow"); f_mf_th = cm_il_field(k_mainflow, "_timeHandler");
     { void *k_th = cm_il_class("Refactor.Main", "TimeHandler"); f_th_tick = cm_il_field(k_th, "_currentTick"); f_th_iv = cm_il_field(k_th, "TICK_INTERVAL"); }
     k_sed = cm_il_class(RC, "StatusExecutionData"); f_sd_tgt = cm_il_field(k_sed, "<Target>k__BackingField"); f_sd_stat = cm_il_field(k_sed, "<Stat>k__BackingField");
-    f_log_shb = cm_il_field(k_log, "<TargetShield_Before>k__BackingField"); f_log_sha = cm_il_field(k_log, "<TargetShield_After>k__BackingField");
+    k_aad = cm_il_class("Refactor", "AffecterApplyData"); f_aad_tgt = cm_il_field(k_aad, "<Target>k__BackingField");
+    f_aad_key = cm_il_field(k_aad, "<Key>k__BackingField"); f_aad_stk = cm_il_field(k_aad, "<Stack>k__BackingField");
     k_skill = cm_il_class("Refactor", "Skill_Base"); f_sk_data = cm_il_field(k_skill, "<Data>k__BackingField");
     f_skd_basic = cm_il_field(cm_il_class("Util.Sheet", "SkillTableData"), "IsBasicAttackSkill");
     m_isplayer = cm_il_method("Refactor", "EntityExtensions", "IsPlayerUnit", 1, NULL);
@@ -753,8 +767,8 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
       void *kad = cm_il_class(RC, "AffecterExecutionData");
       f_ad_exec = cm_il_field(kad, "<BaseExecution>k__BackingField"); f_ad_tgt = cm_il_field(kad, "<Target>k__BackingField");
       f_ad_key = cm_il_field(kad, "<Key>k__BackingField"); f_ad_stk = cm_il_field(kad, "<Stack>k__BackingField"); f_ad_dur = cm_il_field(kad, "<Duration>k__BackingField"); }
-    cmw_log("tf: DPS Check: shield %d %d, skill data %d basic %d, player test %s, heal log %d %d %d %d, effect log %d %d %d",
-            f_log_shb, f_log_sha, f_sk_data, f_skd_basic, m_isplayer.fn ? "ok" : "MISSING", f_hl_user, f_hl_tgt, f_hl_b, f_hl_a, f_al_user, f_al_tgt, f_al_key);
+    cmw_log("tf: DPS Check: shield %d %d %d, skill data %d basic %d, player test %s, heal log %d %d %d %d, effect log %d %d %d",
+            f_aad_tgt, f_aad_key, f_aad_stk, f_sk_data, f_skd_basic, m_isplayer.fn ? "ok" : "MISSING", f_hl_user, f_hl_tgt, f_hl_b, f_hl_a, f_al_user, f_al_tgt, f_al_key);
     if (f_hl_b >= 0 && f_hl_a >= 0 && f_hl_tgt >= 0) {
         int r = H->hook_method(self, "Refactor.Combat.ExecutionProcess", "HealSimulator", "Simulate", 4, (void *)h_hsim, (void **)&o_hsim);
         cmw_log("tf: DPS Check: heals in the log %s (%d)", r ? "hook refused" : "on", r);
@@ -854,7 +868,7 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
             m_ad_dur = cm_il_method("Refactor.Combat", "AffecterExecutionData", "set_Duration", 1, NULL);
             m_dv_fixed = cm_il_method("Refactor", "DataValue", "FixedValue", 1, NULL);
         }
-        int n = 0; sscanf(s + 8, "%f %f %d", &bar_stack, &bar_dur, &n); bar_left = n; nbar_done = 0; bar_seen = 0;
+        int n = 0; sscanf(s + 8, "%f %f %d", &bar_stack, &bar_dur, &n); bar_left = n; nbar_done = 0;
         snprintf(out, cap, "{\"barrier\":%d,\"ok\":%d}", bar_left, !!(m_ad_key.fn && m_ad_stk.fn && m_ad_dur.fn && m_dv_fixed.fn && f_ad_tgt >= 0 && f_ad_key >= 0));
         return 0;
     }

@@ -309,3 +309,11 @@
   code as in a DPS Check). Proven: heals "+X" in green under the healer's header, the meter's Healing = the heal lines it
   measured, each unit's Healing = its skills', heals never in damage dealt. Not produced yet: shield absorbs (no unit of the
   fixture squad put on a Barrier in 3 runs: Fire Cloak and Iron Clad were never cast; Shield Up raises guard, not Barrier).
+- 0.1.34: shield absorbs read from the damage step's apply list: the game takes a hit off the Barrier as AffecterApplyData
+  {Key AFFECTER_Barrier, Stack -n} (DamageSimulator CalculateApplyDamageToUnitShield; a full block takes (int)damage
+  stacks and leaves no damage). DamageExecutionLog TargetShield_Before / _After stay equal in this build (barrier 400 ->
+  368 while the log said 400 -> 400), so the old before - after read 0 and an absorbed hit counted as full damage.
+  Test-only `tf_dps_test "barrier <stack> <s> <units>"`: the next effects on squad units become the game's Barrier inside
+  its own AffecterSimulator call (key / stack / duration swapped, then put back), because the fixture squad never casts
+  a skill (no Auto Skill: see 0.1.35). dps_test.py --heal 10/10: 32 absorbs, 30 fully blocked hits logged as 0 damage,
+  meter Absorbed 1605.62 = the absorb lines it measured.
