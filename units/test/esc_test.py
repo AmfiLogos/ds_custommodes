@@ -11,6 +11,8 @@ only. Fails when (the breaks this catches):
   - the name box (Rename team) or the paste box with the keyboard in its field: the 1st press must cancel that box only
     (My Units stays), the 2nd closes My Units; the Delete team box: 1st press closes the box only (nothing deleted);
   - a plain field (Builder name, Gallery search): the 1st press only leaves the field, the window stays;
+  - the Gallery's Details page: the 1st press = its Back (the list again, the Gallery stays), the 2nd closes the Gallery
+    (owner 2026-10-25: "Go Back one level");
   - the Builder with an unsaved change: Escape asks first (the game's notice), Escape on that notice = "Keep editing" (the
     Builder stays); a gear slot's item list: Escape closes the list only;
   - the test library or the owner's real library file changed (Escape must never save or delete).
@@ -104,6 +106,18 @@ def install():
     subprocess.run(['codesign', '-f', '-s', '-', os.path.join(APP, 'Contents', 'MacOS', 'Dungeon Settlers')], capture_output=True)
 
 
+def wiki_dir():
+    """the wiki files the mod reads (DSCM_WIKI_DIR): the wiki site's own files + the gallery's list from this repo's fixture
+    (gallery/test/data/api/gallery: 2 builds), so the Gallery shows cards with no network"""
+    d = os.path.join(OUT, 'wiki'); os.makedirs(os.path.join(d, 'api'), exist_ok=True)
+    for n in os.listdir(WIKI):
+        if n != 'api' and not os.path.lexists(os.path.join(d, n)): os.symlink(os.path.join(WIKI, n), os.path.join(d, n))
+    for n in os.listdir(os.path.join(WIKI, 'api')) if os.path.isdir(os.path.join(WIKI, 'api')) else []:
+        if not os.path.lexists(os.path.join(d, 'api', n)): os.symlink(os.path.join(WIKI, 'api', n), os.path.join(d, 'api', n))
+    shutil.copy2(os.path.join(REPO, 'gallery', 'test', 'data', 'api', 'gallery'), os.path.join(d, 'api', 'gallery'))
+    return d
+
+
 def make_library():
     """3 fixture units; Team A = u0 u1 (a team for Rename team / Delete team)"""
     fx = json.load(open(os.path.join(REPO, 'units', 'test', 'data', 'launcher_library.json')))
@@ -134,7 +148,7 @@ def start():
            'DSL_SOFT_STAGE': '-20000,-20000', 'DSL_SOFT_NOACTIVATE': '1', 'DSL_NO_ALERT': '1', 'DSL_NOTCH': '0', 'DSL_UPDATE': '0',
            'DSL_CLOUD': '0', 'DSL_PREWARM': '0', 'DSL_CRASHREP_TEST': crd,
            'DSL_UNITS_TEST': DRV, 'DSMP_UNITS_LIB': LIB, 'DSML_GAME_SAVES': GAME_SAVES, 'DSMP_CLIP_PB': 'dsesc-cm-test-%d' % os.getpid(),
-           'DSCM_WIKI_DIR': WIKI}
+           'DSCM_WIKI_DIR': wiki_dir()}
     env.update(r.soft_test_env())
     a = [os.path.join(I, r.EXE_REL), '-logFile', os.path.join(I, 'player.log'), '-screen-fullscreen', '0', '-screen-width', '960', '-screen-height', '540']
     p = subprocess.Popen(a, env=env, cwd=I, stdin=subprocess.DEVNULL, stdout=open(os.path.join(I, 'stdout.log'), 'ab'),
@@ -312,6 +326,18 @@ def cases():
     check('11 Escape closes Test Fights, the home page stays', wins(s) == [] and home_on(s), (wins(s), s.get('esc')))
     s = press()
     check('11 next Escape closes the home page', not home_on(s), s.get('esc'))
+    # 12. the Gallery's Details page (owner 2026-10-25 "Go Back one level"): 1st Escape = its Back, 2nd closes the Gallery
+    gal = lambda s: cm(s, 'fights').get('gal') or {}
+    open_home(); click('home:Wiki Build Gallery', 1.5)
+    s = wait_for(lambda: (lambda s: s if gal(s).get('items', 0) > 0 else None)(st()), 40) or st()
+    check('12 the Gallery lists builds (the wiki answered)', gal(s).get('items', 0) > 0, gal(s).get('status'))
+    click('gallery:c0.card', 1.5); s = until(lambda s: gal(s).get('preview', -1) >= 0)
+    check('12 a build\'s Details page shows', gal(s).get('preview', -1) >= 0, gal(s).get('preview'))
+    s = press()
+    check('12 1st Escape = Back (the list again, the Gallery stays)', 'gallery' in wins(s) and gal(s).get('preview', -1) == -1, (wins(s), gal(s).get('preview')))
+    s = press()
+    check('12 2nd Escape closes the Gallery, the home page stays', 'gallery' not in wins(s) and home_on(s), (wins(s), home_on(s)))
+    press()
     check('the test library is unchanged (Escape never saves or deletes)', fstate(LIB) == lib0)
 
 

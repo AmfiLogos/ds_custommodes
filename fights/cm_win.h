@@ -22,6 +22,9 @@ int  cmw_tick_add(void (*tick)(void *ud), void *ud);
 #define CMW_BAND 64.0f
 DSLObj cmw_open(const char *id, const char *title, float w, float h, void (*closed)(void *ud), void *ud);
 void   cmw_close(const char *id);
+/* a window with sub-pages (owner 2026-10-25: Escape goes Back one level first): back(ud) runs on Escape before the window
+ * closes; it returns 1 when it went back (the window stays, the next Escape asks again), 0 = on the main page (closes) */
+void   cmw_set_back(const char *id, int (*back)(void *ud), void *ud);
 int    cmw_is_open(const char *id);
 DSLObj cmw_flat(DSLObj panel, uint32_t rgba);              /* a kit panel as a flat colour (no frame sprite) */
 
