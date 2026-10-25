@@ -133,12 +133,12 @@ int mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, m
     for (int i = 0; i < nf && n < max; i++) {
         fent *x = &fs[i];
         int seen = 0;
-        if (x->guid[0]) for (int k = 0; k < n && !seen; k++) seen = out[k].group == x->group && !strcmp(out[k].guid, x->guid);
+        if (x->guid[0]) for (int k = 0; k < n && !seen; k++) seen = !strcmp(out[k].guid, x->guid);
         if (seen) continue;
         mu_world w; memset(&w, 0, sizeof w);
         if (mu_world_header(x->path, &w)) continue;                      /* not a readable save: an older file may stand in */
         if (x->guid[0] && strcmp(w.guid, x->guid)) snprintf(w.guid, sizeof w.guid, "%s", x->guid);
-        for (int k = 0; k < n && !seen; k++) seen = out[k].group == x->group && !strcmp(out[k].guid, w.guid);
+        for (int k = 0; k < n && !seen; k++) seen = !strcmp(out[k].guid, w.guid);
         if (seen || our_guid(w.guid) || (skip && skip(w.guid, x->file))) continue;
         snprintf(w.path, sizeof w.path, "%s", x->path); snprintf(w.save, sizeof w.save, "%s", x->file);
         if (!w.name[0]) snprintf(w.name, sizeof w.name, "%s", x->file);
@@ -147,11 +147,6 @@ int mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, m
         out[n++] = w;
     }
     free(fs);
-    for (int i = 1; i < n; i++) {                                        /* folder order, newest first inside (stable) */
-        mu_world t = out[i]; int j = i - 1;
-        while (j >= 0 && out[j].group > t.group) { out[j + 1] = out[j]; j--; }
-        out[j + 1] = t;
-    }
     return n;
 }
 

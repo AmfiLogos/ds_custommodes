@@ -4,8 +4,8 @@
 // clipboard is read; only without a link a box asks to paste), short links, tick units -> "Save as team", Rename,
 // Delete, and "New unit" / "Edit" when the Unit Builder is in the build (cm_builder_open).
 // Owner 2026-10-25: "Delete team" asks each time ("Team and units" / "Team only"); "World units" under the teams lists
-// the player's worlds (game saves and modded saves, as Load Campaign) with the newest save's units read only, and a
-// snapshot copies ticked ones into My Units with their source (mu_worlds.h).
+// the player's worlds (game saves and modded saves in one list, no group headings, as Load Campaign) with the newest
+// save's units read only, and a snapshot copies ticked ones into My Units with their source (mu_worlds.h).
 // Custom units stay out of regular saves: this window only edits the library file; Bring Units hands out copies. Saves
 // are only read.
 #include "mu_ui.h"
@@ -350,7 +350,8 @@ static void on_page(void *ud, DSLObj w) {
 /* ------------------------------------------------------------------ drawing */
 /* the left list: All units, then one row per team headed by its icon (the first unit's portrait) and, for a team from the
    Wiki Build Gallery, the builder's name under the team name (owner 2026-10-17); then "World units": the worlds of the
-   game saves and of the modded saves (the two groups of Load Campaign), one row per world with its save time */
+   game saves and the modded saves in one list, newest first (no group headings: owner 2026-10-25), one row per world with
+   its save time */
 #define LEFT_W 250.f
 #define TEAM_H 64.f
 #define WORLD_H 52.f
@@ -387,21 +388,14 @@ static void draw_left(void) {
     y += 8;
     mu_text(W.left, 4, y, bw - 8, 26, TR("World units"), 16, DSL_TXT_LEFT, MU_C_GOLD); y += 28;
     if (!W.nworlds) { mu_text(W.left, 4, y, bw - 8, 44, TR("No saves found."), 13, DSL_TXT_LEFT | DSL_TXT_WRAP, MU_C_SUB); y += 46; }
-    static const char *const GROUP[2] = { TR_NOOP("Game saves"), TR_NOOP("Modded saves") };
-    for (int g = 0; g < 2; g++) {
-        int any = 0; for (int i = 0; i < W.nworlds; i++) any |= W.worlds[i].group == g;
-        if (!any) continue;
-        mu_text(W.left, 4, y, bw - 8, 22, TR(GROUP[g]), 13, DSL_TXT_LEFT, MU_C_SUB); y += 24;
-        for (int i = 0; i < W.nworlds && W.nworld_btn < WMAX; i++) {
-            if (W.worlds[i].group != g) continue;
-            DSLObj b = mu_button(W.left, 0, y, bw, WORLD_H, "", on_world, (void *)(intptr_t)i);
-            if (b) {
-                char when[80]; snprintf(when, sizeof when, TR("Saved %s"), W.worlds[i].when); dsi_utf8_fix_end(when);
-                mu_text(b, 12, 4, bw - 20, 24, W.worlds[i].name, 14, DSL_TXT_LEFT, W.sel_world == i ? MU_C_GOLD : MU_C_MAIN);
-                mu_text(b, 12, 27, bw - 20, 20, when, 12, DSL_TXT_LEFT, MU_C_SUB);
-            }
-            W.world_btn[W.nworld_btn++] = b; y += WORLD_H + 4;
+    for (int i = 0; i < W.nworlds && W.nworld_btn < WMAX; i++) {
+        DSLObj b = mu_button(W.left, 0, y, bw, WORLD_H, "", on_world, (void *)(intptr_t)i);
+        if (b) {
+            char when[80]; snprintf(when, sizeof when, TR("Saved %s"), W.worlds[i].when); dsi_utf8_fix_end(when);
+            mu_text(b, 12, 4, bw - 20, 24, W.worlds[i].name, 14, DSL_TXT_LEFT, W.sel_world == i ? MU_C_GOLD : MU_C_MAIN);
+            mu_text(b, 12, 27, bw - 20, 20, when, 12, DSL_TXT_LEFT, MU_C_SUB);
         }
+        W.world_btn[W.nworld_btn++] = b; y += WORLD_H + 4;
     }
     U->scroll_height(W.left, y);
 }

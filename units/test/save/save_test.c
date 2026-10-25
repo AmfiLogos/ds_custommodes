@@ -3,9 +3,10 @@
  *   save_test rt BUILDS.jsonl TMPDIR  round trip: builder build -> wk_from_json -> pb_entry (the save writer) -> a save
  *                                     file holding all those units -> mu_save_units / mu_save_build_ex -> same unit?
  *   save_test ref SAVE REF.jsonl      the wiki builder's own save import (builder_import.js) of SAVE == this reader
- *   save_test worlds TMPDIR SAVE      My Units "World units" (mu_worlds.c): a world's NEWEST save is the one listed (a
- *                                     snapshot of an older save would be wrong), our own worlds / temp saves / test worlds
- *                                     never listed, game + modded folders apart; a snapshot of units of a real save (a copy)
+ *   save_test worlds TMPDIR SAVE      My Units "World units" (mu_worlds.c): a world's NEWEST save is the one listed, in
+ *                                     either folder (a snapshot of an older save would be wrong), one row per world in one
+ *                                     list newest first, our own worlds / temp saves / test worlds never listed; a snapshot
+ *                                     of units of a real save (a copy)
  *                                     read back from the library file = the save's units, with their source; the save
  *                                     file's bytes unchanged
  * Exit 1 on any FAIL. */
@@ -255,17 +256,22 @@ static void worlds(const char *tmp, const char *real) {
     put_save(g, "SaveHeaderCache", "44444444444444444444444444444444", "Cache", "2026-10-22 00:00:00", T + 10);
     put_save(g, "Broken__AutoSave_66666666666666666666666666666666_0", NULL, NULL, NULL, T + 20);       /* no header */
     put_save(m, "PvPBase__AutoSave_b45e0553a2054c6a9fe3bb03fc5d2094_0", "b45e0553-a205-4c6a-9fe3-bb03fc5d2094", "PvP", "2026-10-22 00:00:00", T + 10);
-    put_save(m, "ClanA__AutoSave_11111111222233334444555555555555_0", G1D, "Clan A", "2026-10-18 08:00:00", T - 200);
+    put_save(m, "ClanA__AutoSave_11111111222233334444555555555555_0", G1D, "Clan A", "2026-10-18 08:00:00", T - 200);   /* older: game's wins */
+    put_save(m, "ClanC__AutoSave_77777777777777777777777777777777_0", "77777777-7777-7777-7777-777777777777", "Clan C", "2026-10-21 10:00:00", T - 20);
+    put_save(g, "ClanD__AutoSave_88888888888888888888888888888888_0", "88888888-8888-8888-8888-888888888888", "Clan D", "2026-10-17 07:00:00", T - 300);
+    put_save(m, "ClanD__AutoSave_88888888888888888888888888888888_1", "88888888-8888-8888-8888-888888888888", "Clan D", "2026-10-21 10:30:00", T - 10);   /* newer: modded wins */
     put_save(m, "TeamX_DPS Check_Normal__AutoSave_55555555555555555555555555555555_0", "55555555-5555-5555-5555-555555555555", "Test", "2026-10-22 00:00:00", T + 30);
     const char *dirs[2] = { g, m };
     mu_world w[16]; int n = mu_worlds_list(dirs, 2, w, 16, skip_test);
     for (int i = 0; i < n; i++) printf("  world %d: group %d %s | %s | %s | %s\n", i, w[i].group, w[i].name, w[i].save, w[i].guid, w[i].when);
-    CHECK(n == 3, "worlds: 3 listed (got %d): our hub / PvP worlds, temp saves, the header cache, a test world and a file with no header left out", n);
-    if (n == 3) {
+    CHECK(n == 4, "worlds: 4 listed, one row per world (got %d): our hub / PvP worlds, temp saves, the header cache, a test world and a file with no header left out", n);
+    if (n == 4) {
         CHECK(w[0].group == 0 && !strcmp(w[0].name, "Clan A") && strstr(w[0].save, "_1") && !strcmp(w[0].when, "2026-10-21 11:00") && !strcmp(w[0].guid, G1),
-              "worlds: the game world's NEWEST save is listed (%s, %s)", w[0].save, w[0].when);
-        CHECK(w[1].group == 0 && !strcmp(w[1].name, "Clan B") && !strcmp(w[1].save, "My own save"), "worlds: a save with any name is found by its header (%s)", w[1].name);
-        CHECK(w[2].group == 1 && !strcmp(w[2].name, "Clan A") && !strcmp(w[2].when, "2026-10-18 08:00"), "worlds: the same world in the modded folder is its own row (%d %s)", w[2].group, w[2].when);
+              "worlds: a world's NEWEST save is listed (game folder: %s, %s)", w[0].save, w[0].when);
+        CHECK(w[1].group == 1 && !strcmp(w[1].name, "Clan D") && strstr(w[1].save, "_1") && !strcmp(w[1].when, "2026-10-21 10:30"),
+              "worlds: a world's NEWEST save is listed (modded folder: %s, %s)", w[1].save, w[1].when);
+        CHECK(w[2].group == 1 && !strcmp(w[2].name, "Clan C"), "worlds: a modded-only world, by time (%s)", w[2].name);
+        CHECK(w[3].group == 0 && !strcmp(w[3].name, "Clan B") && !strcmp(w[3].save, "My own save"), "worlds: a save with any name is found by its header (%s)", w[3].name);
     }
     /* snapshot of a real save (a copy) */
     char sd[1100], sp[1300], lp[1300], e[400]; snprintf(sd, sizeof sd, "%s/w/snap", tmp); mkdir(sd, 0755);

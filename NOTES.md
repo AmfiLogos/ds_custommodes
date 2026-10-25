@@ -61,8 +61,9 @@
 - Delete team: a box inside the My Units window (the game's notice box has two buttons): Team and units / Team only /
   Cancel, with the number of units that go (myunits.c mu_team_split, mu_team_delete_units: a unit also in another team
   stays).
-- units/mu_worlds.c: the worlds Load Campaign lists (DSML_GAME_SAVES = game saves, the modded game's Saves folder), one
-  row per (folder, campaign guid), the newest file; the CampaignSaveHeader is cut out of the file text and parsed alone.
+- units/mu_worlds.c: the worlds of the folders Load Campaign lists (DSML_GAME_SAVES = game saves, the modded game's Saves
+  folder) in ONE list, no group headings (owner 2026-10-25, 0.1.16): one row per campaign guid, its newest file in either
+  folder, newest world first; the CampaignSaveHeader is cut out of the file text and parsed alone.
   Our hub / PvP worlds, multiplayer temp saves and Test Fights worlds are never listed. A world's units are the
   Bring Units save reader's (mu_save.c), read only. Saves are only read.
 - Snapshot: mu_snapshot -> a normal library unit + units[i].source (myunits.h mu_source); the card shows

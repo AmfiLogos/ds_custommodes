@@ -1,6 +1,7 @@
 /* mu_worlds - "World units" in My Units (owner 2026-10-25: "My save / world units ... so i can test things with my units").
- * The player's worlds as Load Campaign lists them (game saves AND modded saves): one row per world (campaign guid),
- * its newest save, its clan name and save time. The units of that save are shown read only (mu_save.h); a snapshot
+ * The player's worlds from the folders Load Campaign lists (game saves AND modded saves), in ONE list (owner 2026-10-25:
+ * no group headings, as his Load Campaign): one row per world (campaign guid), its newest save in either folder, its clan
+ * name and save time, newest world first. The units of that save are shown read only (mu_save.h); a snapshot
  * copies chosen ones into My Units as normal units with their source (myunits.h mu_source). Pure C, no game code.
  * Saves are only read, never written, moved or renamed. */
 #pragma once
@@ -13,7 +14,7 @@ typedef struct mu_world {
     char name[96];            /* CampaignSaveHeader.ClanName (raw text, quotes as spaces); the file name when missing */
     char guid[40];            /* CampaignGuid: 32 hex, lower case */
     char when[24];            /* the save's time "YYYY-MM-DD HH:MM" (header SaveTime, else the file time) */
-    int group;                /* index of its folder in the dirs list (0 = game saves, 1 = modded saves in My Units) */
+    int group;                /* index of the folder its newest save is in (dirs list order) */
     long long mtime;          /* file time, seconds */
 } mu_world;
 
@@ -23,8 +24,8 @@ typedef struct mu_world {
 int  mu_world_save_name(const char *file);
 /* skip(guid, save_name) = 1: a world not to list (Test Fights' test worlds); may be NULL */
 typedef int (*mu_world_skip_fn)(const char *guid, const char *save_name);
-/* the worlds of these folders: one per (folder, campaign guid), its newest file by file time; groups in folder order,
-   newest world first inside a group. A file without a readable CampaignSaveHeader is left out. Returns the count. */
+/* the worlds of these folders, one list: one per campaign guid (a world in both folders once), its newest file by file
+   time, newest world first. A file without a readable CampaignSaveHeader is left out. Returns the count. */
 int  mu_worlds_list(const char *const *dirs, int ndirs, mu_world *out, int max, mu_world_skip_fn skip);
 /* the normal game's Saves folder (env DSML_GAME_SAVES, set by both starters; "" when not set) */
 void mu_game_saves_dir(char *out, size_t n);

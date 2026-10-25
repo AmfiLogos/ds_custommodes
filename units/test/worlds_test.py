@@ -131,10 +131,10 @@ def run(ids):
     check('My Units opened on the TEST library (never the owner\'s file)', s.get('open') == 1 and s.get('lib') == LIB and s.get('units') == 6 and s.get('teams') == 2,
           (s.get('lib'), s.get('units'), s.get('teams')))
     worlds = s.get('worlds') or []
-    game = [w for w in worlds if w.split('|')[1] == '0']; mod = [w for w in worlds if w.split('|')[1] == '1']
     sv = os.path.splitext(os.path.basename(SAVE))[0]
-    check('World units: the game saves folder\'s world (the real save copy) and the modded saves\' world are listed',
-          any(w.split('|')[2] == sv for w in game) and any('MoonlightBrigade' in w.split('|')[2] for w in mod), worlds)
+    check('World units: the game saves folder\'s world (the real save copy) and the modded saves\' world, in one list, newest first',
+          any(w.split('|')[2] == sv and w.split('|')[1] == '0' for w in worlds) and any('MoonlightBrigade' in w.split('|')[2] and w.split('|')[1] == '1' for w in worlds)
+          and [w.split('|')[3] for w in worlds] == sorted((w.split('|')[3] for w in worlds), reverse=True), worlds)
     if LANG:                                                      # text fit shots only
         click('mu:team0'); click('mu:delete_team'); shot(f'dlg_{LANG}'); click('mu:dlg_cancel')
         click('mu:world0', 3); shot(f'world_{LANG}')
