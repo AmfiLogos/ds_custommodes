@@ -230,6 +230,7 @@
  "Reading the link...": "Link wird gelesen...",
  "Remove": "Entfernen",
  "Rename": "Umbenennen",
+ "Rename team": "Team umbenennen",
  "Renamed.": "Umbenannt.",
  "Roll %zu": "Wurf %zu",
  "Save": "Speichern",
@@ -258,6 +259,7 @@
  "Skill Trees": "Fertigkeitsbäume",
  "Skill trees: %s": "Skillbäume: %s",
  "Skills": "Skills",
+ "Snapshot": "Snapshot",
  "Spear": "Speer",
  "Special": "Spezial",
  "Squad": "Trupp",
@@ -282,8 +284,10 @@
   "Team samt %d Einheiten gelöscht."
  ],
  "Team deleted. Its units stay in My Units.": "Team gelöscht. Seine Einheiten bleiben in Meine Einheiten.",
+ "Team name": "Name des Teams",
  "Team only": "Nur Team",
  "Team only: the units stay in My Units.": "Nur Team: Die Einheiten bleiben in Meine Einheiten.",
+ "Team renamed.": "Team umbenannt.",
  "Team: %s||Teams: %s": [
   "Team: %s",
   "Teams: %s"

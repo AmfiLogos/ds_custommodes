@@ -219,6 +219,7 @@
  "Reading the link...": "링크를 읽는 중...",
  "Remove": "제거",
  "Rename": "이름 변경",
+ "Rename team": "팀 이름 변경",
  "Renamed.": "이름을 바꿨습니다.",
  "Roll %zu": "랜덤 옵션 %zu",
  "Save": "저장",
@@ -245,6 +246,7 @@
  "Skill Trees": "스킬 트리",
  "Skill trees: %s": "스킬 트리: %s",
  "Skills": "스킬",
+ "Snapshot": "스냅샷",
  "Spear": "창",
  "Special": "특수",
  "Squad": "분대",
@@ -267,8 +269,10 @@
   "팀을 유닛 %d개와 함께 삭제했습니다."
  ],
  "Team deleted. Its units stay in My Units.": "팀을 삭제했습니다. 유닛은 내 유닛에 남습니다.",
+ "Team name": "팀 이름",
  "Team only": "팀만",
  "Team only: the units stay in My Units.": "팀만: 유닛은 내 유닛에 남습니다.",
+ "Team renamed.": "팀 이름을 바꿨습니다.",
  "Team: %s||Teams: %s": [
   "팀: %s"
  ],

@@ -230,6 +230,7 @@
  "Reading the link...": "Lendo o link...",
  "Remove": "Remover",
  "Rename": "Renomear",
+ "Rename team": "Renomear equipe",
  "Renamed.": "Renomeado.",
  "Roll %zu": "Rolagem %zu",
  "Save": "Salvar",
@@ -258,6 +259,7 @@
  "Skill Trees": "Árvores de habilidades",
  "Skill trees: %s": "Árvores de habilidade: %s",
  "Skills": "Habilidades",
+ "Snapshot": "Instantâneo",
  "Spear": "Lança",
  "Special": "Especial",
  "Squad": "Esquadrão",
@@ -282,8 +284,10 @@
   "Equipe excluída com %d unidades."
  ],
  "Team deleted. Its units stay in My Units.": "Equipe excluída. As unidades dela continuam em Minhas unidades.",
+ "Team name": "Nome da equipe",
  "Team only": "Só a equipe",
  "Team only: the units stay in My Units.": "Só a equipe: as unidades continuam em Minhas unidades.",
+ "Team renamed.": "Equipe renomeada.",
  "Team: %s||Teams: %s": [
   "Equipe: %s",
   "Equipes: %s"

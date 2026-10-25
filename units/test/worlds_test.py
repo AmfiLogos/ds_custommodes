@@ -13,7 +13,10 @@ Fails when (the breaks this catches):
   - "Save snapshot": the new library units are not the ticked save units (source unit guid, world, save, save time), or the
     card shows no source line.
   - a library card shows a wrong or stale team list (the teams its unit is in, read from the file) after Save as team,
-    Rename, Delete team (both choices) or Delete, on any page; a save's card shows teams.
+    Rename, Rename team, Delete team (both choices) or Delete, on any page; a save's card shows teams.
+  - a 4-unit team whose units are snapshots (source line) and in teams needs 2 pages at the test copy's size (960x540).
+  - Rename team: the new name is not in library.json, the gallery team's author / its units are lost, or the left list
+    and the cards' team lines do not show the new name at once.
   - the owner's real library file changed (sha256 + time), or a save file changed.
   worlds_test.py           env: HM_BUILD = a loader build folder (dsload.dylib, mods/multiplayer, mods/custom-modes)
                                 LD_ROOT = a ds_modloader checkout (its loader/test helpers; default ~/ds_launcher)
@@ -68,15 +71,22 @@ def probe_pkg():
 
 
 def make_library():
-    """6 fixture units; team A = u0 u1 u2, team B = u2 u3, a long-named team C = u2 (u2 in three: its teams get cut)"""
+    """6 fixture units; team A = u0 u1 u2, team B = u2 u3, a long-named gallery team C = u2 (author Tester), "Full team" =
+    u2..u5, which carry a snapshot source (u2 in four teams: its teams get cut)"""
     fx = json.load(open(os.path.join(REPO, 'units', 'test', 'data', 'launcher_library.json')))
     units = fx['units'][:6]
     for i, u in enumerate(units):
         u['id'] = f'{0xa0 + i:02x}' * 8; u['name'] = f'Test unit {i}'
+        if i >= 2:
+            u['source'] = {'kind': 'snapshot', 'world': 'Elven Expedition', 'campaign': 'f816ebc6195c432c9fff754b75ee3738',
+                           'save': 'ElvenExpedition__AutoSave_f816ebc6195c432c9fff754b75ee3738_0', 'save_time': '2026-10-25 11:46',
+                           'unit': f'00000000-0000-0000-0000-00000000000{i}', 'taken': 1792900000000 + i * 60000}
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
            'teams': [{'id': 'aa' * 8, 'name': 'Team A', 'unit_ids': [units[0]['id'], units[1]['id'], units[2]['id']]},
                      {'id': 'bb' * 8, 'name': 'Team B', 'unit_ids': [units[2]['id'], units[3]['id']]},
-                     {'id': 'cc' * 8, 'name': 'Shield & Greatsword Fellowship of the Northern Hills', 'unit_ids': [units[2]['id']]}]}
+                     {'id': 'cc' * 8, 'name': 'Shield & Greatsword Fellowship of the Northern Hills', 'unit_ids': [units[2]['id']],
+                      'author': 'Tester', 'gallery': 'g1'},
+                     {'id': 'dd' * 8, 'name': 'Full team', 'unit_ids': [u['id'] for u in units[2:6]]}]}
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
     json.dump(lib, open(LIB, 'w'), indent=2)
     return [u['id'] for u in units]
@@ -167,7 +177,7 @@ def teams_check(label):
 
 def run(ids):
     s = mu()
-    check('My Units opened on the TEST library (never the owner\'s file)', s.get('open') == 1 and s.get('lib') == LIB and s.get('units') == 6 and s.get('teams') == 3,
+    check('My Units opened on the TEST library (never the owner\'s file)', s.get('open') == 1 and s.get('lib') == LIB and s.get('units') == 6 and s.get('teams') == 4,
           (s.get('lib'), s.get('units'), s.get('teams')))
     worlds = s.get('worlds') or []
     sv = os.path.splitext(os.path.basename(SAVE))[0]
@@ -178,6 +188,11 @@ def run(ids):
         shot(f'teams_{LANG}')
         ov = req('call', fn='mu_test_overflow', s='')
         check(f'cards with their teams inside their boxes ({LANG})', ov.get('rc') == 0, (ov.get('out') or '')[-300:])
+        click('mu:team3', 2); s = mu(); shot(f'full_{LANG}')
+        ov = req('call', fn='mu_test_overflow', s='')
+        check(f'a 4-unit team of snapshots on one page, texts inside their boxes ({LANG})', s.get('shown') == 4 and s.get('per_page', 0) >= 4 and s.get('src_lines') == 4 and ov.get('rc') == 0,
+              (s.get('per_page'), s.get('src_lines'), (ov.get('out') or '')[-200:]))
+        click('mu:rename_team'); shot(f'renteam_{LANG}'); click('mu:rename_cancel'); click('mu:all', 1)
         click('mu:team0'); click('mu:delete_team'); shot(f'dlg_{LANG}'); click('mu:dlg_cancel')
         click('mu:world0', 3); shot(f'world_{LANG}')
         click('mu:tick0'); click('mu:snapshot', 2); click('mu:all', 2)
@@ -185,20 +200,38 @@ def run(ids):
         for _ in range((s.get('shown', 0) - 1) // pp):                # the snapshot unit is the last one: its page
             click('mu:next', 1)
         s = mu(); shot(f'src_{LANG}')
-        check(f'the snapshot unit\'s source line is on screen ({LANG})', s.get('src_lines') == 1, s.get('src_lines'))
+        cl = s.get('card_list') or []
+        check(f'the snapshot unit\'s source line is on screen ({LANG})', cl and cl[-1].get('src') and s.get('src_lines') == len(cl), (s.get('src_lines'), len(cl)))
         ov = req('call', fn='mu_test_overflow', s='')
         check(f'cards and source lines inside their boxes ({LANG})', ov.get('rc') == 0, (ov.get('out') or '')[-300:])
         return
     shot('teams_en')
     teams_check('start')
+    # ---- 4 per page: the full team (4 snapshot units in several teams) on one page
+    click('mu:team3', 2); s = mu(); shot('full_en')
+    check('a 4-unit team of snapshot units fits one page (source and team lines inside the cards)',
+          s.get('shown') == 4 and s.get('per_page', 0) >= 4 and s.get('src_lines') == 4 and all(c.get('src') and 'Elven Expedition' in c['src'] and c.get('teams') for c in s.get('card_list') or []),
+          (s.get('shown'), s.get('per_page'), s.get('src_lines'), [c.get('src') for c in s.get('card_list') or []]))
+    teams_check('Full team view')
     ov = req('call', fn='mu_test_overflow', s='')
     check('cards with their teams inside their boxes (en)', ov.get('rc') == 0, (ov.get('out') or '')[-300:])
     # ---- Save as team: u0 + u2 -> a new team (u2 then in four teams)
+    _, _, dt0 = disk()
     click('mu:all'); click('mu:tick0'); click('mu:tick2'); click('mu:save_team', 2)
     _, _, dt = disk()
-    check('Save as team: a new team of the 2 ticked units in the file', len(dt) == 4 and any(v == [ids[0], ids[2]] for v in dt.values()), dt)
+    check('Save as team: a new team of the 2 ticked units in the file', len(dt) == len(dt0) + 1 and any(v == [ids[0], ids[2]] for v in dt.values()), dt)
     teams_check('Save as team (the new team\'s view)')
     click('mu:all', 2); teams_check('Save as team (All units)')
+    # ---- Rename team: the gallery team C (author Tester)
+    click('mu:team2'); click('mu:rename_team'); req('field_set', target='mu:rename_field', text='Renamed team'); click('mu:rename_ok', 2)
+    d = json.load(open(LIB)); tc = next((t for t in d['teams'] if t['id'] == 'cc' * 8), {})
+    check('Rename team: the new name is in the file, the author, gallery id and units stay',
+          tc.get('name') == 'Renamed team' and tc.get('author') == 'Tester' and tc.get('gallery') == 'g1' and tc.get('unit_ids') == [ids[2]], tc)
+    s = mu(); rows = s.get('team_rows') or []
+    check('Rename team: the left list shows the new name at once, with its author line, still selected',
+          len(rows) > 2 and rows[2].startswith('Renamed team (') and rows[2].endswith('|by Tester') and s.get('sel_team') == 2, (rows, s.get('sel_team')))
+    teams_check('Rename team (the team\'s view)')
+    click('mu:all', 2); teams_check('Rename team (All units)')
     # ---- Rename u2: its teams stay on its card
     click('mu:tick2'); click('mu:rename'); req('field_set', target='mu:rename_field', text='Renamed two'); click('mu:rename_ok', 2)
     d, _, _ = disk()
@@ -240,7 +273,7 @@ def run(ids):
     check('a world shows its save\'s units as cards, with no teams', s.get('sel_world') == gi and len(wunits) >= 2 and s.get('cards', 0) >= 2
           and not any(c.get('teams') for c in s.get('card_list') or []), (s.get('sel_world'), len(wunits), s.get('cards')))
     check('a world\'s units are read only (no Save as team / Rename / Delete / Delete team; Save snapshot shown)',
-          not shown('mu:save_team') and not shown('mu:rename') and not shown('mu:delete') and not shown('mu:delete_team') and shown('mu:snapshot'))
+          not shown('mu:save_team') and not shown('mu:rename') and not shown('mu:delete') and not shown('mu:delete_team') and not shown('mu:rename_team') and shown('mu:snapshot'))
     # ---- Save snapshot of the first 2 units
     click('mu:tick0'); click('mu:tick1'); s = mu()
     check('2 world units ticked', s.get('wticked') == 2, s.get('wticked'))
@@ -258,10 +291,11 @@ def run(ids):
     for _ in range(last):                                         # the snapshot units are the last ones: the last page
         click('mu:next', 1)
     s = mu(); shot('src_en')
-    t = req('rect', target='mu:src0').get('text') or ''
     want = sum(1 for u in d['units'][last * pp:(last + 1) * pp] if u.get('source'))   # the snapshot units on that page
-    check('a snapshot unit\'s card shows its source on one line (world + save time)', want >= 1 and s.get('src_lines') == want and hdr[0] in t and hdr[3] in t,
-          (s.get('src_lines'), want, t))
+    cs = [c for c in s.get('card_list') or [] if c.get('id') in {u['id'] for u in new}]
+    check('a snapshot unit\'s card shows its source inside the card (world + snapshot time; the full line with the save time on hover)',
+          want >= 1 and s.get('src_lines') == want and cs and all(hdr[0] in c['src'] and hdr[0] in c['src_full'] and hdr[3] in c['src_full'] for c in cs),
+          (s.get('src_lines'), want, cs))
     ov = req('call', fn='mu_test_overflow', s='')
     check('cards and source lines inside their boxes (en)', ov.get('rc') == 0, (ov.get('out') or '')[-300:])
     # ---- the modded saves' world shows too

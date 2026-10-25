@@ -238,6 +238,13 @@ int mu_team_delete(jv *lib, const char *tid) {
     for (size_t t = 0; teams && t < teams->cnt; t++) if (jstreq(jget(teams->v[t], "id"), tid)) { jarr_del(teams, t); return 0; }
     return -1;
 }
+int mu_team_rename(jv *lib, const char *tid, const char *name) {
+    jv *teams = jget(lib, "teams");
+    if (!name || !*name) return -1;
+    for (size_t t = 0; teams && teams->t == JN_ARR && t < teams->cnt; t++)
+        if (jstreq(jget(teams->v[t], "id"), tid)) { jset(teams->v[t], "name", jstr_text(name)); return 0; }
+    return -1;
+}
 /* is unit id in a team other than tid? */
 static int in_other_team(const jv *lib, const char *id, const char *tid) {
     jv *teams = jget(lib, "teams");

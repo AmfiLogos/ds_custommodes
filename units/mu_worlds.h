@@ -49,3 +49,6 @@ int  mu_world_units(const mu_world *w, mu_save_unit *out, int max, char *err, si
 int  mu_snapshot(jv *lib, const mu_world *w, const char *guid, const char *name, char id_out[17], char *err, size_t errn);
 /* the card's source line: "<world> · save <time> · snapshot <time>" (local times) */
 void mu_source_line(const mu_source *s, char *out, size_t n);
+/* the same, longest first, for the room on the card: the full line, "<world> · snapshot <time>", "<world> · <time>",
+   "<world> · <MM-DD HH:MM>". Returns the count (4). */
+int  mu_source_forms(const mu_source *s, char forms[4][200]);

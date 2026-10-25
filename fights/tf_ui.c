@@ -629,7 +629,7 @@ static void paint_worlds(float y, float lh, float ky) {
             static wk_build b; static mu_card cd; static mu_save_extra x; char e[300] = ""; DSLObj card;
             if (!mu_save_build_ex(wl[i].path, wu[u].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &cd)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
-                card = mu_card_draw(sc, 44, sy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0);
+                card = mu_card_draw(sc, 44, sy, uw - 44, &cd, wu[u].name, wu[u].level, wu[u].portrait, bar, x.nbar, NULL, 0, NULL, 0, NULL);   /* a save's unit: no teams, no note */
             } else if ((card = U->panel(sc, 44, sy, uw - 44, MU_CARD_H, MU_C_ROW)))   /* this unit only: the others still show */
                 mu_text(card, 12, 10, uw - 68, MU_CARD_H - 20, e[0] ? e : TR("This unit cannot be shown."), 14, DSL_TXT_WRAP, MU_C_BAD);
             if (card) cmw_named(card, CMW_TEXT, cn, NULL, NULL, wu[u].guid);
