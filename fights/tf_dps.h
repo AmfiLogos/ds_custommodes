@@ -21,21 +21,29 @@
 int  tf_dps_init(const DSLHost *host, DSLPlugin *self);   /* after il2cpp_init (tfw_init). 0 ok */
 void tf_dps_world(const char *save_stem);                 /* a campaign load starts (tf_worlds.c h_deser): DPS world or not */
 
-/* ---- the hits (one per DamageSimulator.Simulate on the scarecrow) */
+/* ---- the events (ask 10): damage, heals, shield absorbs and effects put on, where a squad unit or the scarecrow takes
+   part. Damage on the scarecrow is the DPS Check's measure (tf_dps_hits with kind TFK_DMG and on_dummy). */
 enum { TFD_NORMAL, TFD_CRIT, TFD_GUARD, TFD_MISS, TFD_IMMUNE };   /* Refactor.Combat.ExecutionDataResult */
+enum { TFK_DMG, TFK_HEAL, TFK_ABSORB, TFK_EFFECT };
 typedef struct tf_hit {
-    double t;                    /* tf_dps_clock() at the hit */
-    float dmg;                   /* TotalDamage (0 for a miss / immune) */
+    double t;                    /* tf_dps_clock() at the event */
+    long long tick;              /* the game tick (one chat line per unit per tick) */
+    int kind;                    /* TFK_* */
+    float dmg;                   /* damage dealt (TotalDamage; 0 for a miss / immune), heal added, absorbed amount */
+    float over;                  /* heal: the part past max health */
     int res;                     /* TFD_* */
-    int basic;                   /* 1 = an auto attack (shown as the game's "Basic attack") */
-    int unit;                    /* index into tf_dps_unit() (one per attacking unit, first hit first) */
+    int basic;                   /* 1 = the game marks the skill a basic attack (SkillTableData.IsBasicAttackSkill) */
+    int unit;                    /* the source: index into tf_dps_unit() */
+    int target;                  /* the target: index into tf_dps_unit() */
+    int on_dummy;                /* the target is the scarecrow */
     char skill_key[80];          /* SKILL_... / AFFECTER_... ("" unknown) */
-    char skill[96];              /* its name in the game's language at the hit ("Basic attack" for an auto attack) */
+    char skill[96];              /* its name in the game's language at the event ("<name> (basic)" for a basic attack) */
 } tf_hit;
 typedef struct tf_unit {
-    uint8_t guid[16];            /* the unit's entity Guid */
-    char name[96];               /* EntityDisplayNameExtensions.GetDisplayName (as the stock unit panel) */
+    uint8_t guid[16];            /* the entity's Guid */
+    char name[96];               /* EntityDisplayNameExtensions.GetDisplayName (as the stock unit panel), numbered if repeated */
     char portrait[64];           /* UnitEntity.PortraitID ("" none): cm_icon(CM_ICON_PORTRAIT, ...) */
+    int is_player, is_dummy;     /* a squad unit (EntityExtensions.IsPlayerUnit) / the scarecrow */
 } tf_unit;
 int    tf_dps_active(void);                  /* 1 = a DPS Check world is loaded and shown (not the title) */
 size_t tf_dps_hits(const tf_hit **out);      /* this fight's hits, oldest first; the pointer is valid until the next hit */
@@ -46,7 +54,7 @@ double tf_dps_repaired(void);                /* durability the scarecrow repaire
 double tf_dps_durability(double *max);       /* the scarecrow's durability now (-1 = not known yet) */
 
 /* ---- switches (remembered: cm_prefs); defaults: speech off, heal numbers off, log in chat on, start on first hit on */
-enum { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG, TFD_SW_FIRSTHIT, TFD_SW_N };
+enum { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG, TFD_SW_FIRSTHIT, TFD_SW_EFFECTS, TFD_SW_N };   /* effects in log: on */
 int  tf_dps_switch(int which);
 void tf_dps_switch_set(int which, int on);
 const char *tf_dps_switch_label(int which);  /* translated label ("Scarecrow speech", ...) */

@@ -68,7 +68,7 @@ def make_library():
     units = fx['units'][:4]
     for i, u in enumerate(units):                                 # the fixture units carry no weapon: a squad must hit
         u['id'] = f'{0xb0 + i:02x}' * 8
-        u['build'].setdefault('eq', {})['Primary'] = ('ITEM_CopperSword', 'ITEM_CopperBow', 'ITEM_FireCopperStaff', 'ITEM_CopperSpear')[i]
+        u['build'].setdefault('eq', {})['Primary'] = ('ITEM_CopperSword', 'ITEM_NatureCopperStaff', 'ITEM_FireCopperStaff', 'ITEM_CopperSpear')[i]
     units[0]['name'] = units[0]['build']['name'] = NAMEKEY                # a unit with the game's default name key (never renamed)
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
            'teams': [{'id': 'dd' * 8, 'name': 'DPS squad', 'unit_ids': [u['id'] for u in units]}]}
@@ -214,12 +214,38 @@ def meter(cmd='state'):
 
 
 def hits_dump(frm=0):
+    """every event: amount, result, source unit, kind (0 damage, 1 heal, 2 absorb, 3 effect), game tick, target, on the scarecrow, basic"""
     out = []
     for l in dlog(f'hits {frm}').split('\n'):
         if l.strip():
-            i, d, res, u, rest = l.split(' ', 4); k, _, nm = rest.partition('|')
-            out.append({'i': int(i), 'dmg': float(d), 'res': int(res), 'unit': int(u), 'key': k, 'skill': nm})
+            i, d, res, u, kind, tick, tg, od, basic, rest = l.split(' ', 9); k, _, nm = rest.partition('|')
+            out.append({'i': int(i), 'dmg': float(d), 'res': int(res), 'unit': int(u), 'kind': int(kind), 'tick': int(tick), 'target': int(tg),
+                        'on_dummy': int(od), 'basic': int(basic), 'key': k, 'skill': nm})
     return out
+
+
+def units_dump():
+    out = {}
+    for l in dlog('units').split('\n'):
+        if l.strip():
+            i, pl, dm, nm = l.split(' ', 3); out[int(i)] = {'player': int(pl), 'dummy': int(dm), 'name': nm}
+    return out
+
+
+PART = re.compile(r'^(?P<name>.+?)(?: \u00d7(?P<n>\d+))? \u00bb (?P<rest>.+)$')
+
+
+def parse_line(ln):
+    """an indented chat line -> its parts: (name, n, targets text, signed amounts, raw)"""
+    t = re.sub(r'<[^>]*>', '', ln).replace('\u200b', '')
+    parts = []
+    for raw in t.split(' \u00b7 '):
+        m = PART.match(raw.strip())
+        if not m:
+            parts.append({'raw': raw, 'name': raw.split(' (')[0], 'n': 1, 'amts': [], 'absorb': ' absorbed ' in raw or ':' in raw}); continue
+        amts = [int(a) for a in re.findall(r'([-+]\d+)', m.group('rest'))]
+        parts.append({'raw': raw, 'name': m.group('name'), 'n': int(m.group('n') or 1), 'amts': amts, 'rest': m.group('rest')})
+    return parts
 
 
 def overlap(a, b):
@@ -241,9 +267,10 @@ def unit_spots():
         (sum(1 for x in p if x.get('u') == 0), sum(1 for x in p if x.get('u') == 1))
 
 
-def chat_lines():
-    chat = dlog('chat').split('\n')
-    return int(chat[0] or 0), int(chat[1] or 0), chat[2:2 + int(chat[1] or 0)]
+def chat_lines(frm=0):
+    """the chat's local lines ever added, those in its history now, and the history's local lines from frm on"""
+    chat = dlog(f'chat {frm}').split('\n')
+    return int(chat[0] or 0), int(chat[1] or 0), [x for x in chat[2:] if x != ''] if len(chat) > 2 else []
 
 
 BASIC = {None: 'Basic Attack', '3': 'Grundangriff', '4': 'Базовая атака', '7': '基本攻撃'}
@@ -309,7 +336,7 @@ def run():
     req('click_xy', x=at[0], y=at[1]); time.sleep(1.0); req('hover_xy', x=at[0], y=at[1]); time.sleep(0.5)
     # (c) + (d) + speech / heal numbers off: a 30 s burst (defaults: speech off, heal numbers off, log in chat on)
     s0 = dps('state')
-    check('switch defaults: speech off, heal numbers off, log in chat on, start on first hit on', s0.get('sw') == [0, 0, 1, 1], s0.get('sw'))
+    check('switch defaults: speech off, heal numbers off, log in chat on, start on first hit on, effects in log on', s0.get('sw') == [0, 0, 1, 1, 1], s0.get('sw'))
     rows = [(time.time(), s0['hits'], s0['sum'], s0['dur'], s0['repaired'])]; n0 = s0['lines']; h0 = s0['heads']
     t0 = time.time(); fx_bad = []; k = 0
     while time.time() - t0 < BURST:
@@ -330,18 +357,60 @@ def run():
     check('speech + heal numbers off: no speech bubble and no "200" over the scarecrow in 30 s of hits (the repair went on)', not fx_bad and rep > 0,
           json.dumps({'bad': fx_bad[:3], 'counters': {k2: s.get(k2) for k2 in ('speech_shown', 'speech_hidden', 'heal_shown', 'heal_hidden')}}))
     mine = dlog(str(n0)).split('\n')[:n1 - n0]
-    hl = [m for m in mine if m.startswith('<indent=')]
-    check('(d) one indented line per hit over the burst, a header line per change of unit', len(hl) == hits and len(mine) - len(hl) == h1 - h0, (len(mine), len(hl), hits, h1 - h0))
-    heads = sorted({re.sub(r'<[^>]*>', '', m) for m in mine if not m.startswith('<indent=') and 'restart' not in m})
+    # (d) ask 10: one indented line per source unit and game tick; parts = the events of that tick, same source = "×n total"
+    st = dps('state'); L, E = st['lines'], st['ev_done']
+    alll = dlog('0').split('\n')[:L]; ev = hits_dump(0)[:E]; un = units_dump()
+    json.dump({'lines': alll, 'events': ev, 'units': un}, open(os.path.join(OUT, 'log_events.json'), 'w'), ensure_ascii=False, indent=0)
+    groups, order = {}, []
+    for h in ev:
+        k = (h['unit'], h['tick'])
+        if k not in groups:
+            groups[k] = []; order.append(k)
+        groups[k].append(h)
+    ind = [x for x in alll if x.startswith('<indent=')]
+    gbad = []
+    for gi, k in enumerate(order[:len(ind)]):
+        want = {}
+        for h in groups[k]:
+            w = want.setdefault((h['kind'], h['skill'][:28]), {'n': 0, 'tot': 0.0})
+            w['n'] += 1; w['tot'] += h['dmg']
+        got = parse_line(ind[gi])
+        for (kind, nm), w in want.items():
+            g = next((p for p in got if p['name'].startswith(nm.split('...')[0][:20])), None)
+            if not g or (kind in (0, 1) and (g['n'] != w['n'] or abs(sum(abs(a) for a in g['amts']) - round(w['tot'])) > max(1, w['n']))):
+                gbad.append({'line': re.sub(r'<[^>]*>', '', ind[gi])[:160], 'want': [kind, nm, w], 'got': got[:3]}); break
+    check('(d) one indented line per unit and game tick (no long line split here), each part "×n" with the events\' count and total',
+          len(ind) == len(order) and not gbad, json.dumps({'lines': len(ind), 'groups': len(order), 'bad': gbad[:2]}, ensure_ascii=False)[:700])
+    signs, unnamed = [], []
+    for ln in ind:
+        for p in parse_line(ln):
+            nm = p['name']
+            if not nm.strip() or nm.startswith(('SKILL_', 'AFFECTER_', 'TEXTKEY_', 'STATUS_')):
+                unnamed.append(p['raw'])
+            if 'rest' in p and ':' in p['rest'] and not re.search(r'[-+]\d|Miss|Verfehlt', p['rest']) and 'absorb' not in p['raw']:
+                signs.append(p['raw'])
+            if 'rest' in p and not p['rest'].split(':')[0].strip():
+                signs.append(p['raw'])
+    check('every part names its source (never empty, never a raw key), its target(s), and a signed amount (damage -X, heal +X)', not unnamed and not signs,
+          json.dumps({'unnamed': unnamed[:3], 'unsigned_or_no_target': signs[:3]}, ensure_ascii=False))
+    dmg_parts = [p for ln in ind for p in parse_line(ln) if 'rest' in p and '-' in p['rest']]
+    heal_ev = [h for h in ev if h['kind'] == 1]
+    check('damage parts show "-", heal parts "+" (heals in the log: %d)' % len(heal_ev), all(a < 0 for p in dmg_parts for a in p['amts'] if '-' in p['rest'] and '+' not in p['rest'])
+          and all(any(f'+{round(h["dmg"])}' in re.sub(r'<[^>]*>', '', x) or '\u00d7' in x for x in ind) for h in heal_ev[:5]), len(heal_ev))
+    basic_ev = [h for h in ev if h['basic']]
+    BS = {None: ' (basic)', '3': ' (Grundangriff)', '4': ' (базовая)', '7': '（基本）'}.get(LANG, ' (basic)')
+    check('basic attacks show their real name + "(basic)"', basic_ev and all(h['skill'].endswith(BS) for h in basic_ev),
+          json.dumps(sorted({(h['key'], h['skill']) for h in ev})[:10], ensure_ascii=False))
+    heads = sorted({re.sub(r'<[^>]*>', '', m).replace('\u200b', '') for m in alll if m and not m.startswith('<indent=') and 'restart' not in m})
     check('the log names each unit with the game\'s display name (a default name key shows as its name, never the key)',
           heads and not any(h.startswith('TEXTKEY_') for h in heads) and (LANG or NAMED[None] in heads), heads)
-    hd = hits_dump(rows[0][1])[:hits]
-    rawkey = [h for h in hd if not h['skill'] or h['skill'].startswith(('SKILL_', 'AFFECTER_', 'TEXTKEY_'))]
-    basic_ok = all(h['skill'] == BASIC.get(LANG, h['skill']) for h in hd if h['key'].startswith(('SKILL_Basic', 'SKILL_NPCBasic')))
-    check('each hit names its skill, auto attacks as the game\'s "Basic attack", never a raw key', not rawkey and basic_ok and any(h['key'].startswith('SKILL_Basic') for h in hd),
-          json.dumps({'raw': rawkey[:3], 'skills': sorted({(h['key'], h['skill']) for h in hd})[:8]}, ensure_ascii=False))
-    total, inhist, cl = chat_lines()
-    tail = cl[n0:n1]                                              # the chat's local lines = this fight's log from its start
+    eff = [h for h in ev if h['kind'] == 3]
+    eff_missing = [h for h in eff if not any(h['skill'][:20] in re.sub(r'<[^>]*>', '', x) for x in ind)]
+    info['effects'] = len(eff); info['absorbs'] = sum(1 for h in ev if h['kind'] == 2); info['heals'] = len(heal_ev)
+    check('effects put on show in the log (effects in log on): %d effects' % len(eff), not eff_missing, json.dumps(eff_missing[:3], ensure_ascii=False))
+    total, inhist, cl = chat_lines(n0)
+    json.dump({'log': mine, 'chat': cl[:n1 - n0], 'n0': n0, 'n1': n1}, open(os.path.join(OUT, 'chat_vs_log.json'), 'w'), ensure_ascii=False, indent=0)
+    tail = cl[:n1 - n0]                                              # the chat's local lines = this fight's log from its start
     same = [a for a, b in zip(mine, tail) if a != b]
     check('(d) every burst line is in the multiplayer chat, in order (its local lines)', total >= n1 and inhist == total and len(tail) == len(mine) and not same,
           json.dumps({'chat_total': total, 'in_history': inhist, 'log': n1, 'first_diff': same[:2]}, ensure_ascii=False))
@@ -365,8 +434,8 @@ def run():
     byi = {h['i']: h for h in hits_dump(0)}
     idx = [c[0] for c in cnt]
     sums_ok = abs(sum(c[1] for c in cnt) - m2.get('total', -1)) < 1e-3 and all(abs(byi[i]['dmg'] - d) < 1e-3 for i, d in cnt if i in byi) and all(i in byi for i in idx)
-    contiguous = idx == list(range(idx[0], idx[0] + len(idx))) if idx else False
-    check('(e) the meter\'s total = the sum of the logged hits it counted (the same hits, one run of the log)', sums_ok and contiguous and len(cnt) > 3,
+    contiguous = all(byi[i]['kind'] == 0 and byi[i]['on_dummy'] for i in idx if i in byi) and len(idx) > 0   # only damage on the scarecrow (no heal, no absorb)
+    check('(e) the meter\'s total = the sum of the logged damage on the scarecrow it counted (no heal, no absorb counted as damage)', sums_ok and contiguous and len(cnt) > 3,
           json.dumps({'n': len(cnt), 'total': m2.get('total'), 'sum': sum(c[1] for c in cnt), 'first': idx[:3], 'last': idx[-3:]}))
     gbad = []
     for u in m2.get('units') or []:
