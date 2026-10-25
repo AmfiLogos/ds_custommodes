@@ -573,6 +573,11 @@ def run_heal():
                     break
             req('click_xy', x=f['s'][0], y=f['s'][1] + 12, button=1); time.sleep(0.8)
     t0 = time.time()
+    while time.time() - t0 < 40 and (dps('state').get('ev') or {}).get('dmg', 0) < 5:   # the fight is on
+        time.sleep(1)
+    b = dps('barrier 400 600 8')                                  # test only: the next effects on each squad unit (twice) become the game's Barrier
+    check('test barrier armed (the game\'s Barrier through its own AffecterSimulator)', b.get('ok') == 1, b)
+    t0 = time.time()
     while time.time() - t0 < 120:
         ev = dps('state').get('ev') or {}
         if ev.get('heal', 0) >= 4 and ev.get('absorb', 0) >= 2:
@@ -585,6 +590,15 @@ def run_heal():
     json.dump({'lines': alll, 'events': ev, 'units': units_dump(), 'meter': m}, open(os.path.join(OUT, 'heal_events.json'), 'w'), ensure_ascii=False, indent=0)
     un = units_dump()
     heals = [h for h in ev if h['kind'] == 1]; absorbs = [h for h in ev if h['kind'] == 2]
+    info['barrier'] = dps('barrier_state')
+    byi = {h['i']: h for h in ev}                                 # an absorb follows its hit's damage event (same source, target, tick)
+    pair = [(byi.get(a['i'] - 1), a) for a in absorbs]
+    pair = [(d, a) for d, a in pair if d and d['kind'] == 0 and d['unit'] == a['unit'] and d['target'] == a['target'] and d['tick'] == a['tick']]
+    blocked = [d for d, a in pair if abs(d['dmg']) < 0.5]
+    neg = [d for d, a in pair if d['dmg'] < -0.5]
+    info.update({'absorb_pairs': len(pair), 'fully_blocked': len(blocked), 'absorb_sum': sum(a['dmg'] for a in absorbs)})
+    check(f'an absorbed hit is never damage: every absorb has its hit, and a fully blocked hit logs 0 damage ({len(blocked)} of {len(pair)})',
+          absorbs and len(pair) == len(absorbs) and blocked and not neg, json.dumps([[d['dmg'], a['dmg']] for d, a in pair[:8]]))
     info.update({'heal_events': len(heals), 'absorb_events': len(absorbs), 'dmg_events': sum(1 for h in ev if h['kind'] == 0)})
     check(f'heals and absorbs happened in the fight ({len(heals)} heals, {len(absorbs)} absorbs)', heals and absorbs, st.get('ev'))
     check('every heal and absorb is in the log: one line per unit and tick, heal "+X" in green with its source and target, absorb on its own "absorbed N"',

@@ -437,12 +437,15 @@ static void finalize(int all, long long now) {           /* the groups of finish
 /* DamageExecutionLog: ResultType, _user, _target, TotalDamage (the floating number shows TotalDamage "F0"), shield before /
    after (ActualSieldDamage = absorbed) */
 static int32_t f_log_shb = -1, f_log_sha = -1;
+static int bar_left, bar_seen; static float bar_stack, bar_dur; static Obj bar_done[8]; static int nbar_done;   /* TEST ONLY, see h_asim */
 static void on_damage(Obj data, Obj log) {
     Obj tgt = FLD(log, f_log_target, Obj), user = FLD(log, f_log_user, Obj);
     if (!tgt || !involved(user, tgt)) return;
     char key[80]; int basic; pub_info(data, f_dd_exec, key, sizeof key, &basic);
     int res = FLD(log, f_log_res, int32_t);
     float sh = f_log_shb >= 0 && f_log_sha >= 0 ? FLD(log, f_log_shb, float) - FLD(log, f_log_sha, float) : 0;
+    for (int i = 0; i < nbar_done && bar_seen < 12 && f_log_shb >= 0 && f_log_sha >= 0; i++)
+        if (bar_done[i] == tgt) { bar_seen++; cmw_log("tf: DPS Check TEST: hit on a Barrier unit: total %.1f shield %.1f -> %.1f", FLD(log, f_log_total, float), FLD(log, f_log_shb, float), FLD(log, f_log_sha, float)); break; }
     ev_add(TFK_DMG, user, tgt, key, basic, FLD(log, f_log_total, float) - (sh > 0 ? sh : 0), 0, res);   /* the absorbed part is no damage */
     if (sh > 0.0f) ev_add(TFK_ABSORB, user, tgt, "STATUS_Barrier", 0, sh, 0, TFD_NORMAL);   /* StatType Barrier (10) */
 }
@@ -470,7 +473,35 @@ static Obj h_hsim(Obj self, Obj data, float last, float cur, Obj *apply, const v
 /* effects put on: AffecterExecutionLog AffecterKey, _user, _target; only the game's named ones (a text for the key) and only
    once the fight runs (a unit's own traits arrive with the world) */
 static int32_t f_al_user = -1, f_al_tgt = -1, f_al_key = -1, f_ad_exec = -1;
+/* TEST ONLY ("barrier <stack> <seconds> <units>"): the next effects put on that many squad units become the game's Barrier,
+   so a fight shows absorbs without a barrier skill being cast. The same AffecterSimulator call runs with the data's key,
+   stack and duration swapped (DataValue.FixedValue), then they are put back; the game's own appliers add the Barrier. */
+static int32_t f_ad_tgt = -1, f_ad_key = -1, f_ad_stk = -1, f_ad_dur = -1;
+static cm_m m_ad_key, m_ad_stk, m_ad_dur, m_dv_fixed;
 static Obj h_asim(Obj self, Obj data, float last, float cur, Obj *apply, const void *mi) {
+    if (bar_left > 0 && data && f_ad_tgt >= 0 && m_ad_key.fn && m_ad_stk.fn && m_ad_dur.fn && m_dv_fixed.fn) {
+        Obj t = FLD(data, f_ad_tgt, Obj); int seen = 0;
+        for (int i = 0; i < nbar_done; i++) seen += bar_done[i] == t;
+        seen = seen >= 2;                                  /* each squad unit twice at most */
+        if (t && !seen && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(t, m_isplayer.mi)) {
+            Obj k0 = FLD(data, f_ad_key, Obj), s0 = FLD(data, f_ad_stk, Obj), d0 = FLD(data, f_ad_dur, Obj);
+            CM_CALL(m_ad_key, void, Obj, Obj, const void *)(data, cm_il_str("AFFECTER_Barrier"), m_ad_key.mi);
+            CM_CALL(m_ad_stk, void, Obj, Obj, const void *)(data, CM_CALL(m_dv_fixed, Obj, float, const void *)(bar_stack, m_dv_fixed.mi), m_ad_stk.mi);
+            CM_CALL(m_ad_dur, void, Obj, Obj, const void *)(data, CM_CALL(m_dv_fixed, Obj, float, const void *)(bar_dur, m_dv_fixed.mi), m_ad_dur.mi);
+            Obj log = o_asim(self, data, last, cur, apply, mi);
+            CM_CALL(m_ad_key, void, Obj, Obj, const void *)(data, k0, m_ad_key.mi);
+            CM_CALL(m_ad_stk, void, Obj, Obj, const void *)(data, s0, m_ad_stk.mi);
+            CM_CALL(m_ad_dur, void, Obj, Obj, const void *)(data, d0, m_ad_dur.mi);
+            if (nbar_done < 8) bar_done[nbar_done++] = t;
+            bar_left--;
+            static int32_t f_l_amt = -2, f_l_dur; if (f_l_amt == -2 && log) { f_l_amt = cm_il_field(x_obj_class(log), "<Amount>k__BackingField"); f_l_dur = cm_il_field(x_obj_class(log), "<Duration>k__BackingField"); }
+            Obj al = apply ? *apply : NULL;
+            cmw_log("tf: DPS Check TEST: Barrier %.0f for %.0f s put on a squad unit (%d left): result %d, amount %d, duration %.1f, %d apply data",
+                    bar_stack, bar_dur, bar_left, log ? FLD(log, 0x10, int32_t) : -1, log && f_l_amt >= 0 ? FLD(log, f_l_amt, int32_t) : -1,
+                    log && f_l_dur >= 0 ? FLD(log, f_l_dur, float) : -1.0f, al ? FLD(al, 0x18, int32_t) : -1);
+            return log;
+        }
+    }
     Obj log = o_asim(self, data, last, cur, apply, mi);
     if (dps_on && !title_up && n_dmg_ev && log && data && f_al_key >= 0) {   /* once the fight runs (any damage) */
         Obj user = FLD(log, f_al_user, Obj), tgt = FLD(log, f_al_tgt, Obj);
@@ -719,7 +750,9 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     { void *k = cm_il_class(RC, "HealExecutionLog"); f_hl_user = cm_il_field(k, "_user"); f_hl_tgt = cm_il_field(k, "_target");
       f_hl_b = cm_il_field(k, "<TargetHealth_Before>k__BackingField"); f_hl_a = cm_il_field(k, "<TargetHealth_After>k__BackingField"); }
     { void *k = cm_il_class(RC, "AffecterExecutionLog"); f_al_user = cm_il_field(k, "_user"); f_al_tgt = cm_il_field(k, "_target"); f_al_key = cm_il_field(k, "<AffecterKey>k__BackingField");
-      f_ad_exec = cm_il_field(cm_il_class(RC, "AffecterExecutionData"), "<BaseExecution>k__BackingField"); }
+      void *kad = cm_il_class(RC, "AffecterExecutionData");
+      f_ad_exec = cm_il_field(kad, "<BaseExecution>k__BackingField"); f_ad_tgt = cm_il_field(kad, "<Target>k__BackingField");
+      f_ad_key = cm_il_field(kad, "<Key>k__BackingField"); f_ad_stk = cm_il_field(kad, "<Stack>k__BackingField"); f_ad_dur = cm_il_field(kad, "<Duration>k__BackingField"); }
     cmw_log("tf: DPS Check: shield %d %d, skill data %d basic %d, player test %s, heal log %d %d %d %d, effect log %d %d %d",
             f_log_shb, f_log_sha, f_sk_data, f_skd_basic, m_isplayer.fn ? "ok" : "MISSING", f_hl_user, f_hl_tgt, f_hl_b, f_hl_a, f_al_user, f_al_tgt, f_al_key);
     if (f_hl_b >= 0 && f_hl_a >= 0 && f_hl_tgt >= 0) {
@@ -814,6 +847,18 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
     size_t o = 0; out[0] = 0;
     Obj view = cm_il_hget(h_view), bs = cm_alive(view) && f_v_bsui >= 0 ? FLD(view, f_v_bsui, Obj) : NULL;
     if (!strncmp(s, "force ", 6)) { force_any = atoi(s + 6); snprintf(out, cap, "{\"force\":%d}", force_any); return 0; }
+    if (!strncmp(s, "barrier ", 8)) {                    /* see h_asim: the next effects on <units> squad units become a Barrier */
+        if (!m_ad_key.fn) {
+            m_ad_key = cm_il_method("Refactor.Combat", "AffecterExecutionData", "set_Key", 1, NULL);
+            m_ad_stk = cm_il_method("Refactor.Combat", "AffecterExecutionData", "set_Stack", 1, NULL);
+            m_ad_dur = cm_il_method("Refactor.Combat", "AffecterExecutionData", "set_Duration", 1, NULL);
+            m_dv_fixed = cm_il_method("Refactor", "DataValue", "FixedValue", 1, NULL);
+        }
+        int n = 0; sscanf(s + 8, "%f %f %d", &bar_stack, &bar_dur, &n); bar_left = n; nbar_done = 0; bar_seen = 0;
+        snprintf(out, cap, "{\"barrier\":%d,\"ok\":%d}", bar_left, !!(m_ad_key.fn && m_ad_stk.fn && m_ad_dur.fn && m_dv_fixed.fn && f_ad_tgt >= 0 && f_ad_key >= 0));
+        return 0;
+    }
+    if (!strcmp(s, "barrier_state")) { snprintf(out, cap, "{\"left\":%d,\"done\":%d}", bar_left, nbar_done); return 0; }
     if (!strncmp(s, "live ", 5)) { live = atoi(s + 5); snprintf(out, cap, "{\"live\":%d}", live); return 0; }
     if (!strncmp(s, "sw ", 3)) { int k = -1, v = 0; if (sscanf(s + 3, "%d %d", &k, &v) == 2) tf_dps_switch_set(k, v); snprintf(out, cap, "{\"sw\":%d}", tf_dps_switch(k)); return 0; }
     if (!strcmp(s, "vfx")) {                             /* speech bubbles and floating numbers on screen now */
