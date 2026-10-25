@@ -168,3 +168,35 @@
     SaveLoadHelper.SaveOutGameRecord/1. All have direct callers on Windows (win_callers.py), so none is inlined away.
 - Test: fights/test/title_test.py (one hidden copy; a copy of a real save as the newest world; DPS Check, then a Boss
   fight on Downfall; Esc > Quit to title; then Continue pressed). The test module font-probe has a "title" read-out.
+
+## Test Fights: folded teams, bag and affecters from the save (2026-10-25, 0.1.23, lane dsfights)
+- Owner: "team units should be collapsed by default rather than extended". A team row in the squad picker is one line
+  (arrow, icon, name, n/4, box); its arrow (the kit's own chevron, turned down when open) lists its units. The box adds or
+  removes all its units while folded too. World units' world rows show the same arrow (a click on the row opens it).
+  Kept while the window is open (a language change keeps it); every open starts folded (tf_open, tf_open_with_builds).
+- Owner: "when loading units from save directly bring over the items they carry". mu_save.c mu_save_unit_carry reads the
+  unit's backpack (component Type 5): per filled slot the key, amount, AutoFixed, ItemAutoFixable and the item entity's
+  components. mu_worlds.c mu_save_fight_build puts it beside the build as "_cm". sg_glue.js carry() writes it into the
+  generated test world after the wiki's generator: the backpack slot for slot, each item a copy of the save's entity
+  (durability, rolls, its own holders) under a new guid, registered in ItemContainerSaveData. The generator's own fill
+  for that unit (the arrows it packs for a bow user) goes; ticked battle kits stay, in the free slots after.
+  Why in the save and not the game's add-item call after the load: the game builds the items from the save with its own
+  loader, nothing has to find the units after the load, and the copies keep durability and rolls (an add-item call makes
+  new items). The game test proves the game holds them (a save the game writes right after the load).
+- Owner: "Give the option to import their affecters from save as is (food buffs & others)". Switch "Bring buffs and
+  effects from the save", default off, World units only. On: the unit's AffecterHolders as the save holds them (Key,
+  Stack, Duration, InitialDuration); a holder the build also writes is replaced by the save's. Pick: the difficulty
+  holders (AFFECTER_PlayerDifficulty*, AFFECTER_PlayerManagementDifficulty*) stay the fight's, because the player picks
+  the difficulty in this window; a save's Very Hard holder next to a Normal fight would count twice.
+- Keys the game's tables do not know (DataSheetManager GetItemData / GetAffecterData; both end in GetValueOrDefault,
+  no exception) are left out and counted on one line under the switch before Start (tf_card.c tfc_known).
+- carry() finds a unit by its place (the generator writes the roster in build order) and checks its name; a mismatch or
+  a bag that does not fit is a problem: the test world is not made and the panel says why (English, as the generator's
+  own problems).
+- Tests: fights/test/run_saveunits.sh now also generates with the World units builds: bag slot by slot (key, amount,
+  AutoFixed, item components), switch off = the plain build's holders only, switch on = every save holder as is and the
+  fight's difficulty, kits on = bag + kit, an unknown key left out and counted (each fails by mutation: bag not brought,
+  effects not brought, save difficulty kept, effects sent with the switch off). saveunits_game_test.py: teams folded on
+  first open and after a reopen, the box adds 3 units while folded, the arrow opens / closes; fight 1 (switch off) and
+  fight 2 (switch on, two units with a bag): the game's own save of the running world (test call tf_test_save) holds each
+  unit's bag as in the save, no save affecter with the switch off, every save affecter within 1 s with it on.
