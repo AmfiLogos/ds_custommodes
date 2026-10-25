@@ -172,6 +172,18 @@ int mu_snapshot(jv *lib, const mu_world *w, const char *guid, const char *name, 
     if (id_out) memcpy(id_out, id, 17);
     return 0;
 }
+int mu_source_forms(const mu_source *s, char forms[4][200]) {
+    char taken[24] = "", b[80];
+    time_t t = (time_t)(s->taken / 1000); struct tm *tm = s->taken > 0 ? localtime(&t) : NULL;
+    if (tm) strftime(taken, sizeof taken, "%Y-%m-%d %H:%M", tm);
+    mu_source_line(s, forms[0], sizeof forms[0]);
+    snprintf(b, sizeof b, TR("snapshot %s"), taken);
+    snprintf(forms[1], sizeof forms[1], "%s  \xC2\xB7  %s", s->world, b);
+    snprintf(forms[2], sizeof forms[2], "%s  \xC2\xB7  %s", s->world, taken);
+    snprintf(forms[3], sizeof forms[3], "%s  \xC2\xB7  %s", s->world, taken[0] ? taken + 5 : "");
+    for (int i = 1; i < 4; i++) dsi_utf8_fix_end(forms[i]);
+    return 4;
+}
 void mu_source_line(const mu_source *s, char *out, size_t n) {
     char taken[24] = "", a[80], b[80];
     time_t t = (time_t)(s->taken / 1000); struct tm *tm = s->taken > 0 ? localtime(&t) : NULL;

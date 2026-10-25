@@ -216,6 +216,7 @@
  "Reading the link...": "正在读取链接……",
  "Remove": "移除",
  "Rename": "重命名",
+ "Rename team": "重命名队伍",
  "Renamed.": "已重命名。",
  "Roll %zu": "随机词条 %zu",
  "Save": "保存",
@@ -242,6 +243,7 @@
  "Skill Trees": "技能树",
  "Skill trees: %s": "技能树：%s",
  "Skills": "技能",
+ "Snapshot": "快照",
  "Spear": "矛",
  "Special": "特殊",
  "Squad": "小队",
@@ -264,8 +266,10 @@
   "已删除队伍及 %d 个单位。"
  ],
  "Team deleted. Its units stay in My Units.": "队伍已删除。其单位保留在我的单位中。",
+ "Team name": "队伍名称",
  "Team only": "仅队伍",
  "Team only: the units stay in My Units.": "仅队伍：单位保留在我的单位中。",
+ "Team renamed.": "队伍已重命名。",
  "Team: %s||Teams: %s": [
   "队伍：%s"
  ],

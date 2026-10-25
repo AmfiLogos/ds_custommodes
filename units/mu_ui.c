@@ -172,9 +172,22 @@ static void teams_row(DSLObj card, float x, float y, float room, const char *con
     if (more[0]) mu_text(card, x + room - mw + 6, y, mw - 6, 26, more, 13, DSL_TXT_LEFT, MU_C_SUB);
     snprintf(teams_shown, sizeof teams_shown, "%s%s%s", t, more[0] ? " " : "", more);
 }
+/* the note on the right of the race line: the first form that fits the room, right-aligned before the character sprite;
+   the hover card has the full line */
+static char note_shown[400];
+const char *mu_card_note_shown(void) { return note_shown; }
+static void note_row(DSLObj card, float x, float y, float room, const char *const *forms, int n, const char *tip) {
+    int k = n - 1;
+    for (int i = 0; i < n; i++) { float pw = text_w(card, forms[i], 13); if (pw >= 0 && pw <= room) { k = i; break; } }
+    DSLObj h = mu_plate(card, x, y, room, 22, 0);                     /* a holder that takes the hover (the text lets it through) */
+    if (h && tip && *tip) { cm_raycast(h, true); U->tooltip(h, TR("Snapshot"), tip); }
+    mu_text(h ? h : card, h ? 0 : x, h ? 0 : y, room, 22, forms[k], 13, DSL_TXT_RIGHT, MU_C_SUB);
+    snprintf(note_shown, sizeof note_shown, "%s", forms[k]);
+}
 DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, const char *name, int level,
-                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams) {
-    teams_shown[0] = 0;
+                    const char *portrait_key, const char *const *bar, int nbar, const char *const *teams, int nteams,
+                    const char *const *note, int nnote, const char *note_tip) {
+    teams_shown[0] = 0; note_shown[0] = 0;
     if (!U || !c) return NULL;
     DSLObj card = U->panel(parent, x, y, w, MU_CARD_H, 0);            /* the game's own panel (a dark tint drew it black) */
     if (!card) return NULL;
@@ -210,12 +223,18 @@ DSLObj mu_card_draw(DSLObj parent, float x, float y, float w, const mu_card *c, 
     dsi_utf8_fix_end(line);
     /* one size on every card: a line too long for 13 drops its weapon word (the weapon is the first worn-item icon below)
        instead of the kit shrinking each card to its own size and cutting the weapon with "..." (RU) */
+    float rw = note && nnote > 0 ? tw * 0.6f : tw;                     /* with a note: the race line keeps up to 60 % */
     if (c->weapon) {
         DSLObj m = U->text(card, x0, 31, tw, 22, line, mu_text_size(13), DSL_TXT_LEFT, MU_C_SUB); float pw = m ? cm_text_preferred_w(m) : -1;
         if (m) U->destroy(m);
-        if (pw > tw) { snprintf(line, sizeof line, "%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg); dsi_utf8_fix_end(line); }
+        if (pw > rw) { snprintf(line, sizeof line, "%s%s%s", rn, bg[0] ? "  \xC2\xB7  " : "", bg); dsi_utf8_fix_end(line); }
     }
-    mu_text(card, x0, 31, tw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
+    DSLObj rt = mu_text(card, x0, 31, rw, 22, line, 13, DSL_TXT_LEFT, MU_C_SUB);
+    if (note && nnote > 0) {
+        float pw = rt ? cm_text_preferred_w(rt) : -1;
+        if (pw >= 0 && pw + 2 < rw) { rw = pw + 2; U->place(rt, x0, 31, rw, 22); }
+        note_row(card, x0 + rw + 16, 31, tw - rw - 16, note, nnote, note_tip);
+    }
     /* row A: worn items | skill bar */
     IconRef ic[MUC_MAX * 3]; int gr[MUC_MAX * 3], n = 0;
     for (int i = 0; i < c->neq && n < MUC_MAX; i++) { ic[n] = (IconRef){ CM_ICON_ITEM, c->eq[i].item, 0 }; gr[n++] = 0; }
