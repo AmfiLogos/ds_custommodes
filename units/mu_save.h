@@ -39,6 +39,10 @@ int  mu_save_build_ex(const char *save_path, const char *guid, wk_build *out, mu
 struct jv;
 int  mu_save_unit_carry(const char *save_path, const char *guid, struct jv **bag, struct jv **aff, char *err, size_t errn);
 
+/* the clan's units in the order of the game's own unit portrait bar (Test Fights' "Pick 1-4"): the units of the map the
+ * world is on, in its PlayerGuidList order, then the other maps' units. out[i] = guid. The count, or -1 + err. */
+int  mu_save_bar_order(const char *save_path, char (*out)[40], int max, char *err, size_t errn);
+
 /* The save files of a folder, newest first (the fe_game.c fe_list_saves name filter: *.json, not mp_sync*, MPFE_*,
  * *SaveHeaderCache*). out[i] = full path. No file is parsed here. Returns the count (0 when the folder is missing). */
 int  mu_save_files(const char *dir, char (*out)[1024], int max);

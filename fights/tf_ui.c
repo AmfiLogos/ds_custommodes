@@ -424,6 +424,7 @@ static float pref_h(DSLObj t, float w) {
 static float txt(DSLObj parent, const char *name, float x, float y, float w, const char *s, float size, uint32_t col) {
     float h = lines_h(s, w, size);
     DSLObj t = U->text(parent, x, y, w, h, s, size, DSL_TXT_LEFT | DSL_TXT_WRAP, col);
+    if (t) cm_raycast(t, false);                                     /* a click on a row's text reaches the row (CARD RULE) */
     float ph = pref_h(t, w);
     if (ph > 0) { h = ph + 4; U->place(t, x, y, w, h); }
     if (name) cmw_named(t, CMW_TEXT, name, NULL, NULL, s);
@@ -583,15 +584,46 @@ static void world_units_load(void) {
 }
 static int sv_at(const char *world, const char *guid) { for (int k = 0; k < st.nsv; k++) if (!strcmp(st.sv[k].world, world) && !strcmp(st.sv[k].guid, guid)) return k; return -1; }
 static void world_click(void *ud, DSLObj w) { (void)w; int i = (int)(intptr_t)ud; wsel = wsel == i ? -1 : i; paint_all(); }   /* a second click closes it */
-static void wunit_toggle(void *ud, DSLObj w) {
-    int i = (int)(intptr_t)ud; if (wsel < 0 || wsel >= nwl || i < 0 || i >= nwu) return;
+/* the open world's unit u in / out of the squad: its box, or a click anywhere on its card */
+static void wunit_flip(int i) {
+    if (wsel < 0 || wsel >= nwl || i < 0 || i >= nwu) return;
     int at = sv_at(wl[wsel].guid, wu[i].guid);
     status[0] = 0; status_warn = 0;
     if (at >= 0) { memmove(&st.sv[at], &st.sv[at + 1], (size_t)(st.nsv - at - 1) * sizeof st.sv[0]); st.nsv--; }
     else if (st.nsv < P.max_squad && st.nsv < 8) {
         snprintf(st.sv[st.nsv].world, sizeof st.sv[0].world, "%s", wl[wsel].guid); snprintf(st.sv[st.nsv].guid, sizeof st.sv[0].guid, "%s", wu[i].guid);
         snprintf(st.sv[st.nsv].name, sizeof st.sv[0].name, "%s", wu[i].name); st.nsv++;
-    } else { U->toggle_set(w, 0); squad_full_warn(); }
+    } else squad_full_warn();
+    paint_all();                                                       /* the boxes follow the picks */
+}
+static void wunit_toggle(void *ud, DSLObj w) { (void)w; wunit_flip((int)(intptr_t)ud); }
+/* CARD RULE (owner 2026-10-25: "Clicking on the cards doesn't allow to turn on or off select - it's a basic UX
+   requirement"): a click anywhere on a card or a row does what its box does. An invisible button under the card or row:
+   the card's own parts let clicks through (raycast off), its box and buttons sit above it. */
+static DSLObj click_area(DSLObj parent, float x, float y, float w, float h, dsl_ui_cb cb, void *ud, const char *name) {
+    DSLObj b = U->button(parent, x, y, w, h, "", cb, ud);
+    if (!b) return NULL;
+    cm_set_sprite(b, NULL, 0x00000000u); cm_raycast(b, true);
+    return cmw_named(b, CMW_BUTTON, name, cb, ud, "");
+}
+static void wcard_click(void *ud, DSLObj w) { (void)w; wunit_flip((int)(intptr_t)ud); }
+/* "Pick 1-4" on a world row (owner 2026-10-25: "Add a button to select the leading 4 units of the save (1 to 4)"): the
+   save's first units in the order of the game's own unit portrait bar (mu_save_bar_order), up to the squad size; they
+   replace the picks. The world stays as it is (folded or open). */
+static mu_save_unit pk_units[TF_WUMAX];
+static void pick4_click(void *ud, DSLObj w) {
+    (void)w; int i = (int)(intptr_t)ud; if (i < 0 || i >= nwl) return;
+    char g[8][40], e[400] = "";
+    int n = mu_save_bar_order(wl[i].path, g, 8, e, sizeof e), nu = n > 0 ? mu_world_units(&wl[i], pk_units, TF_WUMAX, e, sizeof e) : 0;
+    if (n <= 0 || nu < 0) { snprintf(status, sizeof status, "%s", e[0] ? e : TR("No units of your clan are stored in this save.")); status_warn = 1; paint_all(); return; }
+    int want = P.max_squad < 4 ? P.max_squad : 4; if (want > n) want = n;
+    st.nsv = 0; status[0] = 0; status_warn = 0;
+    for (int k = 0; k < want; k++) {
+        const char *nm = ""; for (int u = 0; u < nu; u++) if (!strcmp(pk_units[u].guid, g[k])) nm = pk_units[u].name;
+        snprintf(st.sv[st.nsv].world, sizeof st.sv[0].world, "%s", wl[i].guid); snprintf(st.sv[st.nsv].guid, sizeof st.sv[0].guid, "%s", g[k]);
+        snprintf(st.sv[st.nsv].name, sizeof st.sv[0].name, "%s", nm); st.nsv++;
+    }
+    cmw_log("tf: World units %s: Pick 1-4 = %d of %d units, the portrait bar's order", wl[i].save, st.nsv, n);
     paint_all();
 }
 int mu_window_is_open(void);
@@ -634,9 +666,16 @@ static void paint_worlds(float y, float lh, float ky) {
             snprintf(c, sizeof c, "%d", nin);
             DSLObj ar = mu_text(b, 6, 12, 22, 28, "\xE2\x80\xBA", 18, DSL_TXT_CENTER, open ? GOLD : SUB);   /* folded / open, as a team row */
             if (ar && open) chevron_down(ar);
-            mu_text(b, 32, 4, uw - 44 - (nin ? 40 : 0), 24, wl[i].name, 15, DSL_TXT_LEFT, open || nin ? GOLD : MAIN);
-            mu_text(b, 32, 27, uw - 44, 20, when, 13, DSL_TXT_LEFT, SUB);
-            if (nin) mu_text(b, uw - 52, 4, 40, 24, c, 15, DSL_TXT_RIGHT, GOLD);
+            /* "Pick 1-4" on the right, across from the name (the owner drew it there); a button above the row's own click */
+            char pn[48]; snprintf(pn, sizeof pn, "fights:l.world%d.pick", i);
+            const char *pl = TR("Pick 1-4");
+            DSLObj pb = cmw_named(mu_button(b, uw - 98, 10, 90, 32, pl, pick4_click, (void *)(intptr_t)i), CMW_BUTTON, pn, pick4_click, (void *)(intptr_t)i, pl);
+            float pw = pb ? cm_text_preferred_w(pb) : -1, bw = pw > 0 && pw + 24 > 90 ? pw + 24 : 90;
+            if (pb && bw > 90) U->place(pb, uw - 8 - bw, 10, bw, 32);
+            float rx = uw - 8 - bw - 6;                                   /* the texts end before it */
+            mu_text(b, 32, 4, rx - 32 - (nin ? 30 : 0), 24, wl[i].name, 15, DSL_TXT_LEFT, open || nin ? GOLD : MAIN);
+            mu_text(b, 32, 27, rx - 32, 20, when, 13, DSL_TXT_LEFT, SUB);
+            if (nin) mu_text(b, rx - 30, 4, 26, 24, c, 15, DSL_TXT_RIGHT, GOLD);
         }
         sy += 56;
         if (!open) continue;
@@ -647,6 +686,8 @@ static void paint_worlds(float y, float lh, float ky) {
             mu_plate(sc, 0, sy + (MU_CARD_H - 44) / 2, 40, 44, MU_C_BAND);
             /* the kit's check box sits 24 from the toggle's right edge: 48 wide from -4 puts it in the slot's middle */
             cmw_named(U->toggle(sc, -4, sy + (MU_CARD_H - 36) / 2, 48, "", sv_at(wl[i].guid, wu[u].guid) >= 0, wunit_toggle, (void *)(intptr_t)u), CMW_TOGGLE, tn, wunit_toggle, (void *)(intptr_t)u, wu[u].name);
+            char an[40]; snprintf(an, sizeof an, "fights:l.wcard%d.click", u);
+            click_area(sc, 44, sy, uw - 44, MU_CARD_H, wcard_click, (void *)(intptr_t)u, an);   /* under the card: a click on it ticks */
             static wk_build b; static mu_card cd; static mu_save_extra x; char e[300] = ""; DSLObj card;
             if (!mu_save_build_ex(wl[i].path, wu[u].guid, &b, &x, e, sizeof e) && !mu_card_of(&b, &cd)) {
                 const char *bar[8]; for (int q = 0; q < x.nbar && q < 8; q++) bar[q] = x.bar[q];
@@ -710,9 +751,13 @@ static void paint_left(void) {
             for (int k = 0; k < n; k++) nin += picked_at(ids[k]) >= 0;
             mu_info lead; int has_lead = n > 0 && !unit_info_by_id(ids[0], &lead, NULL);
             int open = i < sizeof team_open && team_open[i];
+            float row0 = sy;
+            snprintf(nm, sizeof nm, "fights:l.team%zu.click", i);
+            DSLObj ra = click_area(sc, 32, sy, uw - 32, 48, team_click, (void *)(intptr_t)i, nm);   /* the icon and the author line tick the team too */
             snprintf(nm, sizeof nm, "fights:l.team%zu.open", i);
             fold_arrow(sc, 0, sy + 6, open, team_fold_click, (void *)(intptr_t)i, nm);
             DSLObj ib = U->panel(sc, 32, sy, 40, 40, 0x1E1C21FFu);  /* the team icon: its first unit's portrait (as My Units), centred on the tick row */
+            snprintf(nm, sizeof nm, "fights:l.team%zu.icon", i); if (ib) cmw_named(ib, CMW_TEXT, nm, NULL, NULL, "");
             Obj sp = has_lead ? cm_icon(CM_ICON_PORTRAIT, lead.portrait) : NULL;
             if (!sp && has_lead) sp = cm_icon(CM_ICON_AFFECTER, lead.race);
             if (ib && sp) cm_set_sprite(ib, sp, 0xFFFFFFFFu);
@@ -733,6 +778,7 @@ static void paint_left(void) {
                 char by[160]; snprintf(by, sizeof by, TR("by %s"), au); dsi_utf8_fix_end(by);
                 snprintf(nm, sizeof nm, "fights:l.team%zu.by", i);
                 sy += txt(sc, nm, tx, sy - 2, uw - tx, by, 14, SUB);
+                if (ra) U->place(ra, 32, row0, uw - 32, sy - row0);
             }
             for (int k = 0; k < n; k++) {
                 mu_info in; size_t ui;
@@ -1137,12 +1183,15 @@ static void test_state(char *out, size_t n) {
     for (int i = 0; i < nwl && a + 300 < sizeof ws; i++) a += (size_t)snprintf(ws + a, sizeof ws - a, "%s%s|%s", i ? ";" : "", wl[i].save, wl[i].guid);
     for (int i = 0; wsel >= 0 && i < nwu && b + 50 < sizeof us; i++) b += (size_t)snprintf(us + b, sizeof us - b, "%s%s", i ? "," : "", wu[i].guid);
     for (int i = 0; i < st.nsv && c + 70 < sizeof ps; i++) c += (size_t)snprintf(ps + c, sizeof ps - c, "%s%s/%s", i ? "," : "", st.sv[i].world, st.sv[i].guid);
+    char pn[400] = ""; size_t d = 0;                                   /* the picks' names, in pick order */
+    for (int i = 0; i < st.nsv && d + 100 < sizeof pn; i++) d += (size_t)snprintf(pn + d, sizeof pn - d, "%s%s", i ? "|" : "", st.sv[i].name);
+    for (char *q = pn; *q; q++) if (*q == '"' || *q == '\\') *q = ' ';
     for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
     snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
-             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"waff\":%d,\"boss_cut\":%d}",
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"snames\":\"%s\",\"waff\":%d,\"boss_cut\":%d}",
              engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
              P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
-             P.max_squad, ws, wsel, us, wu_err, ps, st.waff, boss_cut);
+             P.max_squad, ws, wsel, us, wu_err, ps, pn, st.waff, boss_cut);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 
@@ -1160,6 +1209,28 @@ __attribute__((visibility("default"))) int tf_test_save(const char *s, char *out
     snprintf(out, cap, "saved %d", ok);
     cmw_log("tf: test save %s: %d", s, ok);
     return ok ? 0 : -2;
+}
+
+/* test only (driver "call"): the names on the game's unit portrait bar, left to right (the SubUI_UnitShortCutParts under
+   the active PlayerUnitShortCutView, in hierarchy order, each with its _unitName and sibling index): "name#i|...". The
+   order "Pick 1-4" must follow. 0 ok. */
+__attribute__((visibility("default"))) int tf_test_bar(const char *s, char *out, size_t cap) {
+    (void)s; out[0] = 0;
+    void *k_view = cm_il_class("Refactor.UI", "PlayerUnitShortCutView"), *k_part = cm_il_class("Refactor.UI", "SubUI_UnitShortCutParts");
+    int32_t f_nm = k_part ? cm_il_field(k_part, "_unitName") : -1;
+    cm_m m_txt = cm_il_method("TMPro", "TMP_Text", "get_text", 0, NULL);
+    cm_m m_kids = cm_il_method("UnityEngine", "GameObject", "GetComponentsInChildren", 2, "System.Type,System.Boolean");
+    Obj v = k_view ? cm_find(k_view, false) : NULL;                   /* the active one (the world's HUD) */
+    Obj arr = cm_alive(v) && k_part && m_kids.fn ? CM_CALL(m_kids, Obj, Obj, Obj, bool, const void *)(cm_go(v), cm_il_type_obj(k_part), false, m_kids.mi) : NULL;
+    if (!arr || f_nm < 0 || !m_txt.fn) { snprintf(out, cap, "no portrait bar (view %p, parts %p, name field %d)", v, arr, f_nm); return -1; }
+    size_t n = CM_AT(arr, 0x18, uintptr_t), k = 0;                    /* hierarchy order = the bar's order (one parent) */
+    for (size_t i = 0; i < n && k + 100 < cap; i++) {
+        Obj p = CM_AT((char *)arr + 0x20, i * sizeof(Obj), Obj), t = cm_alive(p) ? CM_AT(p, f_nm, Obj) : NULL;
+        if (!cm_alive(t)) continue;
+        char nm[96]; cm_il_utf8(CM_CALL(m_txt, Obj, Obj, const void *)(t, m_txt.mi), nm, sizeof nm);
+        k += (size_t)snprintf(out + k, cap - k, "%s%s#%d", k ? "|" : "", nm, cm_sibling(cm_tr(p)));
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------ entry point (called by cm_module.c) */

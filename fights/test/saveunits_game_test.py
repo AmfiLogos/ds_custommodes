@@ -18,6 +18,9 @@ Fails when (the breaks this catches):
     difficulty holder is not the fight's own (Normal);
   - the save copy, the source save or the owner's library change, or a window shows on a display. (The copy never sees the
     owner's save folders: its HOME, data folder and game saves folder are its own.)
+  - a click on a team row's picture or on a World units card does not tick / untick it like its box (CARD RULE);
+  - "Pick 1-4" on a folded world does not pick the save's first 4 units in the order of the game's own portrait bar
+    (checked by loading that save copy in the game and reading the bar), Squad does not show 4 / 4, or the world opens.
   The running game's units are read from a save the game itself writes of the test world right after the load, paused
   (tf_test_save: the game's own CampaignSaveLoader.Save).
   saveunits_game_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer,
@@ -160,6 +163,15 @@ def by_name(units, name):
     return next((u for u in units.values() if u['name'] == name), None)
 
 
+def bar_order(path):
+    """the clan units in the order of the game's portrait bar: the map the save is on (CampaignSaveHeader.CurrentMap,
+    MapType Base 0 / Dungeon 1) in PlayerGuidList order, then the other maps' units"""
+    s = json.load(open(path, encoding='utf-8')); uc = s['EntityContainerSaveData'].get('UnitContainerSaveData') or {}
+    cur = {0: 'Base', 1: 'Dungeon'}.get((s.get('CampaignSaveHeader') or {}).get('CurrentMap'))
+    first = list((uc.get(cur) or {}).get('PlayerGuidList') or [])
+    return first + [g for v in uc.values() for g in (v or {}).get('PlayerGuidList') or [] if g not in first]
+
+
 def is_diff(k):
     return k.startswith('AFFECTER_PlayerDifficulty') or k.startswith('AFFECTER_PlayerManagementDifficulty')
 
@@ -214,6 +226,10 @@ def teams_folded_part():
     click('fights:l.team0.open', 1.5)
     check('the arrow opens the team (its units listed) and closes it again', shown and req('rect', target='fights:l.team0.u0').get('rc', -1) <= 0, shown)
     click('fights:l.team0', 1.5)                                  # its units out of the squad again
+    # CARD RULE (owner: "Clicking on the cards doesn't allow to turn on or off select"): a click on the team's picture
+    click('fights:l.team0.icon', 1.5); n1 = tf().get('squad')
+    click('fights:l.team0.icon', 1.5); n0 = tf().get('squad')
+    check('a click on the team row (its picture, not the box) adds all its units, a second one takes them out', n1 == 3 and n0 == 0, (n1, n0))
 
 
 def pick_rat():
@@ -277,6 +293,10 @@ def run():
     if len(us) < 2:
         return
     check('"Bring buffs and effects from the save" starts off', tf().get('waff') == 0 and req('rect', target='fights:l.waff').get('rc', -1) > 0, tf().get('waff'))
+    # CARD RULE: a click anywhere on a unit's card (its middle, not the box) ticks it, a second click unticks it
+    click('fights:l.wcard1', 1.5); on = [p.split('/')[1] for p in (tf().get('spicks') or '').split(',') if '/' in p]
+    click('fights:l.wcard1', 1.5); off = [p.split('/')[1] for p in (tf().get('spicks') or '').split(',') if '/' in p]
+    check('a click on a World units card ticks its unit, a second click unticks it', on == [us[1]] and off == [], (on, off))
     pick = [0, 1]                                             # both cards in view (the list is 460 high)
     for k in pick:
         click(f'fights:l.wtick{k}', 2)
@@ -364,6 +384,27 @@ def run():
             bad.append((su['name'], 'difficulty', [a for a in lu['aff'] if is_diff(a)]))
     check('[effects on] each unit has every affecter of the save (key, stack, remaining time within 1 s); difficulty = the fight\'s', picks and not bad, bad[:4])
     back_to_title()
+    # ---- "Pick 1-4" (owner: "a button to select the leading 4 units of the save"): the game's portrait bar order
+    if not open_fights():
+        return
+    wait('Test Fights engine', lambda: tf().get('engine') == 2, 60, 1)
+    click('fights:l.src2', 2)
+    rows = [w.split('|') for w in (tf().get('worlds') or '').split(';') if w]
+    gi = next((i for i, w in enumerate(rows) if w[0] == sv), None)
+    click(f'fights:l.world{gi}.pick', 2)
+    s = tf(); got = [p.split('/')[1] for p in (s.get('spicks') or '').split(',') if '/' in p]
+    want4 = bar_order(os.path.join(GAME_SAVES, os.path.basename(SAVE)))[:4]
+    stl = ((cmf(cmd='state').get('controls') or {}).get('fights:status') or {}).get('t', '')
+    check('Pick 1-4 on a folded world: the save\'s first 4 units in the portrait bar order (the map it is on first), Squad 4 / 4, the world stays folded',
+          got == want4 and s.get('squad') == 4 and '4 / 4' in stl and s.get('wsel') == -1, (got, want4, s.get('squad'), stl[:40], s.get('wsel')))
+    shot('pick4_en')
+    names4 = (s.get('snames') or '').split('|')
+    HP.c(X, cmd='load_save', file=os.path.join(GAME_SAVES, os.path.basename(SAVE)))      # the same save in the game itself
+    ok = wait('the save loaded', lambda: HP.st(X).get('scene') == 2, 180, 1)
+    bar = wait('the portrait bar', lambda: (lambda r: r.get('out') if r.get('rc') == 0 and r.get('out') else None)(req('call', fn='tf_test_bar', s='')), 60, 2) or ''
+    shown = [b.split('#')[0] for b in bar.split('|') if b]
+    check('the 4 picked units are the first 4 on the game\'s own portrait bar for that save, in its order', ok and shown[:4] == names4 and len(names4) == 4, (shown, names4))
+    HP.c(X, cmd='mpm_quit_title'); wait('title', lambda: HP.st(X).get('scene') == 1, 120, 2)
 
 
 def main():
@@ -390,7 +431,8 @@ def main():
             lrig.prepare_data = prep_lang
         crash = os.path.join(OUT, 'crash'); os.makedirs(crash, exist_ok=True); open(os.path.join(crash, 'answer'), 'w').write('no')
         HP.room_for(1)
-        HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB, 'DSML_GAME_SAVES': GAME_SAVES})
+        rd = lrig.ctl_env().get('DSRIG_READ_DIRS', '') + ':' + OUT          # the rig may load the save copy (Pick 1-4 check)
+        HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB, 'DSML_GAME_SAVES': GAME_SAVES, 'DSRIG_READ_DIRS': rd})
         lrig.wait_for(X, lambda s: s.get('scene') == 1 and not s.get('busy'), 'title', timeout=1500); time.sleep(6)
         open_fights()
         run()

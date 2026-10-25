@@ -420,6 +420,31 @@ int mu_save_unit_carry(const char *save_path, const char *guid, jv **bag, jv **a
     return 0;
 }
 
+/* the game's portrait bar lists the units of the map the world is on, in that map's PlayerGuidList order (read in the
+   game 2026-10-25 on three saves: tf_test_bar). The map is CampaignSaveHeader.CurrentMap, enum MapType (Base 0,
+   Dungeon 1), whose names are the keys of UnitContainerSaveData. The other maps' units follow, in container order. */
+int mu_save_bar_order(const char *save_path, char (*out)[40], int max, char *err, size_t errn) {
+    if (err && errn) err[0] = 0;
+    LOCK();
+    const jv *s = save_of(save_path, err, errn);
+    if (!s) { UNLOCK(); return -1; }
+    const jv *gs[512]; int ng = clan_guids(s, gs, 512), n = 0;
+    const jv *u = jpath(s, "EntityContainerSaveData.UnitContainerSaveData"), *cm = jpath(s, "CampaignSaveHeader.CurrentMap");
+    static const char *const map_names[] = { "Base", "Dungeon" };       /* MapType 0, 1 (dump 25846389) */
+    int mt = cm && cm->t == JN_NUM ? (int)jnumv(cm) : -1;
+    const jv *cur = mt >= 0 && mt < 2 ? jget(u, map_names[mt]) : NULL;
+    for (int pass = 0; pass < 2; pass++)                               /* 0: the current map's list, 1: every clan unit left */
+        for (int i = 0; i < ng && n < max; i++) {
+            int on_cur = 0; const jv *pl = jget(cur, "PlayerGuidList");
+            for (size_t j = 0; !pass && pl && pl->t == JN_ARR && j < pl->cnt && !on_cur; j++) on_cur = pl->v[j]->n == gs[i]->n && !memcmp(pl->v[j]->s, gs[i]->s, gs[i]->n);
+            if (pass == 0 && !on_cur) continue;
+            int dup = 0; for (int k = 0; k < n && !dup; k++) dup = strlen(out[k]) == gs[i]->n && !memcmp(out[k], gs[i]->s, gs[i]->n);
+            if (!dup) snprintf(out[n++], 40, "%.*s", (int)gs[i]->n, gs[i]->s);
+        }
+    UNLOCK();
+    return n;
+}
+
 /* fe_game.c fe_list_saves: the name filter and the newest-first order (no header parse here) */
 int mu_save_files(const char *dir, char (*out)[1024], int max) {
     DIR *dp = dir ? opendir(dir) : NULL; if (!dp) return 0;
