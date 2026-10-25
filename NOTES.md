@@ -362,3 +362,20 @@
   team views and a world's view. Each card is drawn inside a button of its size (mu_window.c row[i], on_card); its texts and
   icons let clicks through, and a click on the snapshot line (its holder takes the hover for the full line) goes up to the
   button. worlds_test.py: card middle, snapshot line and a world card each tick then untick (fails on main e059e4f).
+
+## Test Fights: Pick 1-4, clicks on cards and team rows (2026-10-25, 0.1.38, lane dsfights)
+- Owner: "Add a button to select the leading 4 units of the save (1 to 4)", drawn on the right of the world row. Each
+  World units world row has "Pick 1-4": the save's first units in the order of the game's own portrait bar, up to the
+  squad size (4); they replace the picks (Squad 4 / 4); the world stays folded or open as it was.
+- The bar's order, read in the game (test call tf_test_bar: the SubUI_UnitShortCutParts under the active
+  PlayerUnitShortCutView) after loading three save copies: the units of the map the save is on, in that map's
+  PlayerGuidList order (a save on the dungeon map showed only its 4 dungeon units). mu_save.c mu_save_bar_order:
+  CampaignSaveHeader.CurrentMap (MapType Base 0 / Dungeon 1 = the UnitContainerSaveData keys) first, then the other
+  maps' units. Our card order is container order (Base first), which differs on such a save.
+- CARD RULE (owner, repeated): in Test Fights a click on a World units card ticks / unticks it like its box (an
+  invisible button under the card; the card's parts let clicks through), and a click on a team row's picture or author
+  line does what the team box does. My Units unit rows and the team box itself were already whole-row toggles. The
+  Gallery source shows the chosen gallery build only (no ticks): nothing to click there.
+- Test (saveunits_game_test.py, fails on main e059e4f: 35/39): team picture click 3 / 0, card click ticks / unticks,
+  Pick 1-4 on a folded world = the bar order's first 4 + Squad 4 / 4 + world still folded, and the same save loaded in
+  the game shows those 4 first on its own portrait bar.
