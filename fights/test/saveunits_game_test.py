@@ -74,7 +74,9 @@ def req(cmd, timeout=30, **kw):
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            a = json.load(open(os.path.join(DRV, 'resp.json')))
+            # errors='replace': the test registry keeps a control's text cut at a byte count (cm_win.c Reg.text), and a long
+            # Russian text ends inside a character there
+            a = json.load(open(os.path.join(DRV, 'resp.json'), encoding='utf-8', errors='replace'))
             if a.get('seq') == seq[0]:
                 return a
         except (OSError, ValueError):
