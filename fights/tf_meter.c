@@ -188,7 +188,7 @@ static void m_track(int on) {
 
 /* ================================================================ il2cpp by name: screen rects, scale, colours */
 static Obj (*x_arr_new)(void *, uintptr_t); static void *(*x_obj_class)(Obj); static const void *(*x_vmethod)(Obj, const void *);
-static cm_m m_corners, m_inparent, m_rootc, m_mode, m_cam, m_w2s, m_scale, m_euler, m_go_tr, m_act_h;
+static cm_m m_corners, m_inparent, m_rootc, m_mode, m_cam, m_w2s, m_scale, m_euler, m_go_tr, m_act_h, m_getpos, m_size;
 static const void *mi_color;
 static void *k_v3, *k_canvas, *k_go, *k_pov, *k_esv, *k_eiv;
 static int32_t f_pov_sr = -1, f_esv[16]; static int n_esv;
@@ -206,6 +206,8 @@ static void il_init(void) {
     m_cam = cm_il_method("UnityEngine", "Canvas", "get_worldCamera", 0, NULL);
     m_w2s = cm_il_method("UnityEngine", "RectTransformUtility", "WorldToScreenPoint", 2, "UnityEngine.Camera,UnityEngine.Vector3");
     m_scale = cm_il_method("UnityEngine", "Transform", "set_localScale", 1, NULL);
+    m_getpos = cm_il_method("UnityEngine", "RectTransform", "get_anchoredPosition", 0, NULL);
+    m_size = cm_il_method("UnityEngine", "RectTransform", "set_sizeDelta", 1, NULL);
     m_euler = cm_il_method("UnityEngine", "Transform", "set_localEulerAngles", 1, NULL);
     m_go_tr = cm_il_method("UnityEngine", "GameObject", "get_transform", 0, NULL);
     m_act_h = cm_il_method("UnityEngine", "GameObject", "get_activeInHierarchy", 0, NULL);
@@ -250,6 +252,24 @@ static int scr_rect(Obj o, float r[4]) {
     return r[2] > r[0] && r[3] > r[1] ? 0 : -1;
 }
 static void set_scale(DSLObj o, float s) { if (o && m_scale.fn) CM_CALL(m_scale, void, Obj, V3, const void *)((Obj)o, (V3){ s, s, 1 }, m_scale.mi); }
+/* MOVE RULE (owner 2026-10-25, kit `movable`): both panels move with a right-click drag, stay on the screen and keep their
+   place ("custom-modes.dps_meter" / ".tf_restart"). Until the player moves one (or the kit puts a kept place back), it keeps
+   finding its own place (under the resource list, right of an open Inspect window); once its position reads back other
+   than where we put it, only its size and scale change from then on (the kit pivot is its top-left: a size change keeps
+   its place). UI Scale stays ours (rules_own DSL_RULE_SCALE: the scale shrinks when its room is short). */
+static int moved_m, moved_s, mov_m, mov_s;
+static int was_moved(DSLObj o, float x, float y) {
+    if (!o || !m_getpos.fn || x < 0) return 0;
+    V2 p = CM_CALL(m_getpos, V2, Obj, const void *)((Obj)o, m_getpos.mi);
+    return (p.x - x > 0.5f || x - p.x > 0.5f) || (-p.y - y > 0.5f || y + p.y > 0.5f);
+}
+static void resize(DSLObj o, float w, float h) { if (o && m_size.fn) CM_CALL(m_size, void, Obj, V2, const void *)((Obj)o, (V2){ w, h }, m_size.mi); }
+static void make_movable(DSLObj o, const char *key, int *done) {
+    if (*done || !o) return;
+    *done = 1; dsl_rules_own(U, o, DSL_RULE_SCALE);
+    int r = dsl_movable(U, o, key);
+    cmw_log("tf: %s: right-drag move %s (%d)", key, r ? "not in this kit" : "on", r);
+}
 static void txt_color(DSLObj w, uint32_t c) {            /* Graphic.color through the text's own override */
     Obj t = w ? cm_text_of(w) : NULL;
     const void *vm = t && x_vmethod && mi_color ? x_vmethod(t, mi_color) : NULL;
@@ -390,7 +410,7 @@ static void forget_all(void) {
 static void destroy_all(void) {                          /* a language change: made again at the next show */
     if (p_root && cm_alive(p_root)) U->destroy(p_root);
     if (s_root && cm_alive(s_root)) U->destroy(s_root);
-    forget_all(); mode = 0;
+    forget_all(); mode = 0; mov_m = mov_s = moved_m = moved_s = 0;
 }
 
 static int build_full(void) {
@@ -431,7 +451,7 @@ static int build_full(void) {
         t_sw[k] = cmw_named(U->toggle(p_body, PAD, Y_ROWS, RW, l, tf_dps_switch(sw_of[k]), sw_change, (void *)(intptr_t)sw_of[k]),
                             CMW_TOGGLE, sw_name[k], sw_change, (void *)(intptr_t)sw_of[k], l);
     }
-    b_restart = U->button(p_body, PAD, Y_ROWS, RW, 32, TR("Restart Test"), restart_click, NULL);
+    b_restart = U->button(p_body, PAD, Y_ROWS, RW, 32, TR("Restart Test Floor"), restart_click, NULL);
     cm_raycast(p_root, true);                             /* the panel takes the clicks over it */
     if (!prefs_read) { char v[8]; if (!cm_pref_get("dps_meter_folded", v, sizeof v)) folded = v[0] == '1'; prefs_read = 1; }
     fold_apply();
@@ -447,7 +467,7 @@ static int build_small(void) {
     plate(s_root, 0, 0, SW, BAR, BAND);
     plate(s_root, 0, BAR, SW, 1, COPPER);
     txt(s_root, PAD + 4, 0, SW - 2 * PAD - 4, BAR, TR("Test Fights"), 17, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
-    s_btn = U->button(s_root, PAD, BAR + 8, SW - 2 * PAD, 32, TR("Restart Test"), restart_click, NULL);
+    s_btn = U->button(s_root, PAD, BAR + 8, SW - 2 * PAD, 32, TR("Restart Test Floor"), restart_click, NULL);
     cm_raycast(s_root, true);
     return 0;
 }
@@ -675,8 +695,11 @@ static void place_now(void) {
         if (h > room) h = room;
         if (h < H_FIXED + MIN_ROWS * ROW_H) h = H_FIXED + MIN_ROWS * ROW_H;
         float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h;
+        if (!moved_m && was_moved(p_root, PL.x, PL.y)) moved_m = 1;
+        if (moved_m) { x = PL.x; y = PL.y; s = PL.ds; }      /* the player's place: only size and scale from here on */
         if (x != PL.x || y != PL.y || s != PL.s || ph != PL.ph || m_layout) {
-            put(p_root, x, y, MW, ph); set_scale(p_root, s);
+            if (moved_m) resize(p_root, MW, ph); else put(p_root, x, y, MW, ph);
+            set_scale(p_root, s);
             put(p_body, 0, 0, MW, h);
             put(sc_rows, PAD, Y_ROWS, RW, vh);
             put(l_tail, PAD, ty - 3, RW, 1);
@@ -684,10 +707,14 @@ static void place_now(void) {
             put(b_restart, PAD, ty + NSW * TOG_H + 2, RW, 32);
             PL.x = x; PL.y = y; PL.s = s; PL.ph = ph; PL.avail = avail; m_layout = 0;
         }
+        make_movable(p_root, "custom-modes.dps_meter", &mov_m);
     } else if (mode == 2 && s_root) {
         float x, y, s, avail;
         region(SH, SW, &x, &y, &s, &avail);
-        if (x != PL.x || y != PL.y || s != PL.s) { put(s_root, x, y, SW, SH); set_scale(s_root, s); PL.x = x; PL.y = y; PL.s = s; PL.avail = avail; }
+        if (!moved_s && was_moved(s_root, PL.x, PL.y)) moved_s = 1;
+        if (moved_s) { x = PL.x; y = PL.y; s = PL.ds; }
+        if (x != PL.x || y != PL.y || s != PL.s) { if (!moved_s) put(s_root, x, y, SW, SH); set_scale(s_root, s); PL.x = x; PL.y = y; PL.s = s; PL.avail = avail; }
+        make_movable(s_root, "custom-modes.tf_restart", &mov_s);
     }
 }
 
@@ -697,8 +724,8 @@ static void show_mode(int m) {
     act(p_root, m == 1);
     act(s_root, m == 2);
     mode = m; PL.x = PL.y = -1; m_layout = 1;
-    if (m == 1 && b_restart) cmw_named(b_restart, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test"));
-    if (m == 2 && s_btn) cmw_named(s_btn, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test"));
+    if (m == 1 && b_restart) cmw_named(b_restart, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test Floor"));
+    if (m == 2 && s_btn) cmw_named(s_btn, CMW_BUTTON, "dps:restart", restart_click, NULL, TR("Restart Test Floor"));
 }
 static void tick(void *ud) {
     (void)ud; fr++;
@@ -776,9 +803,10 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
     if (t_rect && shown) t_rect(shown, r);
 #endif
     ADD("{\"shown\":%d,\"small\":%d,\"folded\":%d,\"running\":%d,\"armed\":%d,\"elapsed\":%.6f,\"total\":%.6f,\"dps\":%.6f,\"dps5\":%.6f,"
-        "\"repaired\":%.3f,\"heal\":%.6f,\"absorbed\":%.6f,\"base\":%zu,\"scan\":%zu,\"hits\":%u,\"open\":%d,\"spans\":[",
+        "\"repaired\":%.3f,\"heal\":%.6f,\"absorbed\":%.6f,\"base\":%zu,\"scan\":%zu,\"hits\":%u,\"open\":%d,\"moved\":[%d,%d],\"restart_cut\":[%d,%d],\"spans\":[",
         mode == 1, mode == 2, folded, M.running, M.armed, el, M.total, M.hits ? M.total / div : 0, m_dps5(el), m_repaired(), M.heal, M.absorbed,
-        M.nsp ? M.sp[0].a : M.scan, M.scan, M.hits, open_unit);
+        M.nsp ? M.sp[0].a : M.scan, M.scan, M.hits, open_unit, moved_m, moved_s,
+        b_restart ? cm_text_truncated(b_restart) : -1, s_btn ? cm_text_truncated(s_btn) : -1);
     for (int i = 0; i < M.nsp; i++) ADD("%s[%zu,%zu]", i ? "," : "", M.sp[i].a, M.sp[i].b == SIZE_MAX ? M.scan : M.sp[i].b);
     ADD("],\"units\":[");
     int ord[MAXU], n = sorted_units(ord, MAXU);

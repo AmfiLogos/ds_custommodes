@@ -204,19 +204,8 @@ const char *tf_dps_switch_label(int w) {
          : w == TFD_SW_CHATLOG ? TR("DPS Log in Chat") : w == TFD_SW_FIRSTHIT ? TR("Start on First Hit")
          : w == TFD_SW_EFFECTS ? TR("Effects in Log") : "";
 }
-static void sw_click(void *ud, DSLObj w) { int k = (int)(intptr_t)ud; tf_dps_switch_set(k, U->toggle_get(w)); }
-float tf_dps_setup_rows(DSLObj parent, float y, float w) {   /* the DPS Check's switches in the Test Fights setup */
-    static const int SWS[4] = { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG, TFD_SW_EFFECTS };
-    static const char *const NM[4] = { "fights:r.dps_speech", "fights:r.dps_healnum", "fights:r.dps_chatlog", "fights:r.dps_effects" };
-    float y0 = y;
-    for (int i = 0; i < 4; i++) {
-        int k = SWS[i];
-        DSLObj t = U->toggle(parent, 0, y, w, tf_dps_switch_label(k), tf_dps_switch(k), sw_click, (void *)(intptr_t)k);
-        if (t) cmw_named(t, CMW_TOGGLE, NM[i], sw_click, (void *)(intptr_t)k, tf_dps_switch_label(k));
-        y += 36;
-    }
-    return y - y0;
-}
+/* the switches live on the in-game DPS meter only (owner 2026-10-25: on the Test Fights start screen "it overloads it for no
+   benefits"); tf_meter.c sets them, they act at once */
 
 /* ---------------------------------------------------------------- the game clock: TimeHandler._currentTick * TICK_INTERVAL
    (game speed and pause do not change Time.timeScale in this game; MainFlow._timeHandler; decomp 25846389) */
@@ -248,9 +237,17 @@ static long long game_tick(void) {
 
 /* the chat lines: the source's name as a header when it changes, then ONE indented line per source and game tick, its parts
    joined by " · " (owner, ask 10: "Fireball → Scarecrow: -227 crit · Heal → Silvarion, Prax: +50") */
-static char **lines; static size_t nl, capl, sent;      /* this fight's lines, oldest first; sent = given to the chat */
-static unsigned long hits, n_crit, n_miss, n_ev_done; static double dmg_sum; static int last_unit = -1, nheads;
-static unsigned long n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen;   /* events by kind (test) */
+/* Two renderings of the same log (owner round 2: "Effects in Log" off HIDES the effect lines already in the chat, on shows
+   them again): lv[0] with the effect parts, lv[1] without. The chat and our panel show the one the switch picks; a flip
+   clears our chat lines and gives the chat the other rendering, from the player's last clear on (mp_api v4 chat_clears). */
+typedef struct { char **l; size_t n, cap; int last_unit; } Lines;
+static Lines lv[2] = { { NULL, 0, 0, -1 }, { NULL, 0, 0, -1 } }; static size_t sent;   /* sent = of the shown one, given to the chat */
+static int cur_v(void);
+#define lines (lv[cur_v()].l)                            /* the shown rendering's lines, oldest first (read only) */
+#define nl (lv[cur_v()].n)
+static int shown_v = -1; static size_t clear_at[2]; static unsigned clears_seen;
+static unsigned long hits, n_crit, n_miss, n_ev_done; static double dmg_sum; static int nheads;
+static unsigned long n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, n_eff_capped;   /* events by kind (test) */
 static const mp_api_table *api; static int fb_use, mp_rc_last = 1000;
 static int mp_ok(void) {
     return api && api->version >= 3 && api->size >= offsetof(mp_api_table, chat_local) + sizeof api->chat_local && api->chat_local;
@@ -265,16 +262,17 @@ static void finalize(int upto_all, long long now);
 static void grp_lines(const Grp *g);
 static int is_dummy_e(Obj e);
 static void log_clear(void) {
-    for (size_t i = 0; i < nl; i++) free(lines[i]);
-    nl = sent = 0; hits = n_crit = n_miss = n_ev_done = 0; dmg_sum = 0; fb_use = 0; last_unit = -1; nheads = 0;
-    n_dmg_ev = n_heal_ev = n_abs_ev = n_eff_ev = n_eff_seen = 0;
+    for (int v = 0; v < 2; v++) { for (size_t i = 0; i < lv[v].n; i++) free(lv[v].l[i]); lv[v].n = 0; lv[v].last_unit = -1; clear_at[v] = 0; }
+    sent = 0; hits = n_crit = n_miss = n_ev_done = 0; dmg_sum = 0; fb_use = 0; nheads = 0;
+    n_dmg_ev = n_heal_ev = n_abs_ev = n_eff_ev = n_eff_seen = n_eff_capped = 0;
     nhit = 0; nunit = 0; repaired = 0; ngrp = 0;
     if (mp_ok()) api->chat_local(MOD_NAME, NULL, MP_CHATL_CLEAR);
 }
-static void add_line(const char *s) {
-    if (nl == capl) { size_t nc = capl ? capl * 2 : 1024; char **p = realloc(lines, nc * sizeof *p); if (!p) return; lines = p; capl = nc; }
+static void add_line(int v, const char *s) {
+    Lines *L = &lv[v];
+    if (L->n == L->cap) { size_t nc = L->cap ? L->cap * 2 : 1024; char **p = realloc(L->l, nc * sizeof *p); if (!p) return; L->l = p; L->cap = nc; }
     size_t l = strlen(s); char *c = malloc(l + 1); if (!c) return;
-    memcpy(c, s, l + 1); lines[nl++] = c;
+    memcpy(c, s, l + 1); L->l[L->n++] = c;
 }
 static void esc(const char *in, char *out, size_t cap) {  /* names as typed: no rich-text tag from a name (as the chat's own) */
     size_t o = 0;
@@ -371,7 +369,6 @@ static void ev_add(int kind, Obj user, Obj tgt, const char *key, int basic, floa
     nhit++;
     if (kind == TFK_DMG && h->on_dummy) { hits++; dmg_sum += amt; n_crit += res == TFD_CRIT; n_miss += res == TFD_MISS; }
     n_dmg_ev += kind == TFK_DMG; n_heal_ev += kind == TFK_HEAL; n_abs_ev += kind == TFK_ABSORB; n_eff_ev += kind == TFK_EFFECT;
-    if (kind == TFK_EFFECT && !tf_dps_switch(TFD_SW_EFFECTS)) return;   /* "Effects in log" off: not in the chat */
     Grp *g = NULL;
     for (int i = 0; i < ngrp && !g; i++) if (grp[i].unit == h->unit && grp[i].tick == h->tick) g = &grp[i];
     if (!g) {
@@ -427,20 +424,26 @@ static size_t part_text(const Part *p, char *o, size_t cap) {
     return k < cap ? k : cap - 1;
 }
 #define LINE_MAX_B 380                                   /* the chat's local line holds 400 bytes */
-static void grp_lines(const Grp *g) {
-    char t[1200], e[200];
-    if (g->unit != last_unit) {                          /* a header line when another source acts */
+static void grp_lines_v(const Grp *g, int v) {         /* v 1: the rendering without effect parts */
+    Lines *L = &lv[v]; char t[1200], e[200]; int has = 0;
+    for (int i = 0; i < g->np; i++) has |= !(v && g->p[i].kind == TFK_EFFECT);
+    if (!has) return;                                    /* only effects: no line (and no header) in this rendering */
+    if (g->unit != L->last_unit) {                       /* a header line when another source acts */
         esc(unitv[g->unit].name, e, sizeof e);
-        snprintf(t, sizeof t, "<b><color=" C_GOLD ">%s</color></b>", e); add_line(t); nheads++;
-        last_unit = g->unit;
+        snprintf(t, sizeof t, "<color=" C_GOLD ">%s</color>", e); add_line(v, t); nheads += !v;   /* the chat's font: <b> drew another face (owner) */
+        L->last_unit = g->unit;
     }
     size_t o = (size_t)snprintf(t, sizeof t, "<indent=5%%>"); int any = 0;
     for (int i = 0; i < g->np; i++) {
+        if (v && g->p[i].kind == TFK_EFFECT) continue;
         char pt[700]; size_t pl = part_text(&g->p[i], pt, sizeof pt);
-        if (any && o + 3 + pl > LINE_MAX_B) { add_line(t); o = (size_t)snprintf(t, sizeof t, "<indent=5%%>"); any = 0; }   /* too long: the next line */
+        if (any && o + 3 + pl > LINE_MAX_B) { add_line(v, t); o = (size_t)snprintf(t, sizeof t, "<indent=5%%>"); any = 0; }   /* too long: the next line */
         o += (size_t)snprintf(t + o, sizeof t - o, "%s%s", any ? " \xC2\xB7 " : "", pt); any = 1;              /* " · " */
     }
-    if (any) add_line(t);
+    if (any) add_line(v, t);
+}
+static void grp_lines(const Grp *g) {
+    grp_lines_v(g, 0); grp_lines_v(g, 1);
     n_ev_done = g->ev_hi > n_ev_done ? g->ev_hi : n_ev_done;
 }
 static void finalize(int all, long long now) {           /* the groups of finished ticks become lines, in the order they began */
@@ -499,9 +502,12 @@ static Obj h_hsim(Obj self, Obj data, float last, float cur, Obj *apply, const v
     }
     return log;
 }
-/* effects put on: AffecterExecutionLog AffecterKey, _user, _target; only the game's named ones (a text for the key) and only
-   once the fight runs (a unit's own traits arrive with the world) */
-static int32_t f_al_user = -1, f_al_tgt = -1, f_al_key = -1, f_ad_exec = -1;
+/* effects put on: AffecterExecutionLog AffecterKey, _user, _target, Amount; only the game's named ones (a text for the key),
+   only once the fight runs (a unit's own traits arrive with the world), and only when it added stacks: Amount is what the
+   game put on after its cap (AffecterSimulator GetStackableAmount: max stack - stacks now, max -1 = 1), so a re-apply at
+   the cap (Reckless Assault every tick, Brace Stance at 15) writes no line (owner round 2). "Removed / expired" lines: not
+   written (pick logged in PLAN_v013.md: in a fight log they would be as many as the re-applies were). */
+static int32_t f_al_user = -1, f_al_tgt = -1, f_al_key = -1, f_al_amt = -1, f_ad_exec = -1;
 /* TEST ONLY ("barrier <stack> <seconds> <units>"): the next effects put on that many squad units become the game's Barrier,
    so a fight shows absorbs without a barrier skill being cast. The same AffecterSimulator call runs with the data's key,
    stack and duration swapped (DataValue.FixedValue), then they are put back; the game's own appliers add the Barrier. */
@@ -536,7 +542,12 @@ static Obj h_asim(Obj self, Obj data, float last, float cur, Obj *apply, const v
         Obj user = FLD(log, f_al_user, Obj), tgt = FLD(log, f_al_tgt, Obj);
         char key[80]; cm_il_utf8(FLD(log, f_al_key, Obj), key, sizeof key);
         char tk[160], tx[96]; snprintf(tk, sizeof tk, "TEXTKEY_%s_NAME", key);
-        if (tgt && key[0] && involved(user, tgt) && !cm_gettext(tk, tx, sizeof tx)) { n_eff_seen++; ev_add(TFK_EFFECT, user, tgt, key, 0, 0, 0, FLD(log, f_log_res, int32_t)); }
+        int amt = f_al_amt >= 0 ? FLD(log, f_al_amt, int32_t) : 1;   /* the stacks it added (capped by the game at the max) */
+        if (tgt && key[0] && involved(user, tgt) && !cm_gettext(tk, tx, sizeof tx)) {
+            n_eff_seen++;
+            if (amt > 0) ev_add(TFK_EFFECT, user, tgt, key, 0, (float)amt, 0, FLD(log, f_log_res, int32_t));
+            else n_eff_capped++;                         /* a re-apply at the cap (owner round 2: no line) */
+        }
     }
     return log;
 }
@@ -590,7 +601,24 @@ static Obj h_statfx(Obj self, Obj data, const void *mi) {
 }
 
 /* ---------------------------------------------------------------- into the chat, or our own panel */
+static DSLObj fb_root, fb_txt; static size_t fb_n = (size_t)-1; static long fb_off, fb_off_shown = -1; static int fb_on;
+static int cur_v(void) { return tf_dps_switch(TFD_SW_EFFECTS) ? 0 : 1; }
+#define RESEND_MAX 2500                                  /* a flip gives the chat at most this many lines (its history holds 3000) */
+static int mp_v4(void) { return mp_ok() && api->version >= 4 && api->size >= offsetof(mp_api_table, chat_clears) + sizeof api->chat_clears && api->chat_clears; }
 static void flush(void) {
+    int v = cur_v();
+    if (mp_v4()) {                                       /* the player emptied the chat (/clear, the bin): those lines are gone for good */
+        unsigned c = api->chat_clears();
+        if (c != clears_seen) { clears_seen = c; clear_at[0] = lv[0].n; clear_at[1] = lv[1].n; }
+    }
+    if (v != shown_v) {                                  /* "Effects in Log" flipped: the chat shows the other rendering at once */
+        if (shown_v >= 0 && !fb_use && mp_ok() && tf_dps_switch(TFD_SW_CHATLOG)) {
+            api->chat_local(MOD_NAME, NULL, MP_CHATL_CLEAR);
+            sent = lv[v].n - clear_at[v] > RESEND_MAX ? lv[v].n - RESEND_MAX : clear_at[v];
+            cmw_log("tf: DPS log: effects %s: the chat gets %zu line(s) again", v ? "hidden" : "shown", lv[v].n - sent);
+        } else if (shown_v >= 0) sent = lv[v].n;
+        shown_v = v; fb_n = (size_t)-1;
+    }
     if (!tf_dps_switch(TFD_SW_CHATLOG)) { sent = nl; return; }   /* "DPS log in chat" off: nothing written (the meter counts on) */
     if (sent >= nl || fb_use) return;
     if (!mp_ok()) { fb_use = 1; cmw_log("tf: DPS log: no multiplayer chat (mp_api %u): our own log panel", api ? api->version : 0); return; }
@@ -606,7 +634,6 @@ static void flush(void) {
 #define FB_LINES 10
 #define FB_W 470.0f
 #define FB_H 252.0f
-static DSLObj fb_root, fb_txt; static size_t fb_n = (size_t)-1; static long fb_off, fb_off_shown = -1; static int fb_on;
 static V2 (*o_wheel)(const void *mi); static int wheel_over;
 static V2 h_wheel(const void *mi) { V2 d = o_wheel(mi); return wheel_over ? (V2){ 0, 0 } : d; }
 static void fb_build(void) {
@@ -623,7 +650,8 @@ static void fb_build(void) {
     Obj t = cm_text_of(fb_txt); if (t && m_rich.fn) CM_CALL(m_rich, void, Obj, bool, const void *)(t, true, m_rich.mi);   /* our own tags; names escaped */
     cm_text_ellipsis(fb_txt);
     cm_raycast(fb_root, true);
-    cmw_log("tf: DPS log panel built");
+    int sf = dsl_scale_follow(U, fb_root), mv = dsl_movable(U, fb_root, "custom-modes.dps_log");   /* UI Scale; MOVE RULE: right-drag, kept place */
+    cmw_log("tf: DPS log panel built (UI Scale %d, right-drag move %d)", sf, mv);
 }
 static void fb_tick(void) {
     int want = fb_use && nl > 0 && !title_up && tf_dps_switch(TFD_SW_CHATLOG);
@@ -705,7 +733,7 @@ static void tick(void *ud) {
     }
     if (restart_line) {                                  /* a restart passes through the title scene (the chat clears there) */
         if (cmw_title_shown()) restart_line = 30;
-        else if (!--restart_line) add_line("<color=" C_SUB ">--- restart ---</color>");
+        else if (!--restart_line) for (int v = 0; v < 2; v++) add_line(v, "<color=" C_SUB ">--- restart ---</color>");
     }
     if (!title_up) { finalize(0, game_tick()); flush(); if (live_hp != 1) { live_tick(); ins_tick(); } }
     fb_tick();
@@ -779,7 +807,7 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     k_hed = cm_il_class(RC, "HealExecutionData"); f_hd_exec = cm_il_field(k_hed, "<BaseExecution>k__BackingField");
     { void *k = cm_il_class(RC, "HealExecutionLog"); f_hl_user = cm_il_field(k, "_user"); f_hl_tgt = cm_il_field(k, "_target");
       f_hl_b = cm_il_field(k, "<TargetHealth_Before>k__BackingField"); f_hl_a = cm_il_field(k, "<TargetHealth_After>k__BackingField"); }
-    { void *k = cm_il_class(RC, "AffecterExecutionLog"); f_al_user = cm_il_field(k, "_user"); f_al_tgt = cm_il_field(k, "_target"); f_al_key = cm_il_field(k, "<AffecterKey>k__BackingField");
+    { void *k = cm_il_class(RC, "AffecterExecutionLog"); f_al_user = cm_il_field(k, "_user"); f_al_tgt = cm_il_field(k, "_target"); f_al_key = cm_il_field(k, "<AffecterKey>k__BackingField"); f_al_amt = cm_il_field(k, "<Amount>k__BackingField");
       void *kad = cm_il_class(RC, "AffecterExecutionData");
       f_ad_exec = cm_il_field(kad, "<BaseExecution>k__BackingField"); f_ad_tgt = cm_il_field(kad, "<Target>k__BackingField");
       f_ad_key = cm_il_field(kad, "<Key>k__BackingField"); f_ad_stk = cm_il_field(kad, "<Stack>k__BackingField"); f_ad_dur = cm_il_field(kad, "<Duration>k__BackingField"); }
@@ -1017,10 +1045,10 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
                         o += text_json(out + o, cap - o, "max", FLD(bs, f_s_max, Obj)); o += (size_t)snprintf(out + o, cap - o, ","); }
     o += (size_t)snprintf(out + o, cap - o, "\"repaired\":%.3f,\"heads\":%d,\"units\":%d,\"clock\":%.3f,\"speech_shown\":%lu,\"speech_hidden\":%lu,\"heal_shown\":%lu,\"heal_hidden\":%lu,"
                             "\"sw\":[%d,%d,%d,%d,%d],\"ins\":%d,\"ins_c\":%.3f,\"ins_txt\":\"%s\",\"restart_ready\":%d,"
-                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu},\"live_hp\":%d,",
+                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu,\"effect_capped\":%lu},\"live_hp\":%d,",
                             repaired, nheads, nunit, tf_dps_clock(), n_speech_shown, n_speech_hidden, n_heal_shown, n_heal_hidden,
                             tf_dps_switch(0), tf_dps_switch(1), tf_dps_switch(2), tf_dps_switch(3), tf_dps_switch(4), cm_alive(cm_il_hget(h_ins)) && go_on(cm_il_hget(h_ins), 1), ins_c, ins_text(), tf_restart_ready(),
-                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, live_hp);
+                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, n_eff_capped, live_hp);
     o += (size_t)snprintf(out + o, cap - o, "\"last\":[");
     for (size_t i = nl > 8 ? nl - 8 : 0; i < nl && o + 300 < cap; i++) {
         char e[260]; size_t k = 0; for (const char *p = lines[i]; *p && k + 2 < sizeof e; p++) { if (*p == '"' || *p == '\\') e[k++] = '\\'; e[k++] = *p; } e[k] = 0;

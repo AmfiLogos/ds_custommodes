@@ -59,7 +59,6 @@ int  tf_dps_switch(int which);
 void tf_dps_switch_set(int which, int on);
 const char *tf_dps_switch_label(int which);  /* translated label ("Scarecrow speech", ...) */
 /* the DPS Check part of the Test Fights setup (tf_ui.c, under the DPS card): the switches as toggles; returns its height */
-float tf_dps_setup_rows(DSLObj parent, float y, float w);
 
 /* ---- Restart test (every Test Fights world): the same test again from the save the Start made (tf_worlds.c) */
 int  tf_restart_ready(void);                 /* 1 = a test world is loaded and its start save is kept */

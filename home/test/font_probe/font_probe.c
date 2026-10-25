@@ -5,6 +5,7 @@
 // DSL_UNITS_TEST=<dir>: <dir>/req.json {"seq":n,"cmd":...} -> <dir>/resp.json {"seq":n,...}
 //   cmd state | click {target} | hover {target} | key {code} | type {target,text} | wheel {target,dy} | capture {name}
 //       | hover_xy / click_xy {x, y[, button 1 = right]}  (a screen point; hover stays until "mouse_off")
+//       | drag_xy {x, y, dx, dy[, button 1 = right (default)]}  (press, 20 frames moving, release)
 //       | call {fn, s}  (a Units Laboratory test function "int fn(const char *s, char *out, size_t cap)" by name)
 //       | fonts {name, all}  (every TMP text -> <dir>/fonts_<name>.jsonl, see fonts_dump)
 //       | title  (the title's background world, the Continue save, the world loaded now: see title_state)
@@ -61,16 +62,27 @@ static void send_ev(id w, id ev) {
 typedef struct { float x, y, z; } V3; typedef struct { float x, y; } V2;
 static int (*frame_now)(const void *);
 static int fk_on, fk_down = -1, fk_until, fk_wheel_at = -1, fk_btn; static float fk_x, fk_y, fk_wy;
+static int fk_up = -1, fk_m0, fk_m1; static float fk_x1, fk_y1, fk_x0, fk_y0;   /* a drag: held fk_down..fk_up, moving m0..m1 */
 static bool (*o_mb)(int, const void *), (*o_mbd)(int, const void *), (*o_mbu)(int, const void *);
 static V3 (*o_mpos)(const void *); static V2 (*o_wheel)(Obj, const void *);
 static int fnow(void) { return frame_now ? frame_now(NULL) : 0; }
 static int fk_live(void) { return fk_on && fnow() <= fk_until; }
-static bool hk_mb(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down) : o_mb(b, mi); }
+static bool hk_mb(int b, const void *mi) {
+    return fk_live() ? (fk_down >= 0 && b == fk_btn && (fk_up >= 0 ? fnow() >= fk_down && fnow() < fk_up : fnow() == fk_down)) : o_mb(b, mi); }
 static bool hk_mbd(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down) : o_mbd(b, mi); }
-static bool hk_mbu(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == fk_down + 1) : o_mbu(b, mi); }
-static V3 hk_mpos(const void *mi) { return fk_live() ? (V3){ fk_x, fk_y, 0 } : o_mpos(mi); }
+static bool hk_mbu(int b, const void *mi) { return fk_live() ? (fk_down >= 0 && b == fk_btn && fnow() == (fk_up >= 0 ? fk_up : fk_down + 1)) : o_mbu(b, mi); }
+static V3 hk_mpos(const void *mi) {
+    if (!fk_live()) return o_mpos(mi);
+    if (fk_up >= 0 && fnow() >= fk_m0) { float t = fnow() >= fk_m1 ? 1.f : (float)(fnow() - fk_m0) / (float)(fk_m1 - fk_m0);
+        return (V3){ fk_x0 + (fk_x1 - fk_x0) * t, fk_y0 + (fk_y1 - fk_y0) * t, 0 }; }
+    return (V3){ fk_x, fk_y, 0 };
+}
 static V2 hk_wheel(Obj self, const void *mi) { return fk_live() && fnow() == fk_wheel_at ? (V2){ 0, fk_wy } : o_wheel(self, mi); }
-static void fk_at(const float r[4]) { fk_on = 1; fk_x = (r[0] + r[2]) / 2; fk_y = (r[1] + r[3]) / 2; fk_down = -1; fk_wheel_at = -1; }
+static void fk_at(const float r[4]) { fk_on = 1; fk_x = (r[0] + r[2]) / 2; fk_y = (r[1] + r[3]) / 2; fk_down = -1; fk_wheel_at = -1; fk_up = -1; }
+static int drag_xy(float x, float y, float dx, float dy, int btn) {   /* press, 20 frames of moving, release (the kit's movable) */
+    float r[4] = { x, y, x, y }; fk_at(r); fk_btn = btn; fk_x0 = x; fk_y0 = y; fk_x1 = x + dx; fk_y1 = y + dy;
+    fk_down = fnow() + 5; fk_m0 = fk_down + 2; fk_m1 = fk_m0 + 20; fk_up = fk_m1 + 3; fk_until = fk_up + 10; return 0;
+}
 static int click_rect(const float r[4]) { fk_at(r); fk_btn = 0; fk_down = fnow() + 5; fk_until = fk_down + 30; return 0; }   /* rest 5 frames, press, release */
 static int move_rect(const float r[4]) { fk_at(r); fk_until = 0x7fffffff; return 0; }                           /* hover until "mouse_off" */
 static int wheel_rect(const float r[4], int dy) { fk_at(r); fk_wheel_at = fnow() + 3; fk_wy = (float)dy; fk_until = fk_wheel_at + 20; return 0; }
@@ -338,6 +350,8 @@ static void handle(const char *j) {
         rc = !strcmp(cmd, "click_xy") ? click_rect(r) : move_rect(r);
         if (!strcmp(cmd, "click_xy")) fk_btn = (int)jnum(j, "button", 0);   /* 1 = the right button */
     }
+    else if (!strcmp(cmd, "drag_xy"))                               /* {x, y, dx, dy[, button 1 = right]}: screen pixels, y up */
+        rc = drag_xy((float)jnum(j, "x", 0), (float)jnum(j, "y", 0), (float)jnum(j, "dx", 0), (float)jnum(j, "dy", 0), (int)jnum(j, "button", 1));
     else if (!strcmp(cmd, "mouse_off")) fk_on = 0;
     else if (!strcmp(cmd, "via")) via_view = (int)jnum(j, "view", 1);
     else if (!strcmp(cmd, "key")) rc = key_code((int)jnum(j, "code", 36));

@@ -19,7 +19,7 @@ Fails when (the breaks this catches):
                                 mods/custom-modes, mods/live-hp); LD_ROOT = a ds_modloader checkout (loader/test helpers; ~/ds_launcher);
                                 LANGTYPE = the game's language (3 de, 4 ru, 7 ja; default en)
 Output: DPS_OUT (default <HM_BUILD>/../test_env/dps/<time>): results.json, frames in drv/cap/."""
-import json, os, re, shutil, subprocess, sys, threading, time, traceback, zipfile
+import collections, json, os, re, shutil, subprocess, sys, threading, time, traceback, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -182,6 +182,8 @@ def start_fight():
     click('fights:l.team0', 2)
     tf = tfs()
     check('the 4-unit team is the squad, mode DPS Check', tf.get('squad') == 4 and tf.get('mode') == 'dps', json.dumps(tf))
+    sw_left = [n for n in ('speech', 'healnum', 'chatlog', 'effects') if req('rect', target=f'fights:r.dps_{n}').get('rc', -1) > 0]
+    check('round 2: no DPS switches on the Test Fights start screen (they are on the in-game meter)', not sw_left, sw_left)
     click('fights:start', 1)
     until(lambda: (lambda s: s.get('on') == 1 and s.get('title') == 0)(dps('state')), 'the DPS Check world', 600, 3)
     time.sleep(8)
@@ -432,6 +434,22 @@ def run():
     same = [a for a, b in zip(mine, tail) if a != b]
     check('(d) every burst line is in the multiplayer chat, in order (its local lines)', total >= n1 and inhist == total and len(tail) == len(mine) and not same,
           json.dumps({'chat_total': total, 'in_history': inhist, 'log': n1, 'first_diff': same[:2]}, ensure_ascii=False))
+    # round 2 item 4: an effect re-applied at its cap writes no line (Reckless Assault: 1 stack, no duration, re-applied every tick)
+    ra = collections.Counter(h['target'] for h in ev if h['kind'] == 3 and h['key'] == 'AFFECTER_RecklessAssault')
+    capped = (dps('state').get('ev') or {}).get('effect_capped', 0)
+    info.update({'reckless_lines': dict(ra), 'effect_capped': capped})
+    check(f'round 2: no line for an effect re-applied at its cap (Reckless Assault lines per unit {dict(ra)}, {capped} re-applies at the cap left out)',
+          (not ra or max(ra.values()) <= 2) and capped > 20, (dict(ra), capped))
+    # round 2 item 6: unit names in the chat's own font (no <b>: it drew another face); only the colour differs
+    heads = [x for x in chat_lines()[2] if x and not x.startswith('<indent=')]
+    check('round 2: the unit name lines use the chat\'s font (no <b> / <font> tag, colour only)', heads and not any('<b>' in x or '<font' in x for x in heads), heads[:3])
+    # round 2 item 5: "Effects in Log" off hides the effect parts already in the chat at once; on shows them again
+    effre = re.compile('<color=#A69085>[^<]*\u00bb')
+    def eff_n():
+        return sum(1 for x in chat_lines()[2] if effre.search(x))
+    e_on = eff_n(); click('dps:effects', 1.0); e_off, c_off = eff_n(), len(chat_lines()[2]); click('dps:effects', 1.0); e_back = eff_n()
+    check('round 2: "Effects in Log" off hides the effect lines already in the chat at once, on shows them again',
+          e_on > 0 and e_off == 0 and c_off > 0 and e_back >= e_on and dps('state')['sw'][4] == 1, (e_on, e_off, c_off, e_back))
     req('key', code=36); time.sleep(1.5); shot(f'chat_open_{LANG or "en"}')      # Enter: the box with the history
     req('key', code=53); time.sleep(0.5)
     # (e) (f) (g) the DPS meter: Reset (armed: the next hit starts it), 8 s, Stop
@@ -482,6 +500,16 @@ def run():
     dps('fb 1'); time.sleep(1.5); f = dps('fb_state'); t = (f.get('text') or {}).get('text', '')
     check('our own log panel (forced on): shown, 10 lines', f.get('fb_on') == 1 and len(t.split('|')) == 10, json.dumps(f, ensure_ascii=False)[:400])
     shot(f'fallback_panel_{LANG or "en"}'); dps('fb 0')
+    # round 2 item 2: the meter moves with a right-click drag (the kit's MOVE RULE), stays there and keeps its place
+    r0 = meter().get('rect') or [0, 0, 0, 0]
+    req('drag_xy', x=(r0[0] + r0[2]) / 2, y=max(r0[1], r0[3]) - 10, dx=160, dy=-90, button=1); time.sleep(2.5)
+    r1 = meter().get('rect') or [0, 0, 0, 0]; time.sleep(3); m3 = meter(); r2 = m3.get('rect') or [0, 0, 0, 0]
+    places = os.path.join(lrig.idir(X), 'data', 'Mods', 'ui_places.tsv')
+    kept = os.path.exists(places) and 'custom-modes.dps_meter' in open(places, encoding='utf-8', errors='replace').read()
+    check('round 2: the DPS meter moves with a right-click drag (its top-left by the drag), stays there 3 s later and its place is kept',
+          abs((r1[0] - r0[0]) - 160) < 20 and abs((r1[3] - r0[3]) + 90) < 20 and r2 == r1 and (m3.get('moved') or [0])[0] == 1 and kept,
+          json.dumps({'before': r0, 'after': r1, '3s': r2, 'moved': m3.get('moved'), 'kept': kept}))
+    check('round 2: "Restart Test Floor" fits its button (no ellipsis)', (m3.get('restart_cut') or [1])[0] == 0, m3.get('restart_cut'))
     # Restart test, twice: a fresh world (scarecrow full, the squad at its start spots, the same objects), the meter at 0
     for r_i in (1, 2):
         click('dps:restart', 0.5)
@@ -669,6 +697,9 @@ def main():
         cmset = os.path.join(lrig.idir(X), 'data', 'Mods', 'custom-modes', 'settings.json')   # the lab's switches: fresh defaults
         if os.path.exists(cmset):
             os.replace(cmset, os.path.join(OUT, 'old_settings.json'))
+        places = os.path.join(lrig.idir(X), 'data', 'Mods', 'ui_places.tsv')        # the kit's kept panel places: a fresh start
+        if os.path.exists(places):
+            os.replace(places, os.path.join(OUT, 'old_ui_places.tsv'))
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
@@ -687,6 +718,9 @@ def main():
             p = os.path.join(lrig.idir(X), f)
             if os.path.exists(p):
                 shutil.copy2(p, os.path.join(OUT, f))
+        dl = os.path.join(OUT, 'dsload.log')                     # the kit's UI-RULE guard (KIT NOTE 2: templates + guards)
+        rules = [l.strip()[:200] for l in open(dl, encoding='utf-8', errors='replace') if 'UI-RULE' in l] if os.path.exists(dl) else ['no dsload.log']
+        check('no UI-RULE line from the kit\'s guard (UI Scale, move, red X, card, font rules)', not rules, rules[:4])
         res.update({'checks': HP.checks, 'info': info, 'all_pass': all(k['ok'] for k in HP.checks) and bool(HP.checks)})
         json.dump(res, open(os.path.join(OUT, 'results.json'), 'w'), indent=1, default=str)
         log('RESULT', 'PASS' if res['all_pass'] else 'FAIL', f"{sum(k['ok'] for k in HP.checks)}/{len(HP.checks)}", os.path.join(OUT, 'results.json'))

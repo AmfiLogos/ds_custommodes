@@ -215,7 +215,7 @@
 "Renamed."	units/mu_window.c:317
 "Repaired by the Scarecrow"	fights/tf_meter.c:415
 "Reset"	fights/tf_meter.c:411 fights/tf_meter.c:411
-"Restart Test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
+"Restart Test Floor"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
 "Roll %zu"	builder/bld_ui.c:993
 "Running"	fights/tf_meter.c:582
 "Save"	units/mu_window.c:638 builder/bld_ui.c:1278 builder/bld_ui.c:1282
