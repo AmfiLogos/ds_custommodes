@@ -37,7 +37,7 @@
 "A practice %s with %s durability that taunts your units. Hit it to see how much damage your squad does."	fights/tf_ui.c:923
 "A team holds %d unit at most.||A team holds %d units at most."	units/mu_window.c:260
 "A unit holds one soul stone: picking another replaces it."	builder/bld_ui.c:775
-"Absorbed"	fights/tf_meter.c:414
+"Absorbed"	fights/tf_meter.c:415
 "Acquired traits"	builder/bld_ui.c:770
 "Active"	builder/bld_ui.c:640
 "Add"	units/mu_window.c:590
@@ -77,7 +77,7 @@
 "Choose a build, open its Details, then press \"Use this unit\"."	gallery/gal_ui.c:93 gallery/gal_ui.c:854 gallery/gal_ui.c:856
 "Choose management difficulty separately"	fights/tf_ui.c:984 fights/tf_ui.c:984
 "Clear"	gallery/gal_ui.c:847 gallery/gal_ui.c:847
-"Click to show or hide the damage per skill."	fights/tf_meter.c:468
+"Click to show or hide the damage per skill."	fights/tf_meter.c:470
 "Close"	units/mu_window.c:584
 "Close (Esc)"	fights/cm_win.c:275
 "Combat"	fights/tf_ui.c:978
@@ -94,13 +94,13 @@
 "Could not save My Units: %s"	units/mu_window.c:80 builder/bld_ui.c:203
 "Could not save the snapshot: %s"	units/mu_window.c:251
 "Custom fight"	fights/tf_ui.c:920
-"DPS"	fights/tf_meter.c:414 fights/tf_meter.c:423
-"DPS (last 5 s)"	fights/tf_meter.c:414
-"DPS Check"	fights/tf_dps.c:557 fights/tf_meter.c:403 fights/tf_ui.c:920
+"DPS"	fights/tf_meter.c:415 fights/tf_meter.c:424
+"DPS (last 5 s)"	fights/tf_meter.c:415
+"DPS Check"	fights/tf_dps.c:558 fights/tf_meter.c:404 fights/tf_ui.c:920
 "DPS log in chat"	fights/tf_dps.c:199
 "Dagger"	units/mu_ui.c:117
-"Damage"	fights/tf_meter.c:421
-"Damage dealt"	fights/tf_meter.c:413
+"Damage"	fights/tf_meter.c:422
+"Damage dealt"	fights/tf_meter.c:414
 "Day %d"	fights/tf_ui.c:938
 "Delete"	units/mu_window.c:324 units/mu_window.c:606
 "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed."	units/mu_window.c:322
@@ -128,7 +128,7 @@
 "Getting the wiki's Test Fights files..."	fights/tf_ui.c:908
 "Grant %s on custom saves"	fights/tf_ui.c:1022
 "Greatsword"	units/mu_ui.c:114
-"Healing"	fights/tf_meter.c:422
+"Healing"	fights/tf_meter.c:423
 "Helmet"	units/mu_ui.c:122
 "Hood"	units/mu_ui.c:122
 "How many"	fights/tf_ui.c:948
@@ -212,11 +212,11 @@
 "Rename"	units/mu_window.c:604
 "Rename team"	units/mu_window.c:607
 "Renamed."	units/mu_window.c:309
-"Repaired by the scarecrow"	fights/tf_meter.c:414
-"Reset"	fights/tf_meter.c:410 fights/tf_meter.c:410
-"Restart test"	fights/tf_meter.c:433 fights/tf_meter.c:448 fights/tf_meter.c:698 fights/tf_meter.c:699
+"Repaired by the scarecrow"	fights/tf_meter.c:415
+"Reset"	fights/tf_meter.c:411 fights/tf_meter.c:411
+"Restart test"	fights/tf_meter.c:434 fights/tf_meter.c:450 fights/tf_meter.c:700 fights/tf_meter.c:701
 "Roll %zu"	builder/bld_ui.c:961
-"Running"	fights/tf_meter.c:580
+"Running"	fights/tf_meter.c:582
 "Save"	units/mu_window.c:627 builder/bld_ui.c:1245 builder/bld_ui.c:1249
 "Save as team"	units/mu_window.c:603
 "Save snapshot"	units/mu_window.c:616 units/mu_window.c:618
@@ -234,7 +234,7 @@
 "Search monsters by name..."	fights/tf_ui.c:945
 "Search: name, author, race, background or weapon"	gallery/gal_ui.c:844
 "Searching..."	gallery/gal_ui.c:216
-"Share"	fights/tf_meter.c:424
+"Share"	fights/tf_meter.c:425
 "Shared %.10s"	gallery/gal_ui.c:472
 "Shield"	units/mu_ui.c:116
 "Skill Trees"	gallery/gal_ui.c:692
@@ -245,13 +245,13 @@
 "Special"	builder/bld_ui.c:663
 "Squad"	fights/tf_ui.c:669
 "Squad: %d / %d"	fights/tf_ui.c:1045
-"Start"	fights/tf_meter.c:407 fights/tf_ui.c:1062 fights/tf_ui.c:1090 fights/tf_ui.c:1090
+"Start"	fights/tf_meter.c:408 fights/tf_ui.c:1062 fights/tf_ui.c:1090 fights/tf_ui.c:1090
 "Start from a gallery build"	builder/bld_ui.c:1040 builder/bld_ui.c:1042
 "Start on first hit"	fights/tf_dps.c:199
 "Stat elixirs"	builder/bld_ui.c:850
 "Stat gain per level"	builder/bld_ui.c:808
-"Stop"	fights/tf_meter.c:409 fights/tf_meter.c:409
-"Stopped"	fights/tf_meter.c:580
+"Stop"	fights/tf_meter.c:410 fights/tf_meter.c:410
+"Stopped"	fights/tf_meter.c:582
 "Sub Accessory"	units/mu_ui.c:119
 "Sub SP left"	builder/bld_ui.c:1122
 "Survival"	builder/bld_ui.c:663
@@ -270,7 +270,7 @@
 "Teams"	gallery/gal_ui.c:755
 "Test"	fights/tf_ui.c:921
 "Test Fight"	gallery/gal_ui.c:616 gallery/gal_ui.c:718 gallery/gal_ui.c:718
-"Test Fights"	fights/tf_meter.c:447 fights/tf_ui.c:1077 fights/tf_ui.c:1149
+"Test Fights"	fights/tf_meter.c:449 fights/tf_ui.c:1077 fights/tf_ui.c:1149
 "Test Fights could not start the wiki's fight maker. Try again later."	fights/tf_ui.c:251 fights/tf_ui.c:260
 "Test Fights needs the wiki's files once (dungeonsettlers.wiki), and they could not be downloaded: %s"	fights/tf_ui.c:246
 "That is not a wiki builder link. Copy a team or unit link on the wiki builder, or paste it here."	units/mu_link.c:59
@@ -318,7 +318,7 @@
 "This unit is not in the save."	units/mu_save.c:169
 "This unit is not one of your clan's units in this save."	units/mu_save.c:372 units/mu_save.c:394
 "Tick the units to send in. A team's tick adds or removes all its units."	fights/tf_ui.c:704
-"Time"	fights/tf_meter.c:413
+"Time"	fights/tf_meter.c:414
 "Torch"	units/mu_ui.c:120
 "Traits"	builder/bld_ui.c:32
 "Traits (%d of %d)"	builder/bld_ui.c:765
@@ -327,7 +327,7 @@
 "Two-handed: no shield."	builder/bld_ui.c:1016
 "Type"	builder/bld_ui.c:633
 "Type a name first."	units/mu_window.c:306
-"Unit"	units/mu_ui.c:214 units/mu_window.c:120 fights/tf_meter.c:420
+"Unit"	units/mu_ui.c:214 units/mu_window.c:120 fights/tf_meter.c:421
 "Unit Builder"	builder/bld_init.c:12 builder/bld_ui.c:1229
 "Unit Builder - Edit"	builder/bld_ui.c:1229
 "Unit name"	units/mu_window.c:284 units/mu_window.c:626 builder/bld_ui.c:1243
@@ -335,7 +335,7 @@
 "Units Laboratory"	home/cm_home.c:203 home/cm_home.c:210
 "Units not in a team"	fights/tf_ui.c:753
 "Use this unit"	gallery/gal_ui.c:658 gallery/gal_ui.c:658
-"Waiting for the first hit"	fights/tf_meter.c:580
+"Waiting for the first hit"	fights/tf_meter.c:582
 "Water Staff"	units/mu_ui.c:118
 "Weapon trees"	gallery/gal_ui.c:770 builder/bld_ui.c:617 builder/bld_ui.c:998
 "What to test"	fights/tf_ui.c:917

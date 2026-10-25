@@ -366,6 +366,9 @@ def main():
             if os.path.exists(os.path.join(I, f)): shutil.copy2(os.path.join(I, f), os.path.join(OUT, f))
     check('the owner\'s real library file is unchanged', fstate(OWNER_LIB) == owner0, OWNER_LIB)
     check('copy never on screen / frontmost', not violations, violations)
+    lg = os.path.join(OUT, 'dsload.log')
+    miss = [l for l in open(lg, errors='replace').read().splitlines() if 'ESC-MISSING' in l] if os.path.exists(lg) else ['no dsload.log']
+    check('sweep: no ESC-MISSING line (every window of ours has its Escape registration; loader NOTES "Escape")', not miss, miss[:3])
     fails = [c for c in checks if not c['ok']]
     json.dump({'checks': checks, 'violations': violations}, open(os.path.join(OUT, 'summary.json'), 'w'), indent=1)
     log(f'RESULT cm esc_test: {len(checks) - len(fails)} PASS, {len(fails)} FAIL')
