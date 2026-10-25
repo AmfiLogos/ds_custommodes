@@ -303,6 +303,10 @@
   U7: boss card in two columns only when every stat name fits its half, else one stat per row (the card grows).
   U8: picking for the Builder, the Details stat line goes under "Use This Unit" (full width).
 - U11: World units sorted by the save time they show (header SaveTime to the second; the file time when there is none).
+- U12: the title's corner buttons (TitleMenuView _roadmapButton / _wishlistButton / _discordButton, under
+  TitleMenuUI/EtcButtonHolderTransform) draw above the kit's screen layer: over our window's corner, not dimmed and
+  clickable through the backdrop. mu_shell_open hides the active ones when the first shell opens; the last
+  mu_shell_close shows exactly those again (gc handles; a title that went away is skipped).
 - Words: ru Discard = "Сбросить", Keep Editing = "Вернуться к редактированию" ("Отменить" is Cancel everywhere);
   "Save to My Units" de "Zu Meinen Einheiten", ru "В «Мои юниты»"; de unit level = "Stufe" (the game's
   TEXTKEY_STATUS_Level_NAME). English Title Case on buttons, rows, headings (keys renamed in all 10 languages).
