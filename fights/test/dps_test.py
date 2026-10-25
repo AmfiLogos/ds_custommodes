@@ -8,13 +8,14 @@ Fails when (the breaks this catches):
   (a) the inspect panel's durability text "<now> / <max>" wraps (more than one line) or runs past the panel's bar at
       1,000,000 / 1,000,000 or 999,999 / 1,000,000 (stock: "1000000" wrapped its last "0" onto a second line);
   (b) the scarecrow's panel (selected, the mouse kept on it) does not follow its durability while it takes damage (stock:
-      it stays as it was when the panel was filled). The follow is the loader's Fix live-hp (HM_BUILD/mods/live-hp, in
-      the kit here); Units Laboratory puts its number form on what that fix draws;
+      it stays as it was when the panel was filled). With the loader's Fix live-hp (HM_BUILD/mods/live-hp, in the kit)
+      that fix does the follow and Units Laboratory puts its number form on it; --no-live-hp: live-hp not in the kit,
+      Units Laboratory's own follow must do it (a test tool always shows live HP; lead 2026-10-25);
   (c) the logged hits do not add up to the durability it lost over the burst (self repair counted apart: a rise between
       two reads);
   (d) a hit is missing from the chat over a 30 s burst (every logged line, in order, in the multiplayer chat's local lines).
   --no-mp: the multiplayer mod off: (d) reads our own log panel's lines instead (it shows; its line count = the hits).
-  dps_test.py [--no-mp]   env: HM_BUILD = a loader build folder (dsload.dylib with the dev key, mods/multiplayer,
+  dps_test.py [--no-mp] [--no-live-hp]   env: HM_BUILD = a loader build folder (dsload.dylib with the dev key, mods/multiplayer,
                                 mods/custom-modes, mods/live-hp); LD_ROOT = a ds_modloader checkout (loader/test helpers; ~/ds_launcher);
                                 LANGTYPE = the game's language (3 de, 4 ru, 7 ja; default en)
 Output: DPS_OUT (default <HM_BUILD>/../test_env/dps/<time>): results.json, frames in drv/cap/."""
@@ -30,6 +31,7 @@ from hostmods_pair import lrig, log, check  # noqa: E402
 X = 'DPS'; HP.H = HP.G = X
 NO_MP = '--no-mp' in sys.argv
 HEAL = '--heal' in sys.argv                                   # a Custom fight: a healer + barrier squad that monsters attack
+LIVE_HP = '--no-live-hp' not in sys.argv
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
 UISCALE = os.environ.get('DPS_UISCALE')
 WIN = os.environ.get('DPS_WIN')                                # e.g. 1920x1080
@@ -310,6 +312,7 @@ def run():
     check('the squad ordered to attack the scarecrow (right click, as a player)', n >= 1, n)
     until(lambda: dps('state').get('hits', 0) > 5, 'the squad hits the scarecrow', 120, 1)
     s = dps('state'); check('the scarecrow selected again, the mouse kept on it', s.get('same') and s.get('bpanel_on'), json.dumps(s)[:300])
+    check('the follow is ' + ('live-hp' if LIVE_HP else "Units Laboratory's own (no live-hp)"), s.get('live_hp') == (1 if LIVE_HP else 0), s.get('live_hp'))
     if PLACE:
         time.sleep(4); placement(PLACE); return
     placement(f'{LANG or "en"}_1.0_960')
@@ -618,9 +621,10 @@ def main():
     try:
         make_library()
         HP.make_copy(X)
-        pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg(),
-              'live-hp': zip_dir(os.path.join(HP.BUILD, 'mods', 'live-hp'), 'live-hp')}
-        HP.kit(X, pk, ['custom-modes', 'live-hp', 'font-probe'], (['custom-modes', 'live-hp', 'font-probe'] if NO_MP else ['multiplayer', 'custom-modes', 'live-hp', 'font-probe']))
+        pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg()}
+        lh = ['live-hp'] if LIVE_HP else []
+        if LIVE_HP: pk['live-hp'] = zip_dir(os.path.join(HP.BUILD, 'mods', 'live-hp'), 'live-hp')
+        HP.kit(X, pk, ['custom-modes'] + lh + ['font-probe'], (['custom-modes'] + lh + ['font-probe'] if NO_MP else ['multiplayer', 'custom-modes'] + lh + ['font-probe']))
         if WIN:                                                   # another window size: the copy's settings and its start arguments
             ww, wh = (int(v) for v in WIN.split('x'))
             lrig.win_size = lambda: (ww, wh)

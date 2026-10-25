@@ -1,5 +1,16 @@
 # Notes
 
+## RULE for every window (owner 2026-10-25: Escape; read before adding a window, box or panel)
+- Every window, panel or box of this mod registers with the loader kit's Escape stack where it is built or shown
+  (`dsl_esc_push`, dsl_sdk.h; `dsl_esc_drop` where it hides; a destroyed one drops itself). One press acts on the TOP
+  window only, as its own button does, with the same cleanup: a sub-page with a Back button goes Back one level first
+  (cm_win.c `cmw_set_back`), a confirm box = Cancel (the kit's notice box is pushed by the kit), a focused text field =
+  only leave the field (an edit row or box also cancels: `DSL_ESC_EDIT`), else the window's own Close / X / Cancel. The game
+  never gets that press. A HUD panel with no Close (DPS meter, DPS log): `DSL_ESC_HUD`.
+- A new window without it is a bug: add a case to units/test/esc_test.py. In test copies the kit logs `ESC-MISSING` for a
+  root panel with no registration, and the test's sweep fails on it.
+- Full rule and how-to: ds_modloader loader/NOTES.md "Escape".
+
 ## Where this repo comes from (2026-10-16)
 - History = `git subtree split -P custom` of ds_multiplayer main 1c8f1af (40 commits, last 8a7c362). Tag `v13` = 8a7c362:
   its files are the same as ds_multiplayer v13 (29f0fa6) custom/ (tree 1f55b21).
@@ -211,7 +222,9 @@
   grows away from the "/" (now right-aligned, max left-aligned) into the bar's free room; only if that is too narrow both
   shrink alike (never under 60 %). en/de/ru/ja: 1,000,000 fits at the game's size. The panel follows the shown building's
   durability through the loader's Fix live-hp ("Live building HP", every building; it calls UpdateBuildingEntityUI on each
-  change, so this hook's number form runs each time). Until 0.1.26 the frame tick here did that for the scarecrow only.
+  change, so this hook's number form runs each time). Without live-hp (not installed, switched off, failed) the frame tick
+  here keeps the scarecrow's panel current itself (live_tick; `live_hp` asked every 30 frames, not at init: live-hp's own
+  init runs after ours).
 - Stock (decomp 25846389): a building's durability in that panel is set only when the panel is filled
   (EntitySummaryUIPresenter.RefreshSummary); status changes refresh UNITS only. So every building's panel stands still in
   the stock game; the Fix live-hp makes them all follow. Measured: with no follow the text stayed while durability fell.
@@ -257,8 +270,8 @@
 - 0.1.26 (owner asks 1-9, 2026-10-25, task file LANE_TASKS_dsdps): the full numbers stay (no "997.3K"). The Inspect window
   (SubUI_EntityInspectionStatus.SetBuildingStatus hook) follows too: the Fix live-hp calls SetBuildingStatus again on
   each change (with the entity's own StatusReader); this hook writes the rows in the thousands form, with the bottom
-  panel's StatusReader, through DASText.SetText (a TMP set_text on a DASText is replaced by its own copy). The per-frame
-  follow that was here (live_tick / ins_tick, the "live" test switch) moved to live-hp (dshpfix, 2026-10-25).
+  panel's StatusReader, through DASText.SetText (a TMP set_text on a DASText is replaced by its own copy). Without
+  live-hp, ins_tick does the window's follow here.
 - DPS meter (fights/tf_meter.c): left side, folds, Start / Stop / Reset, "Start on first hit"; time, damage dealt, DPS,
   DPS last 5 s, what the scarecrow repaired (StatusSimulator.Simulate hook: Stat Durability on it, the log's Amount);
   one row per unit (portrait, name, damage, DPS, share, bar), a click shows its skills. The ONE hit list (tf_dps_hits)
@@ -286,9 +299,11 @@
   Heals that add nothing (full health) are not logged; the overheal part is not known from the game's heal log (it holds
   max health and max health + the added part only), so "(n over)" never shows yet.
 - Meter: "Healing" column (squad units, per skill too), "Absorbed" line; only damage on the scarecrow counts as damage.
-- The panel / Inspect follow is the Fix live-hp only (it makes every building follow; our own copy was removed): without it the
-  DPS Check panel stands still, as every building in the stock game.
-- 0.1.29: effects in the log start with the fight's first damage of any kind (they waited for a scarecrow hit, so a fight
+- Who follows (lead 2026-10-25: "the DPS Check is a test tool and must always show live HP"): with the Fix live-hp running,
+  live-hp only (every building; our hooks add the number form); without it, our own live_tick / ins_tick (scarecrow only).
+  One owner per hook site holds: ours is a frame poll, live-hp's is EntitySummaryUIPresenter.RefreshOnFrame. Units
+  Laboratory 0.1.28 / 0.1.29 (7a77697, a97607e) had no own follow: dps_test --no-live-hp fails there ((b), (b2)), passes on 0.1.31.
+- 0.1.32: effects in the log start with the fight's first damage of any kind (they waited for a scarecrow hit, so a fight
   without the scarecrow showed none). dps_test.py --heal: a healer (Healing Touch) + barrier squad in a Custom fight
   (plain Grey Monster Rats + Blue Goblins attack it), the log and meter forced on there by the test switch "force 1" (same
   code as in a DPS Check). Proven: heals "+X" in green under the healer's header, the meter's Healing = the heal lines it
