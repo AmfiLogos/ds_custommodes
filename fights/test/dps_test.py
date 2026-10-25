@@ -28,6 +28,7 @@ from hostmods_pair import lrig, log, check  # noqa: E402
 
 X = 'DPS'; HP.H = HP.G = X
 NO_MP = '--no-mp' in sys.argv
+HEAL = '--heal' in sys.argv                                   # a Custom fight: a healer + barrier squad that monsters attack
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
 UISCALE = os.environ.get('DPS_UISCALE')
 WIN = os.environ.get('DPS_WIN')                                # e.g. 1920x1080
@@ -65,6 +66,16 @@ def probe_pkg():
 
 def make_library():
     fx = json.load(open(os.path.join(REPO, 'units', 'test', 'data', 'launcher_library.json')))
+    if HEAL:                                                      # healer (Healing Touch), barriers: Iron Clad (7), Fire Cloak (4, 1)
+        units = [fx['units'][i] for i in (24, 7, 4, 1)]
+        units[1]['build'].setdefault('eq', {})['Primary'] = 'ITEM_CopperSword'
+        for i, u in enumerate(units):
+            u['id'] = f'{0xc0 + i:02x}' * 8
+        lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
+               'teams': [{'id': 'ee' * 8, 'name': 'Heal squad', 'unit_ids': [u['id'] for u in units]}]}
+        os.makedirs(os.path.dirname(LIB), exist_ok=True)
+        json.dump(lib, open(LIB, 'w'), indent=2)
+        return
     units = fx['units'][:4]
     for i, u in enumerate(units):                                 # the fixture units carry no weapon: a squad must hit
         u['id'] = f'{0xb0 + i:02x}' * 8
@@ -479,6 +490,130 @@ def run():
     log('last lines', json.dumps(dps('state').get('last'), ensure_ascii=False))
 
 
+def cmf(**kw):
+    r = req('call', fn='cmf_test', s=json.dumps(kw))
+    try:
+        return json.loads(r.get('out') or '{}')
+    except ValueError:
+        return {}
+
+
+def group_check(L, E, kinds=(0, 1, 2)):
+    """the lines [0, L) against the events [0, E): one indented line per (source, tick); each part of a kind in `kinds` with
+    the events' count and total (absorb: "absorbed N")"""
+    alll = dlog('0').split('\n')[:L]; ev = hits_dump(0)[:E]
+    groups, order = {}, []
+    for h in ev:
+        k = (h['unit'], h['tick'])
+        if k not in groups:
+            groups[k] = []; order.append(k)
+        groups[k].append(h)
+    ind = [x for x in alll if x.startswith('<indent=')]
+    bad = []
+    for gi, k in enumerate(order[:len(ind)]):
+        want = {}
+        for h in groups[k]:
+            w = want.setdefault((h['kind'], h['skill'][:28]), {'n': 0, 'tot': 0.0})
+            w['n'] += 1; w['tot'] += h['dmg']
+        raw = ind[gi]; got = parse_line(raw); plain = re.sub(r'<[^>]*>', '', raw)
+        for (kind, nm), w in want.items():
+            if kind not in kinds:
+                continue
+            if kind == 2:
+                m = re.search(r'%s \(.*?\): absorbed (\d+)' % re.escape(nm.split('...')[0][:20]), plain)
+                if not m or abs(int(m.group(1)) - round(w['tot'])) > 1:
+                    bad.append({'line': plain[:160], 'want': [kind, nm, w]})
+                continue
+            g = next((p for p in got if p['name'].startswith(nm.split('...')[0][:20])), None)
+            if not g or g['n'] != w['n'] or abs(sum(abs(a) for a in g['amts']) - round(w['tot'])) > max(1, w['n']):
+                bad.append({'line': plain[:160], 'want': [kind, nm, w], 'got': got[:3]})
+            elif kind == 1 and ('<color=#7EC86B>' not in raw or '+' not in g.get('rest', '')):
+                bad.append({'line': raw[:200], 'heal_not_green_or_unsigned': nm})
+    return alll, ev, ind, order, bad
+
+
+def run_heal():
+    """a Custom fight (monsters attack the squad); the log and meter forced on for it (test switch: the same code as in a
+    DPS Check, which has no attacker)"""
+    rows = column()
+    lab = next((r[0] for r in rows if r and r[0] == 'Units Laboratory' and len(r) > 1 and r[1] == '1'), None) or by_index(rows, COL_LAB) or 'Units Laboratory'
+    click('title:' + lab, 3); click('home:Test Fights', 3)
+    until(lambda: tfs().get('engine') == 2, "the wiki's Test Fights files", 300, 2)
+    click('fights:l.team0', 2)
+    cmf(cmd='set', name='fights:r.mode', index=2); time.sleep(1.5)
+    check('Custom fight chosen for the healer + barrier squad', tfs().get('mode') == 'arena' and tfs().get('squad') == 4, json.dumps(tfs()))
+    cmf(cmd='set', name='fights:r.moncount', index=2); time.sleep(0.5)        # 3 of each
+    added = 0
+    for q in ('Rat', 'Goblin', 'Slime', 'Spider', 'Bat'):           # plain monsters (not the Abyss ones: they would wipe the squad)
+        cmf(cmd='type', name='fights:r.monq', text=q); time.sleep(1.2)
+        for h in range(12):
+            r = req('rect', target=f'fights:r.hit{h}')
+            if r.get('rc', -1) <= 0:
+                break
+            if 'abyss' not in (r.get('text') or '').lower():
+                log('monster', r.get('text')); cmf(cmd='click', name=f'fights:r.hit{h}'); time.sleep(1.0); added += 1
+                break
+        if added == 2:
+            break
+    check('monsters added to the room', added > 0, added)
+    dps('force 1')
+    click('fights:start', 1)
+    until(lambda: (lambda s: s.get('on') == 1 and s.get('title') == 0)(dps('state')), 'the Custom fight world', 600, 3)
+    time.sleep(6); click('dps:start', 0.5)
+    p = dps('pos').get('b', []); json.dump(p, open(os.path.join(OUT, 'heal_pos.json'), 'w'))
+    squad = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' in b.get('go', '')]
+    foes = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' not in b.get('go', '')]
+    log('squad', len(squad), 'foes', [(f['go'], f['w']) for f in foes][:6])
+    if foes:                                                      # each unit: select it, right-click the nearest monster (a player's order)
+        for u in squad:
+            f = min(foes, key=lambda f: (f['w'][0] - u['w'][0]) ** 2 + (f['w'][1] - u['w'][1]) ** 2)
+            for dy in (0, 12, 24):
+                req('click_xy', x=u['s'][0], y=u['s'][1] + dy); time.sleep(0.8)
+                if not dps('state').get('bpanel_on'):
+                    break
+            req('click_xy', x=f['s'][0], y=f['s'][1] + 12, button=1); time.sleep(0.8)
+    t0 = time.time()
+    while time.time() - t0 < 120:
+        ev = dps('state').get('ev') or {}
+        if ev.get('heal', 0) >= 4 and ev.get('absorb', 0) >= 2:
+            break
+        time.sleep(3)
+    time.sleep(3); click('dps:stop', 0.5); time.sleep(1.0)
+    shot('heal_fight_meter')
+    st = dps('state'); m = meter()
+    alll, ev, ind, order, bad = group_check(st['lines'], st['ev_done'])
+    json.dump({'lines': alll, 'events': ev, 'units': units_dump(), 'meter': m}, open(os.path.join(OUT, 'heal_events.json'), 'w'), ensure_ascii=False, indent=0)
+    un = units_dump()
+    heals = [h for h in ev if h['kind'] == 1]; absorbs = [h for h in ev if h['kind'] == 2]
+    info.update({'heal_events': len(heals), 'absorb_events': len(absorbs), 'dmg_events': sum(1 for h in ev if h['kind'] == 0)})
+    check(f'heals and absorbs happened in the fight ({len(heals)} heals, {len(absorbs)} absorbs)', heals and absorbs, st.get('ev'))
+    check('every heal and absorb is in the log: one line per unit and tick, heal "+X" in green with its source and target, absorb on its own "absorbed N"',
+          len(ind) == len(order) and not bad, json.dumps({'lines': len(ind), 'groups': len(order), 'bad': bad[:3]}, ensure_ascii=False)[:800])
+    heads_ok = True
+    cur = None
+    for x in alll:                                                # a heal part sits under its healer's header
+        if x and not x.startswith('<indent='):
+            cur = re.sub(r'<[^>]*>', '', x).replace('​', '')
+        elif x.startswith('<indent=') and '#7EC86B' in x and cur is None:
+            heads_ok = False
+    healers = {un[h['unit']]['name'] for h in heals}
+    check('heal lines sit under the healer\'s header', heads_ok and all(any(re.sub(r'<[^>]*>', '', x).replace('​', '') == n for x in alll) for n in healers), sorted(healers))
+    spans = m.get('spans') or []
+    def inspan(i):
+        return any(a <= i < (b if b is not None and b >= 0 else 10 ** 9) for a, b in spans)
+    full = hits_dump(0)                                           # every event (the meter's spans may reach past the lines' last tick)
+    hs = sum(h['dmg'] for h in full if h['kind'] == 1 and inspan(h['i']) and un.get(h['unit'], {}).get('player'))
+    asum = sum(h['dmg'] for h in full if h['kind'] == 2 and inspan(h['i']))
+    dsum = sum(h['dmg'] for h in full if h['kind'] == 0 and h['on_dummy'] and inspan(h['i']))
+    check('the meter\'s Healing = the sum of the squad\'s heal lines it measured; Absorbed = the sum of the absorbs; damage dealt holds neither',
+          abs(m.get('heal', -1) - hs) < 0.01 and abs(m.get('absorbed', -1) - asum) < 0.01 and abs(m.get('total', -1) - dsum) < 0.01 and hs > 0,
+          json.dumps({'meter': [m.get('heal'), m.get('absorbed'), m.get('total')], 'logged': [hs, asum, dsum], 'spans': spans[:3]}))
+    uh = {u['name']: u for u in m.get('units') or []}
+    sk_bad = [u for u in uh.values() if abs(sum(x.get('heal', 0) for x in u.get('skills') or []) - u.get('heal', 0)) > 1e-3]
+    check('each unit\'s Healing = its skills\' Healing', not sk_bad and any(u.get('heal', 0) > 0 for u in uh.values()), json.dumps(sk_bad[:2], ensure_ascii=False)[:300])
+    req('key', code=36); time.sleep(1.5); shot('heal_fight_chat'); req('key', code=53)
+
+
 info = {}
 def main():
     g = threading.Thread(target=HP.guard, daemon=True); g.start()
@@ -514,7 +649,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
-        run()
+        run_heal() if HEAL else run()
     except BaseException as e:
         log(traceback.format_exc())
         check('run finished', False, repr(e))

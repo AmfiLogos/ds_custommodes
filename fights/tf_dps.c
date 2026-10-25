@@ -469,7 +469,7 @@ static Obj h_hsim(Obj self, Obj data, float last, float cur, Obj *apply, const v
 static int32_t f_al_user = -1, f_al_tgt = -1, f_al_key = -1, f_ad_exec = -1;
 static Obj h_asim(Obj self, Obj data, float last, float cur, Obj *apply, const void *mi) {
     Obj log = o_asim(self, data, last, cur, apply, mi);
-    if (dps_on && !title_up && hits && log && data && f_al_key >= 0) {
+    if (dps_on && !title_up && n_dmg_ev && log && data && f_al_key >= 0) {   /* once the fight runs (any damage) */
         Obj user = FLD(log, f_al_user, Obj), tgt = FLD(log, f_al_tgt, Obj);
         char key[80]; cm_il_utf8(FLD(log, f_al_key, Obj), key, sizeof key);
         char tk[160], tx[96]; snprintf(tk, sizeof tk, "TEXTKEY_%s_NAME", key);
@@ -642,8 +642,9 @@ static void tick(void *ud) {
     fb_tick();
 }
 
+static int force_any;                                    /* test: the log and meter in any wiki-made test world (a Custom fight) */
 void tf_dps_world(const char *stem) {
-    int on = tfw_dps_made(stem); nworld++;
+    int on = tfw_dps_made(stem) || (force_any && tfw_wiki_made(stem)); nworld++;
     ngrp = 0;                                            /* a group left from the world before never reaches the new log */
     if (on || dps_on) cmw_log("tf: %s: DPS Check log and panel %s%s", stem, on ? "on" : "off", restarting ? " (restart)" : "");
     if (on) { log_clear(); fb_off = 0; fb_n = (size_t)-1; restart_line = restarting ? 30 : 0; restarting = 0; }   /* the line once the world shows */
@@ -806,6 +807,7 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
     size_t o = 0; out[0] = 0;
     Obj view = cm_il_hget(h_view), bs = cm_alive(view) && f_v_bsui >= 0 ? FLD(view, f_v_bsui, Obj) : NULL;
     if (!strncmp(s, "live ", 5)) { live = atoi(s + 5); snprintf(out, cap, "{\"live\":%d}", live); return 0; }
+    if (!strncmp(s, "force ", 6)) { force_any = atoi(s + 6); snprintf(out, cap, "{\"force\":%d}", force_any); return 0; }
     if (!strncmp(s, "sw ", 3)) { int k = -1, v = 0; if (sscanf(s + 3, "%d %d", &k, &v) == 2) tf_dps_switch_set(k, v); snprintf(out, cap, "{\"sw\":%d}", tf_dps_switch(k)); return 0; }
     if (!strcmp(s, "vfx")) {                             /* speech bubbles and floating numbers on screen now */
         void *ksp = cm_il_class("Refactor.FX", "VFX_Speech"), *kdt = cm_il_class("Refactor.FX", "VFX_DataText"), *ktx = cm_il_class("TMPro", "TMP_Text");
