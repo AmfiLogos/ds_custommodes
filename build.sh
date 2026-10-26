@@ -19,9 +19,10 @@ SHA=$(git -C $MP_REPO rev-parse --verify -q "$PIN^{commit}" || { git -C $MP_REPO
 T=$H/build/mp/$SHA
 if [[ ! -f $T/win/build_win.sh ]]; then mkdir -p $T.tmp; git -C $MP_REPO archive $SHA src sdk win | tar -x -C $T.tmp; mv $T.tmp $T; fi
 SDK=${SDK:-$T/sdk}; SDK=${SDK:A}
-# the kit's templates (window_std, card_toggle, rules_own: ds_modloader d529f52+; panel_size: kit 0.1.29) are used: an older
-# dsl_sdk.h copy stops here
-grep -q dsl_panel_size $SDK/dsl_sdk.h || { echo "dsl_sdk.h in $SDK has no kit templates (dsl_panel_size): build with SDK=<ds_modloader>/loader/sdk" >&2; exit 1; }
+# the kit's templates (window_std, card_toggle, rules_own: ds_modloader d529f52+; panel_size, view_find: kit 0.1.29) are
+# used: an older dsl_sdk.h copy stops here
+grep -q dsl_panel_size $SDK/dsl_sdk.h && grep -q dsl_view_find $SDK/dsl_sdk.h \
+  || { echo "dsl_sdk.h in $SDK has no kit templates (dsl_panel_size, dsl_view_find): build with SDK=<ds_modloader>/loader/sdk" >&2; exit 1; }
 
 if [[ $WHAT == (mac|all) ]]; then
   O=$H/build/mac/custom-modes; mkdir -p $O

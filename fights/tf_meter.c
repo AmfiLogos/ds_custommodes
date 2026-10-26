@@ -670,7 +670,7 @@ static void band_update(DSLObj any_root) {
     if (PL.list_found) to_units(PL.rs, &PL.list);
     PL.up_found = PL.layer_found && !unit_rect(PL.us, PL.ls);
     if (PL.up_found) { RU u; to_units(PL.us, &u); PL.up_top = u.y0; }
-    { Obj iv = cm_kept(&keep_eiv, k_eiv, true, false);    /* owner: the Inspect window must stay readable: the meter goes right of it */
+    { Obj iv = cm_kept(&keep_eiv, k_eiv, DSL_VIEW_WORLD | DSL_VIEW_INACTIVE, false);    /* owner: the Inspect window must stay readable: the meter goes right of it */
                                                           /* (kept, shown or not: no scene search per 30 frames) */
       PL.ins_found = PL.layer_found && iv && go_on(iv) && !scr_rect(iv, PL.is);
       PL.ins_x1 = 0; if (PL.ins_found) { RU u; to_units(PL.is, &u); PL.ins_x1 = u.x1; } }
