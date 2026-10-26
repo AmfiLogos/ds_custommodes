@@ -4,7 +4,14 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.45)
+### Unreleased (0.1.46)
+
+Performance:
+- Less stutter while you play: Units Laboratory no longer searches the whole game scene twice every 30 frames to check
+  for the title screen. It now reads which screen the game shows, so it costs nothing in a world or while a world loads.
+- The icons that load ahead for the Units Laboratory windows load only on the title screen. Before, they went on loading
+  in a world, a few milliseconds every 50 ms.
+- In a DPS Check world the DPS meter remembers the Inspect window instead of searching for it every 30 frames.
 
 Test Fights:
 - World Units shows four unit cards at once (it showed two): the cards are shorter (the name and the race share one

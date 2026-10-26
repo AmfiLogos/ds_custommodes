@@ -11,6 +11,15 @@
   root panel with no registration, and the test's sweep fails on it.
 - Full rule and how-to: ds_modloader loader/NOTES.md "Escape".
 
+## RULE: no scene search in a frame or a tick (2026-10-26, frame-time audit)
+- Never call FindObjectOfType / FindAnyObjectByType / FindObjectsOfType(All) from a frame tick, a timer tick or anything
+  called every few frames: one search walks every object of the scene (2-10 ms in a world). Keep the object with
+  `cm_kept` (home/cm_il.h: weak GC handle, alive + active check, a search at most once a second while it is missing);
+  "is the title up" is `cmw_title_shown()` (no search outside the title). Searches on a click or on a window opening are
+  fine. When the loader kit offers its view-lookup helper (lane fpsscan), `cm_kept` goes through it.
+- Guard: the loader's test copies log `SCAN-RULE <module> <n>/min` (ds_modloader loader/test/scan_rate_test.py, lane
+  fpsscan); custom-modes must stay near 0 in a world.
+
 ## Where this repo comes from (2026-10-16)
 - History = `git subtree split -P custom` of ds_multiplayer main 1c8f1af (40 commits, last 8a7c362). Tag `v13` = 8a7c362:
   its files are the same as ds_multiplayer v13 (29f0fa6) custom/ (tree 1f55b21).
@@ -516,3 +525,26 @@
   listed world after the title and a restart are all still known; a wiki download, a player's world and a v4 guid that
   starts with 7e57f167 are not. With main's logic (no mark, no record): FAIL 6. fights/test/title_test.py checks the
   game loads the test world with the marked guid.
+
+## Frame time: no scene search in a world (2026-10-26, 0.1.46, lane fpsul)
+- Problem (ds_multiplayer ext/fpsaudit mp.md #2, #6, #12, #13; mac_measure.md): `cmw_title_shown` was one
+  FindAnyObjectByType(TitleMenuView) per call, and tf_worlds.c + tf_meter.c called it every 30 frames on adjacent frames
+  in every world (the view never exists there, so the whole scene was walked twice every 0.5 s at 60 fps). Measured by
+  the audit: MainFlow.Update frames over 2 ms 568/min with custom-modes on, 46/min off (pair 2: 129 -> 33);
+  cmw_title_shown 2.4 % of the main thread. The icon warm-up (mu_warm.c, ~3 ms every 50 ms) went on in a world.
+- Fix: `cmw_title_shown` reads MainFlow._currentScene (Title = 1) and SceneLoader.IsLoading first: no search in a world
+  or while a scene loads. At the title, MainFlow and the TitleMenuView are kept with `cm_kept` (new, home/cm_il.c: weak
+  GC handle, op_Implicit = m_CachedPtr, activeInHierarchy as FindAnyObjectByType counts it; a search at most once a
+  second while missing). Its callers did not change: the boot language poll (cm_i18n.c, every frame until the title for a
+  non-English player) is a field read now. mu_warm.c loads icons only while `cmw_title_shown()` (it waits in a world and
+  goes on back at the title). tf_meter.c keeps the Inspect window (EntityInspectionView) with `cm_kept` (inactive ones
+  too) instead of a search every 30 frames in DPS Check worlds.
+- Measured (hidden copy, multiplayer + custom-modes + gcd-cdr + live-hp + sound-fix, wiki base save under a fresh world id,
+  60 fps, same kit but custom-modes): world MainFlow.Update > 2 ms 144/min (main 5993c16) -> 87/min (fix), the 0.5 s
+  custom-modes pattern 95 -> 9 gaps; macOS `sample` 50 s in the world: cmw_title_shown 206 samples (main) -> 0, all
+  custom-modes 259 -> 47 samples (44 of them the game's own InputDispatcher.Update under our hook). What is left is
+  multiplayer's 2 s pattern and the loader's own (fpsaudit core.md).
+- Left as they are (not per frame): mu_look.c `first_of` (Resources.FindObjectsOfTypeAll of a game table, once per
+  title show while its kept handle is dead); tf_meter.c list / unit panel searches (kept, a retry every 120 frames only
+  while missing, DPS Check worlds); tf_dps.c managed strings per combat event (DPS Check worlds only, GC garbage, mp.md
+  #12); the test-only `continue_name` search (test command `state`).
