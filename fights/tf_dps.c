@@ -672,13 +672,15 @@ static void fb_build(void) {
     U->place(fb_root, 130, lh - 130 - FB_H, FB_W, FB_H);   /* bottom-left above the build bar, where the multiplayer chat sits */
     cmw_flat(U->panel(fb_root, 0, 0, FB_W, 30, 0), 0x2D2A31FFu);
     cmw_flat(U->panel(fb_root, 0, 30, FB_W, 1, 0), 0xB6835AFFu);
-    U->text(fb_root, 12, 0, FB_W - 24, 30, TR("DPS Check"), 15, DSL_TXT_LEFT, 0xD9BE8FFFu);
+    int sized = DSL_UI_HAS(U, panel_size);                /* SIZE RULE: the kit's "-" / "+" at the title band's right end */
+    U->text(fb_root, 12, 0, FB_W - 24 - (sized ? 54 : 0), 30, TR("DPS Check"), 15, DSL_TXT_LEFT, 0xD9BE8FFFu);
     fb_txt = U->text(fb_root, 12, 36, FB_W - 24, FB_H - 42, "", 15, DSL_TXT_LEFT, 0xE8DCC8FFu);
     Obj t = cm_text_of(fb_txt); if (t && m_rich.fn) CM_CALL(m_rich, void, Obj, bool, const void *)(t, true, m_rich.mi);   /* our own tags; names escaped */
     cm_text_ellipsis(fb_txt);
     cm_raycast(fb_root, true);
     int sf = dsl_scale_follow(U, fb_root), mv = dsl_movable(U, fb_root, "custom-modes.dps_log");   /* UI Scale; MOVE RULE: right-drag, kept place */
-    cmw_log("tf: DPS log panel built (UI Scale %d, right-drag move %d)", sf, mv);
+    DSLObj sz = dsl_panel_size(U, fb_root, "custom-modes.dps_log", 8, 4, 0);   /* the kit draws UI Scale x the "-" / "+" size */
+    cmw_log("tf: DPS log panel built (UI Scale %d, right-drag move %d, \"-\" / \"+\" %s)", sf, mv, sz ? "on" : "not in this kit");
 }
 static void fb_tick(void) {
     int want = fb_use && nl > 0 && !title_up && tf_dps_switch(TFD_SW_CHATLOG);

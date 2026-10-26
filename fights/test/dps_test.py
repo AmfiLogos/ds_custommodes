@@ -289,6 +289,44 @@ def chat_lines(frm=0):
     return int(chat[0] or 0), int(chat[1] or 0), [x for x in chat[2:] if x != ''] if len(chat) > 2 else []
 
 
+def size_click(btns, plus):
+    """a left click on the kit's "-" (left half) or "+" (right half) of a panel_size holder (screen px, y up: x0, y0, x1, y1)"""
+    w = (btns[2] - btns[0]) * 22 / 46.0
+    req('click_xy', x=btns[2] - w / 2 if plus else btns[0] + w / 2, y=(btns[1] + btns[3]) / 2); time.sleep(1.5)
+
+
+def size_checks():
+    """SIZE RULE (owner 2026-10-25: "allow to both make the chat and the DPS check window smaller or bigger with a plus or
+    minus"): the kit's "-" / "+" (dsl_panel_size) on the DPS meter and on the chat: 10 % a click, the panel and its text,
+    kept for the next start (ui_places.tsv); each is left at 100 % for the checks after this"""
+    wd = lambda r: (r or [0, 0, 0, 0])[2] - (r or [0, 0, 0, 0])[0]
+    m0 = meter(); zb = m0.get('size_btns') or [0]
+    check('size: the DPS meter has "-" / "+" (kit panel_size)', zb[0] == 1 and zb[3] - zb[1] > 4 and abs(m0.get('size', 0) - 1) < 1e-3, (m0.get('size'), zb))
+    if zb[0] == 1:
+        size_click(zb[1:], True); m1 = meter()
+        size_click((m1.get('size_btns') or [0, 0, 0, 0, 0])[1:], False); size_click((meter().get('size_btns') or [0, 0, 0, 0, 0])[1:], False); m2 = meter()
+        places = os.path.join(lrig.idir(X), 'data', 'Mods', 'ui_places.tsv')
+        kept = os.path.exists(places) and 'custom-modes.dps_meter@size\t0.9' in open(places, encoding='utf-8', errors='replace').read()
+        shot(f'meter_size90_{LANG or "en"}')
+        check('size: the DPS meter: "+" = 110 %, "-" "-" = 90 % (its rect with it), the size kept in ui_places.tsv',
+              abs(m1.get('size', 0) - 1.1) < 1e-3 and abs(wd(m1.get('rect')) / wd(m0.get('rect')) - 1.1) < 0.03
+              and abs(m2.get('size', 0) - 0.9) < 1e-3 and abs(wd(m2.get('rect')) / wd(m0.get('rect')) - 0.9) < 0.03 and kept,
+              json.dumps({'w': [wd(m0.get('rect')), wd(m1.get('rect')), wd(m2.get('rect'))], 'size': [m1.get('size'), m2.get('size')], 'kept': kept}))
+        size_click((m2.get('size_btns') or [0, 0, 0, 0, 0])[1:], True)
+    if NO_MP:
+        return
+    chat = lambda: (HP.c(X, cmd='mpm_status') or {}).get('chat') or {}
+    req('key', code=36); time.sleep(1.5); c0 = chat(); zb = c0.get('zoom_btns')     # Enter: the box (read only: no session)
+    check('size: the chat\'s open box has "-" / "+" (kit panel_size)', zb and zb[3] - zb[1] > 4 and abs(c0.get('zoom', 0) - 1) < 1e-3, (c0.get('zoom'), zb))
+    if zb:
+        size_click(zb, True); c1 = chat(); shot(f'chat_size110_{LANG or "en"}'); size_click(c1.get('zoom_btns') or zb, False); c2 = chat()
+        check('size: the chat: "+" = 110 % (the open box with it), "-" = 100 % again',
+              abs(c1.get('zoom', 0) - 1.1) < 1e-3 and abs(wd(c1.get('rect')) / wd(c0.get('rect')) - 1.1) < 0.03
+              and abs(c2.get('zoom', 0) - 1) < 1e-3 and abs(wd(c2.get('rect')) - wd(c0.get('rect'))) <= 2,
+              json.dumps({'w': [wd(c0.get('rect')), wd(c1.get('rect')), wd(c2.get('rect'))], 'zoom': [c1.get('zoom'), c2.get('zoom')]}))
+    req('key', code=53); time.sleep(0.5)
+
+
 BASIC = {None: 'Basic Attack', '3': 'Grundangriff', '4': 'Базовая атака', '7': '基本攻撃'}
 
 
@@ -523,6 +561,7 @@ def run():
           abs((r1[0] - r0[0]) - 160) < 20 and abs((r1[3] - r0[3]) + 90) < 20 and r2 == r1 and (m3.get('moved') or [0])[0] == 1 and kept,
           json.dumps({'before': r0, 'after': r1, '3s': r2, 'moved': m3.get('moved'), 'kept': kept}))
     check('round 2: "Restart Test Floor" fits its button (no ellipsis)', (m3.get('restart_cut') or [1])[0] == 0, m3.get('restart_cut'))
+    size_checks()
     # Restart test, twice: a fresh world (scarecrow full, the squad at its start spots, the same objects), the meter at 0
     for r_i in (1, 2):
         click('dps:restart', 0.5)

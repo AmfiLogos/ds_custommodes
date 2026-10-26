@@ -332,7 +332,8 @@ typedef struct { DSLObj b, por, name, dmg, heal, dps, sh, fill; int unit, on, po
 typedef struct { DSLObj p, name, dmg, heal, dps, hits; int on; float y; char tn[96], td[40], tl[40], tp[40], th[24]; } SRow;
 #define NSW 4
 #define NVAL 6
-static DSLObj p_root, p_body, p_fold, p_status, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail;
+static DSLObj p_root, p_body, p_fold, p_status, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail, p_size;
+static float p_f = 1;                                     /* its "-" / "+" size when it was last placed (kit panel_size) */
 static DSLObj s_root, s_btn;
 static char c_status[96], c_val[NVAL][48];
 static Row *rows; static int nrows; static SRow *srows; static int nsrows;
@@ -401,7 +402,7 @@ static void fold_click(void *ud, DSLObj w) {
 static void forget_all(void) {
     cmw_forget("dps:");
     free(rows); rows = NULL; nrows = 0; free(srows); srows = NULL; nsrows = 0;
-    p_root = p_body = p_fold = p_status = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = NULL;
+    p_root = p_body = p_fold = p_status = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = p_size = NULL; p_f = 1;
     memset(t_sw, 0, sizeof t_sw); memset(l_val, 0, sizeof l_val);
     c_status[0] = 0; memset(c_val, 0, sizeof c_val); rows_h = -1;
     en_start = en_stop = en_rst = st_kind = s_en = -1;
@@ -422,7 +423,10 @@ static int build_full(void) {
     plate(p_root, 0, BAR, MW, 1, COPPER);
     p_fold = U->button(p_root, 4, 3, 26, 26, "\xE2\x80\xBA", fold_click, NULL);
     txt(p_root, 36, 0, 150, BAR, TR("DPS Check"), 17, DSL_TXT_LEFT | DSL_TXT_TITLE, GOLD);
-    p_status = cmw_named(txt(p_root, 190, 0, MW - 190 - PAD, BAR, "", 13, DSL_TXT_RIGHT, SUB), CMW_TEXT, "dps:status", NULL, NULL, "");
+    /* SIZE RULE (owner 2026-10-25: "make ... the DPS check window smaller or bigger with a plus or minus"): the kit's "-" / "+"
+       at the title bar's right end (made below); a long status then takes two lines left of them (the kit's text fit) */
+    int sized = DSL_UI_HAS(U, panel_size);
+    p_status = cmw_named(txt(p_root, 190, 0, MW - 190 - PAD - (sized ? 52 : 0), BAR, "", 13, DSL_TXT_RIGHT, SUB), CMW_TEXT, "dps:status", NULL, NULL, "");
     p_body = plate(p_root, 0, 0, MW, 400, 0);             /* everything under the title bar: hidden while folded */
     float bw = (RW - 12) / 3;
     const char *ls = cm_gw("TEXTKEY_Common_Start", TR_NOOP("Start"));
@@ -453,10 +457,11 @@ static int build_full(void) {
     }
     b_restart = U->button(p_body, PAD, Y_ROWS, RW, 32, TR("Restart Test Floor"), restart_click, NULL);
     cm_raycast(p_root, true);                             /* the panel takes the clicks over it */
+    p_size = dsl_panel_size(U, p_root, "custom-modes.dps_meter", PAD, (BAR - 22) / 2, DSL_SIZE_OWN);   /* place_now applies it */
     if (!prefs_read) { char v[8]; if (!cm_pref_get("dps_meter_folded", v, sizeof v)) folded = v[0] == '1'; prefs_read = 1; }
     fold_apply();
     m_dirty = m_layout = 1;
-    cmw_log("tf: DPS meter built%s", sc_rows ? "" : " (no scroll list)");
+    cmw_log("tf: DPS meter built%s; \"-\" / \"+\" %s (%.0f %%)", sc_rows ? "" : " (no scroll list)", p_size ? "on" : "not in this kit", dsl_panel_size_get(U, p_root) * 100);
     return 0;
 }
 static int build_small(void) {
@@ -689,14 +694,20 @@ static void region(float need, float w, float *x, float *y, float *s, float *ava
 }
 static void place_now(void) {
     if (mode == 1 && p_root) {
-        float x, y, s, avail, rh = rows_h > MIN_ROWS * ROW_H ? rows_h : MIN_ROWS * ROW_H;
+        float x, y, s, avail, rh = rows_h > MIN_ROWS * ROW_H ? rows_h : MIN_ROWS * ROW_H, f = dsl_panel_size_get(U, p_root);
         region(H_FIXED + MIN_ROWS * ROW_H, MW, &x, &y, &s, &avail);
+        if (!moved_m && was_moved(p_root, PL.x, PL.y)) moved_m = 1;
+        if (moved_m) { x = PL.x; y = PL.y; s = PL.ds; }      /* the player's place: only size and scale from here on */
+        s *= f;                                           /* the player's "-" / "+" size, on top of UI Scale (and of the room) */
         float h = H_FIXED + rh, room = avail / s;
         if (h > room) h = room;
         if (h < H_FIXED + MIN_ROWS * ROW_H) h = H_FIXED + MIN_ROWS * ROW_H;
         float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h;
-        if (!moved_m && was_moved(p_root, PL.x, PL.y)) moved_m = 1;
-        if (moved_m) { x = PL.x; y = PL.y; s = PL.ds; }      /* the player's place: only size and scale from here on */
+        { float fs = (PL.lw - 16) / MW; if ((PL.lh - 16) / ph < fs) fs = (PL.lh - 16) / ph;   /* all of it on the screen */
+          if (s > fs) s = fs;
+          if (!moved_m) { if (x + MW * s > PL.lw - 8) x = PL.lw - 8 - MW * s; if (y + ph * s > PL.lh - 8) y = PL.lh - 8 - ph * s;
+                          if (x < 8) x = 8; if (y < 8) y = 8; } }   /* a moved panel: the kit keeps it on the screen */
+        p_f = f;
         if (x != PL.x || y != PL.y || s != PL.s || ph != PL.ph || m_layout) {
             if (moved_m) resize(p_root, MW, ph); else put(p_root, x, y, MW, ph);
             set_scale(p_root, s);
@@ -754,6 +765,7 @@ static void tick(void *ud) {
         last_ref = fr;
         return;
     }
+    if (mode == 1 && dsl_panel_size_get(U, p_root) != p_f) { m_layout = 1; place_now(); }   /* "-" / "+": at once */
     if (mode == 1 && fr - last_ref >= 10 && (M.running || m_dirty || m_layout)) { refresh(); place_now(); last_ref = fr; }
 }
 
@@ -819,7 +831,12 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
             ADD("%s{\"skill\":\"%s\",\"dmg\":%.6f,\"heal\":%.6f,\"hits\":%u}", j ? "," : "", e, u->sk[j].dmg, u->sk[j].heal, u->sk[j].hits); }
         ADD("]}");
     }
-    ADD("],\"rect\":[%.0f,%.0f,%.0f,%.0f],\"game_rects\":{", r[0], r[1], r[2], r[3]);
+    float zr[4] = { 0 }; int zon = 0;
+#ifndef _WIN32
+    if (t_rect && p_size && mode == 1) zon = t_rect(p_size, zr) > 0;
+#endif
+    ADD("],\"size\":%.3f,\"size_btns\":[%d,%.0f,%.0f,%.0f,%.0f]", p_root ? dsl_panel_size_get(U, p_root) : -1.f, zon, zr[0], zr[1], zr[2], zr[3]);
+    ADD(",\"rect\":[%.0f,%.0f,%.0f,%.0f],\"game_rects\":{", r[0], r[1], r[2], r[3]);
     if (PL.list_found) ADD("\"resources\":[%.0f,%.0f,%.0f,%.0f]", PL.rs[0], PL.rs[1], PL.rs[2], PL.rs[3]); else ADD("\"resources\":null");
     if (PL.up_found) ADD(",\"unitpanel\":[%.0f,%.0f,%.0f,%.0f]", PL.us[0], PL.us[1], PL.us[2], PL.us[3]); else ADD(",\"unitpanel\":null");
     if (PL.ins_found) ADD(",\"inspect\":[%.0f,%.0f,%.0f,%.0f]", PL.is[0], PL.is[1], PL.is[2], PL.is[3]); else ADD(",\"inspect\":null");
