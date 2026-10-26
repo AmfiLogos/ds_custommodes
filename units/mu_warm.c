@@ -3,9 +3,12 @@
  * with a stutter". Each icon a window shows for the first time is a synchronous ResourceLoader load (the frame waits on
  * the asset), and a section of the Unit Builder or a Gallery page shows dozens at once. Here the ~470 icon keys of the
  * wiki data (races, backgrounds, traits, inscriptions, soul stones, acquired traits, trees, skills, items) go into
- * cm_icon's cache at most ~3 ms of loading per 50 ms tick; a key already cached costs nothing. Main thread only. */
+ * cm_icon's cache at most ~3 ms of loading per 50 ms tick; a key already cached costs nothing. Main thread only.
+ * At the title only (frame-time audit 2026-10-26, mp.md #6: it went on in a world, ~3 ms every 50 ms): in a world or while
+ * a scene loads it waits, and goes on when the title shows again. */
 #include "pvp_wiki_tables.h"
 #include "cm_il.h"
+#include "cm_win.h"
 #include "mu_ui.h"
 #include <string.h>
 #ifdef _WIN32
@@ -27,7 +30,7 @@ static int set_i, key_i, done, on, loads;
 static double spent, t_start;
 
 static void warm_tick(void) {
-    if (done || !cm_icon_ready()) return;                               /* the game's loader not up yet: next tick */
+    if (done || !cmw_title_shown() || !cm_icon_ready()) return;         /* a world / a load; the game's loader not up yet */
     double t0 = now_ms();
     if (!t_start) t_start = t0;
     while (set_i < NSETS) {

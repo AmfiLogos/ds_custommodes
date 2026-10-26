@@ -155,8 +155,45 @@ static void dirs_read(void) {
     if (!g_data[0] && m_pdp) utf8_of(CALL0(m_pdp, Obj)(m_pdp), g_data, sizeof g_data);
     if (!g_saves[0] && m_save_dir) utf8_of(CALL0(m_save_dir, Obj)(m_save_dir), g_saves, sizeof g_saves);
 }
+/* the title menu is up. No scene search in a world or while a scene loads (frame-time audit 2026-10-26, ds_multiplayer
+   ext/fpsaudit mp.md #2: one FindAnyObjectByType per call, two calls per 30 frames in every world, where the view never
+   exists: MainFlow.Update frames over 2 ms 568/min with Units Laboratory on, 46/min off). MainFlow._currentScene must say
+   Title and its SceneLoader be idle; then the TitleMenuView kept by a weak GC handle (alive = op_Implicit, its
+   m_CachedPtr) and active in its hierarchy, as FindAnyObjectByType counts it. A search only while the handle is empty,
+   dead or on an inactive view, at most one a second; MainFlow (it lives the whole run) the same way */
+enum { SCENE_TITLE = 1 };                                       /* Refactor.Main.SceneType */
+static uintptr_t h_tm_mf, h_tm_view; static float t_tm_mf = -9, t_tm_view = -9;
+static int32_t off_mf_scene = -2, off_mf_sl = -1; static cm_m m_sl_loading, m_go_inh, m_rtime;
+static float rtime(void) { return m_rtime.fn ? CM_CALL(m_rtime, float, const void *)(m_rtime.mi) : 0; }
+static Obj kept(uintptr_t *h, float *t_try, void *k, int need_active) {
+    Obj o = cm_il_hget(*h), g;
+    if (cm_alive(o) && (!need_active || !m_go_inh.fn || ((g = cm_go(o)) && CM_CALL(m_go_inh, bool, Obj, const void *)(g, m_go_inh.mi)))) return o;
+    float now = rtime();
+    if (m_rtime.fn && now >= *t_try && now - *t_try < 1.0f) return NULL;
+    *t_try = now;
+    o = k && m_find_any && x_class_type && x_type_obj ? CALL(m_find_any, Obj, Obj)(x_type_obj(x_class_type(k)), m_find_any) : NULL;
+    cm_il_hset(h, o);
+    return o;
+}
 int cmw_title_shown(void) {
-    return k_tmv && m_find_any && CALL(m_find_any, Obj, Obj)(x_type_obj(x_class_type(k_tmv)), m_find_any) != NULL;
+    if (!k_tmv || !m_find_any || cm_il_init(H, S) != 1) return 0;
+    if (off_mf_scene == -2) {
+        off_mf_scene = k_mainflow ? H->field_offset(k_mainflow, "_currentScene") : -1;
+        off_mf_sl = k_mainflow ? H->field_offset(k_mainflow, "_sceneLoader") : -1;
+        m_sl_loading = cm_il_method("Refactor.Main", "SceneLoader", "get_IsLoading", 0, NULL);
+        m_go_inh = cm_il_method("UnityEngine", "GameObject", "get_activeInHierarchy", 0, NULL);
+        m_rtime = cm_il_method("UnityEngine", "Time", "get_realtimeSinceStartup", 0, NULL);
+        if (off_mf_scene < 0 || off_mf_sl < 0 || !m_sl_loading.fn || !m_go_inh.fn || !m_rtime.fn)
+            cmw_log("cm_win: title check: MainFlow._currentScene %d _sceneLoader %d SceneLoader.IsLoading %p activeInHierarchy %p "
+                    "realtimeSinceStartup %p: the parts found are used", off_mf_scene, off_mf_sl, m_sl_loading.fn, m_go_inh.fn, m_rtime.fn);
+    }
+    if (off_mf_scene >= 0) {                                      /* not the title, or loading: no search */
+        Obj mf = kept(&h_tm_mf, &t_tm_mf, k_mainflow, 0);
+        if (!mf || CM_AT(mf, off_mf_scene, int32_t) != SCENE_TITLE) return 0;
+        Obj sl = off_mf_sl >= 0 ? CM_AT(mf, off_mf_sl, Obj) : NULL;
+        if (sl && m_sl_loading.fn && CM_CALL(m_sl_loading, bool, Obj, const void *)(sl, m_sl_loading.mi)) return 0;
+    }
+    return kept(&h_tm_view, &t_tm_view, k_tmv, 1) != NULL;
 }
 /* after we changed the Saves folder ourselves: the save list (CampaignSaveLoader.TryRefreshSave) and the title's Continue
    (TitleMenuPresenter.RefreshSaveState, what the title runs when it opens; it does not read its argument) */
