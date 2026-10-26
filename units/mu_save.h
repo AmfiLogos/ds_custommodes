@@ -39,6 +39,11 @@ int  mu_save_build_ex(const char *save_path, const char *guid, wk_build *out, mu
 struct jv;
 int  mu_save_unit_carry(const char *save_path, const char *guid, struct jv **bag, struct jv **aff, char *err, size_t errn);
 
+/* Test Fights' World units: the unit's BehaviourOption flags (component Type 1 Option: 1 Auto Skill, 2 Hold Position, ...;
+ * 0 when missing) and its per-skill auto-use (Type 8 AutoUse {skill key: bool}; an empty object when missing), as the save
+ * holds them. opt / autouse may be NULL; the caller jfree's *autouse. 0 ok, -1 + err. The save is only read. */
+int  mu_save_unit_auto(const char *save_path, const char *guid, int *opt, struct jv **autouse, char *err, size_t errn);
+
 /* the clan's units in the order of the game's own unit portrait bar (Test Fights' "Pick 1-4"): the units of the map the
  * world is on, in its PlayerGuidList order, then the other maps' units. out[i] = guid. The count, or -1 + err. */
 int  mu_save_bar_order(const char *save_path, char (*out)[40], int max, char *err, size_t errn);

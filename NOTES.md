@@ -323,6 +323,7 @@
      with 0: EntityInfoComponent.Init). Without it DecidePlayerCombatBehaviour.DecideSkill returns the basic attack only,
      whatever the bar and AutoUse say. The wiki's generator writes Option 0 | Hold Position (2): sg_glue.js autoSkill() now
      ORs Auto Skill onto every clan unit of every Test Fights world (the per-skill AutoUse stays the generator's: all on).
+     World units are the exception since 0.1.45 (next section).
      Monster fight: Sweeping Cleave, Fire Cloak (with its own Barrier), Strange Seed now cast (dps_test --heal 10/10).
   2. DecideSkill only looks at the bar when CombatUtility.GetClosestSingleEnemy finds a combatable hostile UNIT
      (GetClosestCombatableHostiles): a building never counts, so on the scarecrow alone skills never fired. In a DPS Check
@@ -445,3 +446,23 @@
 - Test: fights/test/saveunits_game_test.py list_view_part (every language run): the open world's cards wholly inside the
   list's view (`fights:l.list`, the scroll's viewport rect) >= 4 in a world of 7 units (main 80c2617: 2, FAIL), and the
   window's screen rect unchanged after tick / untick by box and card.
+
+## Test Fights: World units keep the save's Auto Skill (2026-10-26, 0.1.45, lane dsautoskill)
+- Owner (DPS Check from his world, squad of 4 World units): "Auto skill was also activated on my units despite not turning
+  it on." Cause: sg_glue.js autoSkill() (0.1.36) set BehaviourOption AutoAttack (1, the game's "Auto Skill") on every clan
+  unit. His save: the 4 units Option 2 (Hold Position only); his DPS Check world (the Steam Cloud copy): Option 3. The
+  per-skill AutoUse went all on too (the wiki generator's default; his save had 5 skills off). The game does not do it:
+  EntityInfoComponent.Init sets 0 and Deserialize copies the saved Option as is (decompiled build 25846389); no other mod
+  of his set writes it. Evidence: ~/ds_multiplayer/RESEARCH_autoskill_2026-10-25.md (not in this repo).
+- Lead pick (A): a World unit (its build has `_cm.opt`) takes the save's Auto Skill bit and, for each skill the save has an
+  AutoUse entry for, the save's choice; the generator's Hold Position bit stays (savegen.js D9: units do not walk off
+  before the player takes control); a skill the save has no entry for keeps the generator's on. My Units, Gallery and
+  Builder units (no `_cm`) keep 0.1.36: Auto Skill on (dps_test's squad is a My Units library).
+- units/mu_save.c `mu_save_unit_auto` reads Type 1 Option and Type 8 AutoUse; mu_worlds.c `mu_save_fight_build` puts them
+  in `_cm` as "opt" / "autouse"; sg_glue.js `autoSkill(save, builds)` finds the unit by place and name (`clanUnits`, the
+  same list carry() uses).
+- Not covered: a unit saved into My Units from a world loses the switch (the library stores the build only); it starts
+  with Auto Skill on.
+- Test: fights/test/run_saveunits.sh (saveunits_test.c, host): each save also runs as a copy with every unit's Auto Skill
+  bit and every AutoUse flipped (autoflip_*); per picked unit the fight's bit and AutoUse = the save's, and a stored build
+  gets Auto Skill on. 820/0; with main's sg_glue.js 38 FAIL (all [auto]).

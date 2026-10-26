@@ -39,7 +39,8 @@ int  mu_world_header(const char *path, mu_world *w);
    hands the save generator (the same unit both ways). jfree it. NULL + err. */
 jv  *mu_save_build_obj(const char *path, const char *guid, char *err, size_t errn);
 /* the same build for Test Fights' World units, plus what the unit carries from the save, in "_cm" for the save generator's
-   glue (fights/sg_glue.js carry): {"bag": [mu_save_unit_carry bag entries], "aff": [its AffecterHolders]} ("aff" only with
+   glue (fights/sg_glue.js carry, autoSkill): {"bag": [mu_save_unit_carry bag entries], "aff": [its AffecterHolders],
+   "opt": its BehaviourOption flags, "autouse": its per-skill auto-use (mu_save_unit_auto)} ("aff" only with
    aff != 0: the "bring buffs and effects" switch). known(kind 0 item / 1 affecter, key) = 0 leaves an entry out and counts
    it in *skip_items / *skip_aff (the game's tables do not know the key); known NULL = all kept. jfree it. NULL + err. */
 typedef int (*mu_known_fn)(int kind, const char *key);

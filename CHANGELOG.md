@@ -4,11 +4,14 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.44)
+### Unreleased (0.1.45)
 
 Test Fights:
 - World Units shows four unit cards at once (it showed two): the cards are shorter (the name and the race share one
   line), and the window grows taller when the screen has room.
+- Units picked straight from a save keep that save's Auto Skill switch and their per-skill auto-use choices. Before,
+  every unit started with Auto Skill on and every skill on auto. Units from My Units, the Gallery and the Unit Builder
+  still start with Auto Skill on.
 
 ### 0.1.43 (2026-10-25)
 

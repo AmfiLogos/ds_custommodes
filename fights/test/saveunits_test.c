@@ -15,6 +15,10 @@
  *    difficulty holder is not the fight's own;
  *  - battle kits on: an item of the save's bag or a kit item is missing;
  *  - a key the game does not know (the test's known() refuses one) is not left out and counted.
+ * Auto Skill (owner 2026-10-25: "Auto skill was also activated on my units despite not turning it on"):
+ *  - a unit from a save (fight build) does not keep the save's Auto Skill bit (BehaviourOption 1) or a per-skill auto-use;
+ *    each save also runs as a copy with every unit's bit and every auto-use flipped (autoflip_*), so both ways are checked;
+ *  - a stored build (no save: My Units, Gallery, Builder) does not get Auto Skill on (0.1.36: else it never casts a skill).
  * usage: saveunits_test <builder dir> <templates dir> <out dir> SAVE...   (each SAVE is read only; pass copies) */
 #include "../sg_js.h"
 #include "../../fe/fe_json.h"
@@ -173,6 +177,24 @@ static void one_save(sg_engine *e, const char *src, const char *out) {
                 }
                 CHECK(same, "%s [%s] unit %d (%s): its bag = the save's bag (%zu vs %zu items) %s", bn, tags[c], k, s0->name, sbag->cnt, fbag->cnt, why);
             }
+            if (c == 0) {                                                /* Auto Skill: the save's bit and per-skill auto-use; a stored build: on */
+                int so = 0, fo = 0, po = 0; jv *sau = NULL, *fau = NULL; char e3[400] = "", why[300] = "";
+                if (mu_save_unit_auto(src, s0->guid, &so, &sau, e3, sizeof e3) || mu_save_unit_auto(gb[c], cu[k].guid, &fo, &fau, e3, sizeof e3)
+                    || mu_save_unit_auto(gp, gu[k].guid, &po, NULL, e3, sizeof e3)) CHECK(0, "%s [auto] unit %d: read %s", bn, k, e3);
+                else {
+                    int same = 0, off = 0;
+                    for (size_t q = 0; q < fau->cnt; q++) {
+                        const jv *sv = jget(sau, fau->k[q]);
+                        if (!sv || (sv->t != JN_TRUE && sv->t != JN_FALSE)) continue;
+                        if (jtruthy(sv) == jtruthy(fau->v[q])) same++; else if (!why[0]) snprintf(why, sizeof why, " (%s: %d in the save)", fau->k[q], jtruthy(sv));
+                        off += !jtruthy(sv);
+                    }
+                    CHECK((fo & 1) == (so & 1), "%s [auto] unit %d (%s): Auto Skill %s as in the save (Option %d in the save, %d in the fight)", bn, k, s0->name, so & 1 ? "on" : "off", so, fo);
+                    CHECK(!why[0] && (same > 0 || !sau->cnt), "%s [auto] unit %d (%s): per-skill auto-use as in the save (%d skills, %d off in the save)%s", bn, k, s0->name, same, off, why);
+                    CHECK(po & 1, "%s [plain] unit %d (%s): a stored build gets Auto Skill on (Option %d)", bn, k, s0->name, po);
+                }
+                jfree(sau); jfree(fau);
+            }
             if (c == 0) {                                                /* switch off: the plain build's holders, nothing from the save */
                 int same = faff->cnt == paff->cnt;
                 for (size_t q = 0; same && q < paff->cnt; q++) { char *kk = jstrdup_raw(jget(paff->v[q], "Key")); same = jequal(paff->v[q], holder(faff, kk)); free(kk); }
@@ -219,6 +241,31 @@ static void one_save(sg_engine *e, const char *src, const char *out) {
     free(b0); free(b1);
 }
 
+/* a copy of save `src` in `out` (autoflip_<name>) with every clan unit's Auto Skill bit and every per-skill auto-use flipped:
+   the owner's saves have Auto Skill off on every unit, so this is the "on stays on" way. NULL when it cannot be made. */
+static char *flip_copy(const char *src, const char *out) {
+    char err[400] = ""; jv *s = jload(src, err, sizeof err);
+    static mu_save_unit su[256]; int nu = s ? mu_save_units(src, su, 256, err, sizeof err) : -1;
+    jv *ec = s ? jpath(s, "EntityComponentSaveData.EntityComponents") : NULL;
+    for (int i = 0; ec && i < nu; i++) {
+        jv *cs = jget(ec, su[i].guid);
+        for (size_t c = 0; cs && cs->t == JN_ARR && c < cs->cnt; c++) {
+            jv *d = jget(cs->v[c], "Data"), *ty = jget(cs->v[c], "Type"), *au = jget(d, "AutoUse");
+            if (ty && jnumv(ty) == 1 && d) jset(d, "Option", jnum_i((long long)jnumv(jget(d, "Option")) ^ 1));
+            for (size_t q = 0; ty && jnumv(ty) == 8 && au && au->t == JN_OBJ && q < au->cnt; q++) {
+                jv *v = jbool(!jtruthy(au->v[q])); jfree(au->v[q]); au->v[q] = v;
+            }
+        }
+    }
+    const char *bn = strrchr(src, '/'); bn = bn ? bn + 1 : src;
+    char p[2048]; snprintf(p, sizeof p, "%s/autoflip_%s", out, bn);
+    size_t n = 0; char *t = ec ? jdump(s, 2, &n) : NULL; FILE *f = t ? fopen(p, "wb") : NULL;
+    int ok = f && fwrite(t, 1, n, f) == n; if (f) fclose(f);
+    free(t); jfree(s);
+    CHECK(ok, "%s: the Auto Skill flipped copy (%s)", src, err);
+    return ok ? strdup(p) : NULL;
+}
+
 int main(int argc, char **argv) {
     if (argc < 5) { fprintf(stderr, "usage: saveunits_test <builder dir> <templates dir> <out dir> SAVE...\n"); return 2; }
     g_tpl = argv[2];
@@ -228,7 +275,11 @@ int main(int argc, char **argv) {
     snprintf(p, sizeof p, "%s/savegen.js", argv[1]); s.savegen_js = slurp(p, &s.savegen_n);
     sg_engine *e = s.data_js && s.builder_js && s.savegen_js ? sg_open(&s, tpl_from_dir, NULL, NULL, err, sizeof err) : NULL;
     if (!e) { fprintf(stderr, "engine: %s\n", err[0] ? err : "the wiki scripts are missing"); return 1; }
-    for (int i = 4; i < argc; i++) one_save(e, argv[i], argv[3]);
+    for (int i = 4; i < argc; i++) {
+        one_save(e, argv[i], argv[3]);
+        char *fc = flip_copy(argv[i], argv[3]);
+        if (fc) { one_save(e, fc, argv[3]); free(fc); }
+    }
     sg_close(e); mu_save_cache_clear();
     printf("RESULT %s: %d passed, %d failed\n", failc ? "FAIL" : "PASS", pass, failc);
     return failc ? 1 : 0;
