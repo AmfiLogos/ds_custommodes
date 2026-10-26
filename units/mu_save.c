@@ -381,18 +381,20 @@ int mu_save_build(const char *save_path, const char *guid, wk_build *out, char *
 
 /* Test Fights' World units: what a clan unit carries beside its build (see mu_save.h). The bag's item entities are copied
    whole (their components as the save holds them: durability, rolls, their own holders). */
+/* the components of clan unit `guid` (NULL + err when it is not one); under LOCK */
+static const jv *clan_comps(const jv *s, const char *guid, char *err, size_t errn) {
+    const jv *comps = NULL, *gs[512]; int ng = clan_guids(s, gs, 512);
+    for (int i = 0; i < ng && !comps; i++)
+        if (guid && strlen(guid) == gs[i]->n && !memcmp(guid, gs[i]->s, gs[i]->n)) comps = jget(jpath(s, "EntityComponentSaveData.EntityComponents"), guid);
+    if (!comps) snprintf(err, errn, "%s", TR("This unit is not one of your clan's units in this save."));
+    return comps;
+}
 int mu_save_unit_carry(const char *save_path, const char *guid, jv **bag, jv **aff, char *err, size_t errn) {
     if (err && errn) err[0] = 0;
     if (bag) *bag = NULL;
     if (aff) *aff = NULL;
     LOCK();
-    const jv *s = save_of(save_path, err, errn), *comps = NULL;
-    if (s) {
-        const jv *gs[512]; int ng = clan_guids(s, gs, 512);
-        for (int i = 0; i < ng && !comps; i++)
-            if (guid && strlen(guid) == gs[i]->n && !memcmp(guid, gs[i]->s, gs[i]->n)) comps = jget(jpath(s, "EntityComponentSaveData.EntityComponents"), guid);
-        if (!comps) snprintf(err, errn, "%s", TR("This unit is not one of your clan's units in this save."));
-    }
+    const jv *s = save_of(save_path, err, errn), *comps = s ? clan_comps(s, guid, err, errn) : NULL;
     if (!comps) { UNLOCK(); return -1; }
     const jv *ec = jpath(s, "EntityComponentSaveData.EntityComponents"), *ics = jpath(s, "EntityContainerSaveData.ItemContainerSaveData");
     if (bag) {
@@ -416,6 +418,22 @@ int mu_save_unit_carry(const char *save_path, const char *guid, jv **bag, jv **a
         *bag = out;
     }
     if (aff) { const jv *h = jget(fe_comp(comps, 3), "AffecterHolders"); *aff = h && h->t == JN_ARR ? jcopy(h) : jarr(); }
+    UNLOCK();
+    return 0;
+}
+
+/* Test Fights' World units (owner 2026-10-25: Auto Skill came on "despite not turning it on"): the unit's own behaviour
+   switches and per-skill auto-use as the save holds them (see mu_save.h). */
+int mu_save_unit_auto(const char *save_path, const char *guid, int *opt, jv **autouse, char *err, size_t errn) {
+    if (err && errn) err[0] = 0;
+    if (opt) *opt = 0;
+    if (autouse) *autouse = NULL;
+    LOCK();
+    const jv *s = save_of(save_path, err, errn), *comps = s ? clan_comps(s, guid, err, errn) : NULL;
+    if (!comps) { UNLOCK(); return -1; }
+    const jv *o = jget(fe_comp(comps, 1), "Option"), *au = jget(fe_comp(comps, 8), "AutoUse");   /* Type 1 EntityInfo, Type 8 Skill */
+    if (opt) *opt = o && o->t == JN_NUM ? (int)jnumv(o) : 0;
+    if (autouse) *autouse = au && au->t == JN_OBJ ? jcopy(au) : jobj();
     UNLOCK();
     return 0;
 }

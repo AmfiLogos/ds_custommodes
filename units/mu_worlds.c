@@ -196,6 +196,9 @@ jv *mu_save_fight_build(const char *path, const char *guid, int aff, mu_known_fn
     jfree(bag); jfree(ah);
     jset(cm, "bag", kb);
     if (aff) jset(cm, "aff", ka); else jfree(ka);
+    int opt = 0; jv *au = NULL;
+    if (mu_save_unit_auto(path, guid, &opt, &au, err, errn)) { jfree(cm); jfree(b); return NULL; }
+    jset(cm, "opt", jnum_i(opt)); jset(cm, "autouse", au);
     jset(b, "_cm", cm);
     return b;
 }

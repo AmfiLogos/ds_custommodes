@@ -114,12 +114,23 @@ var CMF = (function () {
   // wiki's generator writes Option 0 | Hold Position (2), so no squad unit ever cast a skill (6 runs, lane dsdps). OR-ed in
   // like the generator's own Hold Position bit; a unit's per-skill AutoUse (the generator's: every active on) still decides
   // which skills.
-  function autoSkill(save) {
-    var ec = save.EntityComponentSaveData.EntityComponents, uc = save.EntityContainerSaveData.UnitContainerSaveData || {};
-    Object.keys(uc).forEach(function (side) {
-      ((uc[side] || {}).PlayerGuidList || []).forEach(function (g) {
-        (ec[g] || []).forEach(function (c) { if (c && c.Type === 1 && c.Data) c.Data.Option = (c.Data.Option || 0) | 1; });
-      });
+  // Except a unit taken straight from a save (World units, `_cm.opt`): it keeps the save's Auto Skill bit and the save's
+  // per-skill AutoUse (owner 2026-10-25: "Auto skill was also activated on my units despite not turning it on"; the game
+  // itself starts a unit with 0 and loads the saved Option as is). The generator's Hold Position bit stays; a skill the
+  // save has no AutoUse entry for keeps the generator's. Found by its place and name, as carry() finds it.
+  function autoSkill(save, builds) {
+    var ec = save.EntityComponentSaveData.EntityComponents, units = clanUnits(save);
+    units.forEach(function (u, i) {
+      var comps = ec[u[0]] || [], info = comp(comps, 1), b = units.length === builds.length ? builds[i] : null;
+      var cm = b && b._cm, prof = comp(comps, 10);
+      if (!info) return;
+      if (!cm || typeof cm.opt !== 'number' || (b.name && (!prof || prof.UnitNameTextKey !== b.name))) {
+        info.Option = (info.Option || 0) | 1;
+        return;
+      }
+      info.Option = ((info.Option || 0) & ~1) | (cm.opt & 1);
+      var sk = comp(comps, 8), au = cm.autouse || {};
+      if (sk && sk.AutoUse) Object.keys(sk.AutoUse).forEach(function (k) { if (typeof au[k] === 'boolean') sk.AutoUse[k] = au[k]; });
     });
   }
 
@@ -137,6 +148,12 @@ var CMF = (function () {
   // A unit is found by its place: the generator writes the roster in build order (the template's own units are scrubbed
   // first); its name must match the build's, else nothing is brought and a note says why.
   function comp(cs, t) { for (var i = 0; i < (cs || []).length; i++) if (cs[i] && cs[i].Type === t) return cs[i].Data; return null; }
+  // the clan's units as [guid, side], in the order the generator writes the roster (PlayerGuidList of each side)
+  function clanUnits(save) {
+    var uc = save.EntityContainerSaveData.UnitContainerSaveData || {}, units = [];
+    Object.keys(uc).forEach(function (side) { ((uc[side] || {}).PlayerGuidList || []).forEach(function (g) { units.push([g, side]); }); });
+    return units;
+  }
   var ZERO_GUID = '00000000-0000-0000-0000-000000000000';
   function newGuid(ec) {
     var h = '0123456789abcdef', g;
@@ -193,8 +210,7 @@ var CMF = (function () {
   // what blocks the test world goes in probs (the panel then says what and makes no file), the rest in notes
   function carry(save, builds, kitIds, notes, probs) {
     if (!builds.some(function (b) { return b && b._cm; })) return 0;
-    var ec = save.EntityComponentSaveData.EntityComponents, uc = save.EntityContainerSaveData.UnitContainerSaveData || {}, units = [];
-    Object.keys(uc).forEach(function (side) { ((uc[side] || {}).PlayerGuidList || []).forEach(function (g) { units.push([g, side]); }); });
+    var ec = save.EntityComponentSaveData.EntityComponents, units = clanUnits(save);
     if (units.length !== builds.length) {
       probs.push('The test world holds ' + units.length + ' units for ' + builds.length + ' picked units.');
       return 0;
@@ -245,7 +261,7 @@ var CMF = (function () {
       }
       if (cp.length) r.problems = (r.problems || []).concat(cp);
       nameKeys(r.save);
-      autoSkill(r.save);
+      autoSkill(r.save, builds);
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
         clan: r.clan };
