@@ -4,7 +4,7 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.47)
+### 0.1.47 (2026-10-26)
 
 Performance:
 - Less stutter while you play: Units Laboratory no longer searches the whole game scene twice every 30 frames to check
