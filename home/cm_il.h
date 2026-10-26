@@ -28,11 +28,13 @@ void cm_il_hset(uintptr_t *h, Obj o);
 bool cm_alive(Obj o);                                    /* UnityEngine.Object alive (op_Implicit) */
 Obj  cm_find(void *klass, bool inactive);                /* Object.FindObjectOfType(Type, bool) */
 /* a game object kept between frames (the template for "find the game's view" in a frame or a tick; never a scene search
-   per frame: frame-time audit 2026-10-26). A weak GC handle (never a raw pointer across frames), checked alive (its
-   m_CachedPtr) and, with active, active in its hierarchy; else searched again (cm_find) at most once a second. A
-   zeroed cm_keep is empty. */
+   per frame: frame-time audit 2026-10-26). A kit with the view lookup (kit 0.1.29 dsl_view_find, lane fpsscan) answers
+   it: flags DSL_VIEW_* (INACTIVE, TITLE, WORLD, NOW). An older kit: our own path, a weak GC handle (never a raw pointer
+   across frames) checked alive (its m_CachedPtr), else searched again (cm_find) at most once a second; TITLE / WORLD are
+   then the caller's job (gate by the scene first). With active: only an object active in its hierarchy (an older kit
+   searches active ones only then). A zeroed cm_keep is empty. Never keep the result past the frame: ask again. */
 typedef struct { uintptr_t h; float next; } cm_keep;
-Obj  cm_kept(cm_keep *k, void *klass, bool inactive, bool active);
+Obj  cm_kept(cm_keep *k, void *klass, int flags, bool active);
 Obj  cm_go(Obj comp);
 Obj  cm_tr(Obj comp);
 Obj  cm_comp(Obj comp_or_go, void *klass);               /* GetComponent(Type) on the object's GameObject */

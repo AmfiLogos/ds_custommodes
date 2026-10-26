@@ -16,7 +16,8 @@
   called every few frames: one search walks every object of the scene (2-10 ms in a world). Keep the object with
   `cm_kept` (home/cm_il.h: weak GC handle, alive + active check, a search at most once a second while it is missing);
   "is the title up" is `cmw_title_shown()` (no search outside the title). Searches on a click or on a window opening are
-  fine. When the loader kit offers its view-lookup helper (lane fpsscan), `cm_kept` goes through it.
+  fine. `cm_kept` asks the kit's view lookup first (kit 0.1.29 `dsl_view_find`, flags DSL_VIEW_TITLE / WORLD / INACTIVE;
+  ds_modloader loader/NOTES.md "Game-view lookups") and uses its own path only on an older kit.
 - Guard: the loader's test copies log `SCAN-RULE <module> <n>/min` (ds_modloader loader/test/scan_rate_test.py, lane
   fpsscan); custom-modes must stay near 0 in a world.
 
@@ -548,3 +549,11 @@
   title show while its kept handle is dead); tf_meter.c list / unit panel searches (kept, a retry every 120 frames only
   while missing, DPS Check worlds); tf_dps.c managed strings per combat event (DPS Check worlds only, GC garbage, mp.md
   #12); the test-only `continue_name` search (test command `state`).
+- 0.1.47 (lane fpsul task 2, lead go 13:15): `cm_kept(k, klass, flags, active)` asks the kit's `dsl_view_find` first
+  (ds_modloader 6fc71e6: the held handle, then the game's records: the title presenter's view and the static
+  EntityInspectionPresenter's view come with no search; a real search at most one a frame, never while loading, a miss
+  waits 2-60 s). The result is not kept past the call (the kit holds it). An older kit (no view_find): our 0.1.46 path,
+  unchanged (active callers search active objects only). Calls: TitleMenuView DSL_VIEW_TITLE | INACTIVE + active check;
+  MainFlow 0 (the kit searches it once at the title, then holds it; at boot, scene 0, it is not searched: the title check
+  says 0 there anyway); EntityInspectionView DSL_VIEW_WORLD | INACTIVE. mp_pin = ds_multiplayer 1c369a0 (its
+  sdk/dsl_sdk.h = ds_modloader 6fc71e6); build.sh stops on an SDK copy without dsl_view_find.

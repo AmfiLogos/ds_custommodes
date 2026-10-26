@@ -158,8 +158,9 @@ static void dirs_read(void) {
 /* the title menu is up. No scene search in a world or while a scene loads (frame-time audit 2026-10-26, ds_multiplayer
    ext/fpsaudit mp.md #2: one FindAnyObjectByType per call, two calls per 30 frames in every world, where the view never
    exists: MainFlow.Update frames over 2 ms 568/min with Units Laboratory on, 46/min off). MainFlow._currentScene must say
-   Title and its SceneLoader be idle; then the TitleMenuView, kept between calls (cm_kept: weak GC handle, alive, active;
-   a search at most once a second while it is missing). MainFlow lives the whole run: kept the same way */
+   Title and its SceneLoader be idle; then the TitleMenuView through cm_kept (the kit's dsl_view_find: the title
+   presenter's own view, no search; an older kit: a weak GC handle, alive, active, a search at most once a second while
+   it is missing). MainFlow lives the whole run: cm_kept too */
 enum { SCENE_TITLE = 1 };                                       /* Refactor.Main.SceneType */
 static cm_keep keep_mf, keep_tmv;
 static int32_t off_mf_scene = -2, off_mf_sl = -1; static cm_m m_sl_loading;
@@ -174,12 +175,12 @@ int cmw_title_shown(void) {
                     m_sl_loading.fn ? "found" : "missing", off_mf_scene < 0 ? "the view alone decides" : "no loading check");
     }
     if (off_mf_scene >= 0) {                                      /* not the title, or a scene loads: no search */
-        Obj mf = cm_kept(&keep_mf, k_mainflow, false, false);
+        Obj mf = cm_kept(&keep_mf, k_mainflow, 0, false);
         if (!mf || CM_AT(mf, off_mf_scene, int32_t) != SCENE_TITLE) return 0;
         Obj sl = off_mf_sl >= 0 ? CM_AT(mf, off_mf_sl, Obj) : NULL;
         if (sl && m_sl_loading.fn && CM_CALL(m_sl_loading, bool, Obj, const void *)(sl, m_sl_loading.mi)) return 0;
     }
-    return cm_kept(&keep_tmv, k_tmv, false, true) != NULL;
+    return cm_kept(&keep_tmv, k_tmv, DSL_VIEW_TITLE | DSL_VIEW_INACTIVE, true) != NULL;
 }
 /* after we changed the Saves folder ourselves: the save list (CampaignSaveLoader.TryRefreshSave) and the title's Continue
    (TitleMenuPresenter.RefreshSaveState, what the title runs when it opens; it does not read its argument) */

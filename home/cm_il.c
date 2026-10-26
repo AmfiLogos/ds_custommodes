@@ -146,14 +146,19 @@ Obj cm_find(void *k, bool inactive) {
 }
 Obj cm_go(Obj c) { return cm_alive(c) ? CM_CALL(m_go, Obj, Obj, const void *)(c, m_go.mi) : NULL; }
 static bool shown_h(Obj o) { Obj g = cm_go(o); return g && (!m_act_h.fn || CM_CALL(m_act_h, bool, Obj, const void *)(g, m_act_h.mi)); }
-Obj cm_kept(cm_keep *k, void *klass, bool inactive, bool active) {
-    if (!k || ok != 1) return NULL;
+Obj cm_kept(cm_keep *k, void *klass, int flags, bool active) {
+    if (!k || !klass || ok != 1) return NULL;
+    const DSLUi *ui = dsl_ui(H);
+    if (DSL_UI_HAS(ui, view_find)) {                                   /* the kit's lookup: held handle, the game's records, rare searches */
+        Obj o = dsl_view_find(ui, klass, flags);
+        return cm_alive(o) && (!active || shown_h(o)) ? o : NULL;
+    }
     Obj o = cm_il_hget(k->h);
     if (cm_alive(o) && (!active || shown_h(o))) return o;
     float now = m_rtime.fn ? CM_CALL(m_rtime, float, const void *)(m_rtime.mi) : 0;
     if (m_rtime.fn && now < k->next) return NULL;
     k->next = now + 1.0f;
-    o = cm_find(klass, inactive); cm_il_hset(&k->h, o);
+    o = cm_find(klass, (flags & DSL_VIEW_INACTIVE) && !active); cm_il_hset(&k->h, o);
     return o && (!active || shown_h(o)) ? o : NULL;
 }
 Obj cm_tr(Obj c) { return cm_alive(c) ? CM_CALL(m_tr, Obj, Obj, const void *)(c, m_tr.mi) : NULL; }
