@@ -239,13 +239,14 @@ static long long game_tick(void) {
    joined by " · " (owner, ask 10: "Fireball → Scarecrow: -227 crit · Heal → Silvarion, Prax: +50") */
 /* Two renderings of the same log (owner round 2: "Effects in Log" off HIDES the effect lines already in the chat, on shows
    them again): lv[0] with the effect parts, lv[1] without. The chat and our panel show the one the switch picks; a flip
-   clears our chat lines and gives the chat the other rendering, from the player's last clear on (mp_api v4 chat_clears). */
+   clears our chat lines and gives the chat the other rendering, from the player's last clear on (mp_api v4 chat_clears).
+   "DPS Log in Chat" the same way: off takes our lines out of the chat, on gives them back. */
 typedef struct { char **l; size_t n, cap; int last_unit; } Lines;
 static Lines lv[2] = { { NULL, 0, 0, -1 }, { NULL, 0, 0, -1 } }; static size_t sent;   /* sent = of the shown one, given to the chat */
 static int cur_v(void);
 #define lines (lv[cur_v()].l)                            /* the shown rendering's lines, oldest first (read only) */
 #define nl (lv[cur_v()].n)
-static int shown_v = -1; static size_t clear_at[2]; static unsigned clears_seen;
+static int shown_v = -1, shown_on = -1; static size_t clear_at[2]; static unsigned clears_seen;   /* rendering / "DPS Log in Chat" the chat has */
 static unsigned long hits, n_crit, n_miss, n_ev_done; static double dmg_sum; static int nheads;
 static unsigned long n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, n_eff_capped;   /* events by kind (test) */
 static const mp_api_table *api; static int fb_use, mp_rc_last = 1000;
@@ -632,15 +633,20 @@ static void flush(void) {
         unsigned c = api->chat_clears();
         if (c != clears_seen) { clears_seen = c; clear_at[0] = lv[0].n; clear_at[1] = lv[1].n; }
     }
-    if (v != shown_v) {                                  /* "Effects in Log" flipped: the chat shows the other rendering at once */
-        if (shown_v >= 0 && !fb_use && mp_ok() && tf_dps_switch(TFD_SW_CHATLOG)) {
-            api->chat_local(MOD_NAME, NULL, MP_CHATL_CLEAR);
-            sent = lv[v].n - clear_at[v] > RESEND_MAX ? lv[v].n - RESEND_MAX : clear_at[v];
-            cmw_log("tf: DPS log: effects %s: the chat gets %zu line(s) again", v ? "hidden" : "shown", lv[v].n - sent);
+    int on = tf_dps_switch(TFD_SW_CHATLOG);
+    /* "Effects in Log" or "DPS Log in Chat" flipped: the chat changes at once (owner 2026-10-25: "the damage toggle wasn't
+       working as expected": off left every log line in the chat, on lost the lines of the off time). Off: our lines leave
+       the chat; on, or the other rendering: the whole log comes back, from the player's last clear on */
+    if (v != shown_v || on != shown_on) {
+        if (shown_v >= 0 && !fb_use && mp_ok()) {
+            if (shown_on) api->chat_local(MOD_NAME, NULL, MP_CHATL_CLEAR);
+            sent = !on ? lv[v].n : lv[v].n - clear_at[v] > RESEND_MAX ? lv[v].n - RESEND_MAX : clear_at[v];
+            if (on != shown_on) cmw_log("tf: DPS log in chat %s: the chat gets %zu line(s)", on ? "on" : "off", lv[v].n - sent);
+            else cmw_log("tf: DPS log: effects %s: the chat gets %zu line(s) again", v ? "hidden" : "shown", lv[v].n - sent);
         } else if (shown_v >= 0) sent = lv[v].n;
-        shown_v = v; fb_n = (size_t)-1;
+        shown_v = v; shown_on = on; fb_n = (size_t)-1;
     }
-    if (!tf_dps_switch(TFD_SW_CHATLOG)) { sent = nl; return; }   /* "DPS log in chat" off: nothing written (the meter counts on) */
+    if (!on) { sent = nl; return; }                      /* "DPS log in chat" off: nothing written (the meter counts on) */
     if (sent >= nl || fb_use) return;
     if (!mp_ok()) { fb_use = 1; cmw_log("tf: DPS log: no multiplayer chat (mp_api %u): our own log panel", api ? api->version : 0); return; }
     while (sent < nl) {

@@ -481,10 +481,23 @@ def run():
     check('(g) each unit\'s per-skill rows add up to its row', m2.get('units') and not gbad, json.dumps(gbad[:2], ensure_ascii=False)[:400])
     check('the meter shows the self repair on its own line', m2.get('repaired', -1) >= 0, m2.get('repaired'))
     click('dps:start', 0.5)
-    # "DPS log in chat" off: no chat line, the meter counts on
-    click('dps:chatlog', 0.5); c0 = chat_lines()[0]; ma = meter().get('total', 0); time.sleep(15); c1 = chat_lines()[0]; mb = meter().get('total', 0)
-    check('"DPS log in chat" off: 0 new chat lines in 15 s of hits, the meter still counts', c1 == c0 and mb > ma and not dps('state')['sw'][2], (c0, c1, ma, mb))
-    click('dps:chatlog', 0.5)
+    # "DPS Log in Chat" (owner 2026-10-25: "the damage toggle wasn't working as expected": off left every line in the chat, on
+    # lost the lines of the off time): off takes our lines out of the chat at once and none come while it is off (the meter
+    # counts on); on gives the whole log back at once, the off time too, and the open box shows its newest lines
+    def shown():                                                  # the chat's rows on screen now (idle lines / open box): their text
+        return [r.get('text') or '' for r in ((HP.c(X, cmd='mpm_status') or {}).get('chat') or {}).get('rows') or []]
+    if not NO_MP:                                                 # --no-mp: no chat (our own panel follows the switch: fb_tick)
+        n0 = chat_lines()[1]
+        click('dps:chatlog', 0.0); time.sleep(1.0); in_off, vis_off = chat_lines()[1], shown(); ma = meter().get('total', 0)
+        time.sleep(10); in_off2 = chat_lines()[1]; mb = meter().get('total', 0)
+        check('"DPS Log in Chat" off: our lines leave the chat within 1 s (none on screen), none come in 10 s of hits, the meter still counts',
+              n0 > 0 and in_off == 0 and not vis_off and in_off2 == 0 and mb > ma and not dps('state')['sw'][2], (n0, in_off, vis_off[:2], in_off2, ma, mb))
+        l_on = dps('state').get('lines', 0); click('dps:chatlog', 0.0); time.sleep(1.0)
+        req('key', code=36); time.sleep(1.0); _, in_on, cl = chat_lines(); vis_on = shown()   # Enter: the box with the history
+        check('"DPS Log in Chat" on: the whole log is back in the chat within 1 s (the off time too), the open box shows its newest lines',
+              dps('state')['sw'][2] == 1 and l_on > n0 and in_on >= min(l_on, 2500) and len(vis_on) > 3 and vis_on[0] in cl[-3:],
+              json.dumps({'before_off': n0, 'log_at_on': l_on, 'chat_after_on': in_on, 'shown': vis_on[:2], 'chat_newest': cl[-2:]}, ensure_ascii=False)[:600])
+        shot(f'chatlog_on_{LANG or "en"}'); req('key', code=53); time.sleep(0.5)
     # speech + heal numbers on: they show again
     click('dps:speech', 0.3); click('dps:healnum', 0.3); seen_sp = seen_heal = False
     for _ in range(24):
