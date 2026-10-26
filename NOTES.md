@@ -402,6 +402,14 @@
     "removed / expired" lines (pick: they would be as many as the re-applies were).
   - "Effects in Log": the log is kept in two renderings (with / without effect parts); a flip clears our chat lines and
     re-sends the other rendering from the player's last clear (mp_api v4 `chat_clears`; at most 2500 lines), at once.
+  - "DPS Log in Chat" the same way (owner 2026-10-25 "the damage toggle wasn't working as expected"; his settings file had
+    dps_chat_log saved, and dps_effects 0 saved with no "effects hidden" line, i.e. flipped while the log was off): off
+    clears our chat lines at once (MP_CHATL_CLEAR), on re-sends the shown rendering from the player's last clear, the off
+    time included (flush: shown_on next to shown_v). Before (0.1.24-0.1.43) off only stopped new lines, every line stayed
+    in the chat, and on skipped the off time for good. dps_test: off -> 0 of our lines in the chat and none on screen within
+    1 s, none in 10 s of hits, the meter counts on; on -> the whole log back within 1 s and the open box shows its newest
+    lines (fails on 0.1.43). Speech and heal numbers: their view iterators are ended per FX call, so a flip acts on the next
+    bubble / number (dps_test: on -> both show within 12 s; off -> none in 30 s).
   - Unit names: no <b> (it drew another face than the chat's text); gold colour only.
   - "Restart Test" is "Restart Test Floor" in all 10 languages (fits its button in de / ru: dps_test checks no ellipsis).
   - dps_test.py: fails on any `UI-RULE` line of the kit's guard, a DPS switch left on the start screen, a meter that does

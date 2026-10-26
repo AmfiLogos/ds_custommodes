@@ -13,6 +13,10 @@ Test Fights:
   every unit started with Auto Skill on and every skill on auto. Units from My Units, the Gallery and the Unit Builder
   still start with Auto Skill on.
 
+DPS Check:
+- "DPS Log in Chat" acts at once: off takes the log out of the chat, on brings the whole log back, including the hits
+  made while it was off. Before, off left every line in the chat and on lost the lines of the off time.
+
 ### 0.1.43 (2026-10-25)
 
 Windows:
