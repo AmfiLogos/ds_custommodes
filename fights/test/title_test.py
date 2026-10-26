@@ -16,6 +16,7 @@ the game's own Esc > Quit to title:
     UserCampaignLog.json differs in more than PlayerApplicationMinute (the minutes the game was on, which every session
     adds);
   - a test world's save is still in the Saves folder or in the header cache (Load Campaign lists them) on the title;
+  - the test world did not load with the test-world mark on its campaign guid (tf_worlds.h: known forever);
   - the real save copy, the source save or the owner's library change, or a window shows on a display.
   title_test.py   env: HM_BUILD = a loader build folder (dsload.dylib, mods/multiplayer, mods/custom-modes)
                        LD_ROOT = a ds_modloader checkout (its loader/test helpers; default ~/ds_launcher)
@@ -235,6 +236,9 @@ def one_test(mid, before):
     tw, tfs = test_files()
     t = wait('the test world in the game', lambda: (lambda t: t if t.get('lguid') in tw else None)(title()), 120, 1) or title()
     check(f'[{mid}] the world loaded is the test world', bool(tw) and t.get('lguid') in tw, (t.get('lsave'), t.get('lguid'), tw))
+    lg = t.get('lguid') or ''
+    check(f'[{mid}] the test world loads with the test-world mark on its guid (7e57f167, version digit 0: known forever)',
+          len(lg) == 32 and lg.startswith('7e57f167') and lg[12] == '0', (t.get('lsave'), lg))
     time.sleep(20)                                            # the world runs a while (autosaves, records)
     HP.c(X, cmd='mpm_quit_title')
     back = wait('title', lambda: HP.st(X).get('scene') == 1, 180, 2)

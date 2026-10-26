@@ -474,3 +474,37 @@
 - Test: fights/test/run_saveunits.sh (saveunits_test.c, host): each save also runs as a copy with every unit's Auto Skill
   bit and every AutoUse flipped (autoflip_*); per picked unit the fight's bit and AutoUse = the save's, and a stored build
   gets Auto Skill on. 820/0; with main's sg_glue.js 38 FAIL (all [auto]).
+
+## Test worlds known forever: the guid mark and the record (2026-10-26, 0.1.45, lane dstfguid)
+- Problem: since ds_modloader 376a972 the Steam Cloud backup leaves out every save the mods' Load-list filters hide
+  (`dsl_rows_mod_world`). Ours (`tfw_is_test`) knew a test world only while test_worlds.json listed it, and the title
+  clears that list. So an older test world (the owner's "Elven-Expedition_DPS Check_Very-Hard__AutoSave_7cc6e44d..._0",
+  in his Steam Cloud since 2026-10-25 23:17) is a normal save again: another computer downloads it, a Load list shows it.
+- Campaign-guid prefixes of the mods' own worlds (keep this table in step with ds_multiplayer src/mp_worldsave.h):
+
+  | Prefix | World | Code |
+  |---|---|---|
+  | fe5ea00 | Foreign Expedition hub, running | ds_multiplayer fe_game.c FE_HUB_PREFIX |
+  | fe5eb | Foreign Expedition hub template | ds_multiplayer fe_hub.c |
+  | b45e0 | PvP v1 world | ds_multiplayer mp_worldsave.h |
+  | 7e57f167 + version digit 0 (`7e57f167-xxxx-0xxx-...`) | Units Laboratory test world (Test Fights, DPS Check) | fights/tf_worlds.h TFW_GUID_MARK |
+
+  Why also the version digit: the game (Guid.NewGuid), the wiki's generator (crypto.randomUUID / its fallback) and
+  multiplayer's random parts are version 4 (digit 4 at hex place 12), so no player world can ever carry this mark; the
+  8-digit prefix alone would only be unlikely (1 in 4 billion).
+- tf_wikisave.c (pure C): `tfw_take` (called by tfw_write) rewrites the generator's guid to the marked one in the
+  header, ClanSaveData and the SaveName (savegen.js finish() writes the guid exactly there: 2 dashed + 1 hex in the
+  templates), lists it (test_worlds.json, cleared on the title as before) and records it in test_worlds_made.txt
+  (same folder, `<game data>/Mods/custom-modes/`; appended only, never cleared or rewritten). `tfw_known` = marked guid,
+  or a marked 32-hex run in the save name (the game's own autosaves of that world), or listed, or recorded. Guids an
+  older version still lists are recorded at the first read (the only test worlds made before the mark this computer can
+  still know). tf_worlds.c keeps the game side (folder, file removal, title tick); the title still removes the files of
+  LISTED worlds only: a marked or recorded save from the cloud is never removed or moved.
+- Not covered: a test world made before the mark whose list entry is already gone (the owner's 7cc6e44d one, unless
+  still listed when 0.1.45 first runs) and test worlds of another computer made before the mark. Never a name rule: a
+  save downloaded from the wiki has the same kind of name.
+- Test: fights/test/wikisave_test.c (host): the generator's save through tfw_take, the title clears the list, then the
+  guid, the name, the game's autosave name, a renamed copy, another computer (empty folder), and an older version's
+  listed world after the title and a restart are all still known; a wiki download, a player's world and a v4 guid that
+  starts with 7e57f167 are not. With main's logic (no mark, no record): FAIL 6. fights/test/title_test.py checks the
+  game loads the test world with the marked guid.
