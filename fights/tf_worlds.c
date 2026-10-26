@@ -19,55 +19,14 @@
 #define mkdir_(p) mkdir(p, 0755)
 #endif
 
-#define NW 64
-static char W[NW][33]; static int nw, loaded;             /* test world GUIDs: 32 lowercase hex, no dashes; newest last */
-
-static void norm(const char *g, char out[33]) {
-    int k = 0;
-    for (; g && *g && k < 32; g++) if (isxdigit((unsigned char)*g)) out[k++] = (char)tolower((unsigned char)*g);
-    out[k] = 0;
+static void reg_dir(void) {                              /* once the game's data folder is known (first frame) */
+    static int done; if (done) return;
+    char d[1024], p[1100]; if (cmw_game_data(d, sizeof d)) return;
+    snprintf(p, sizeof p, "%s/Mods", d); mkdir_(p);
+    snprintf(p, sizeof p, "%s/Mods/custom-modes", d); mkdir_(p);
+    tfw_reg_dir(p); done = 1;
 }
-static int reg_path(char *p, size_t n) {
-    char d[1024]; if (cmw_game_data(d, sizeof d)) return -1;
-    snprintf(p, n, "%s/Mods", d); mkdir_(p);
-    snprintf(p, n, "%s/Mods/custom-modes", d); mkdir_(p);
-    snprintf(p, n, "%s/Mods/custom-modes/test_worlds.json", d);
-    return 0;
-}
-static void reg_load(void) {                             /* once the game's data folder is known (first frame) */
-    if (loaded) return;
-    char p[1100]; nw = 0; if (reg_path(p, sizeof p)) return;
-    loaded = 1;
-    char e[200]; jv *r = jload(p, e, sizeof e); if (!r) return;
-    jv *a = jget(r, "worlds");
-    for (size_t i = 0; a && a->t == JN_ARR && i < a->cnt && nw < NW; i++) {
-        char *s = jstrdup_raw(a->v[i]); norm(s, W[nw]); free(s);
-        if (strlen(W[nw]) == 32) nw++;
-    }
-    jfree(r);
-}
-static void reg_save(void) {
-    char p[1100], t[1120]; if (reg_path(p, sizeof p)) return;
-    snprintf(t, sizeof t, "%s.tmp", p);
-    FILE *f = fopen(t, "wb"); if (!f) return;
-    fprintf(f, "{\"format\":\"custom-modes-test-worlds\",\"version\":1,\"worlds\":[");
-    for (int i = 0; i < nw; i++) fprintf(f, "%s\"%s\"", i ? "," : "", W[i]);
-    fprintf(f, "]}\n"); fclose(f);
-#ifdef _WIN32
-    MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING);
-#else
-    rename(t, p);
-#endif
-}
-int tfw_is_test(const char *guid, const char *save_name) {
-    reg_load();
-    char g[33]; norm(guid, g);
-    for (int i = 0; i < nw; i++) {
-        if (g[0] && !strcmp(g, W[i])) return 1;
-        if (save_name && strstr(save_name, W[i])) return 1;   /* "<team>_<fight>__AutoSave_<guid hex>_<n>" */
-    }
-    return 0;
-}
+int tfw_is_test(const char *guid, const char *save_name) { reg_dir(); return tfw_known(guid, save_name); }
 
 /* the save files of an older test world: every .json in Saves whose name carries its GUID */
 static void remove_world_files(const char *saves, const char *g) {
@@ -107,35 +66,31 @@ static int world_has_files(const char *saves, const char *g) {
 static char *keep; static size_t keep_n;                            /* the last test world's start save (Restart test) */
 static int in_test;
 int tfw_write(const char *save, size_t n, char *name_out, size_t name_n, char *err, size_t errn) {
-    reg_load();
+    reg_dir();
+    char saves[1100], p[1400], t[1420], name[300];
+    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("The game's save folder is not known.")); return -1; }
     jv *s = jparse(save, n, err, errn); if (!s) return -1;
-    jv *h = jget(s, "CampaignSaveHeader");
-    char *name = h ? jstrdup_raw(jget(h, "SaveName")) : NULL, *guid = h ? jstrdup_raw(jget(h, "CampaignGuid")) : NULL;
-    char *fixed = NULL; size_t fixed_n = 0;
-    if (tfw_consecration_fix(s)) { fixed = jdump(s, 0, &fixed_n); if (fixed) { save = fixed; n = fixed_n; } }   /* no "Lock Consecration" box */
+    tfw_consecration_fix(s);                                           /* no "Lock Consecration" box */
+    /* the mark on its guid (known forever), listed and recorded BEFORE the file exists: never visible */
+    if (tfw_take(s, name, sizeof name)) { jfree(s); snprintf(err, errn, "%s", TR("The save that was made has no usable name.")); return -1; }
+    size_t fixed_n = 0; char *fixed = jdump(s, 0, &fixed_n);
     jfree(s);
-    char g[33]; norm(guid, g); free(guid);
-    if (!name || !name[0] || strlen(g) != 32 || strpbrk(name, "/\\:") || strstr(name, "..")) {
-        snprintf(err, errn, "%s", TR("The save that was made has no usable name.")); free(name); free(fixed); return -1;
-    }
-    char saves[1100], p[1400], t[1420];
-    if (cmw_saves_dir(saves, sizeof saves)) { snprintf(err, errn, "%s", TR("The game's save folder is not known.")); free(name); free(fixed); return -1; }
+    if (!fixed) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); return -1; }
+    save = fixed; n = fixed_n;
     mkdir_(saves);
     /* older test worlds go first (only the newest one is kept); their GUIDs stay listed until the title removes them all
        (a test world loaded now, left by Restart test, may still write a save after this) */
-    for (int i = 0; i < nw; i++) remove_world_files(saves, W[i]);
-    if (nw == NW) { memmove(W[0], W[1], sizeof W[0] * (NW - 1)); nw--; }
-    snprintf(W[nw++], 33, "%s", g); reg_save();                        /* listed BEFORE the file exists: never visible */
+    for (int i = 0; tfw_listed(i); i++) remove_world_files(saves, tfw_listed(i));
     snprintf(p, sizeof p, "%s/%s.json", saves, name); snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "wb");
-    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
+    if (!f || fwrite(save, 1, n, f) != n) { if (f) fclose(f); snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(fixed); return -1; }
     fclose(f);
 #ifdef _WIN32
-    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
+    if (!MoveFileExA(t, p, MOVEFILE_REPLACE_EXISTING)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(fixed); return -1; }
 #else
-    if (rename(t, p)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(name); free(fixed); return -1; }
+    if (rename(t, p)) { snprintf(err, errn, "%s", TR("The test world could not be written into the Saves folder.")); free(fixed); return -1; }
 #endif
-    snprintf(name_out, name_n, "%s", name); free(name);
+    snprintf(name_out, name_n, "%s", name);
     if (save != keep) { char *k = malloc(n); if (k) { memcpy(k, save, n); free(keep); keep = k; keep_n = n; } }   /* for Restart test */
     free(fixed);
     cmw_log("tf: test world %s written (%zu bytes)", name_out, n);
@@ -176,12 +131,12 @@ static void tick(void *ud) {
     if ((loading == 2 || (loading && !load_seen)) && !title) loading = 0;
     if (loading || !title) return;
     if (in_test) { og_restore(); in_test = 0; }
-    reg_load();
-    if (!nw) return;
+    reg_dir();
+    if (!tfw_listed(0)) return;
     char saves[1100]; if (cmw_saves_dir(saves, sizeof saves)) return;
     int changed = 0;
-    for (int i = 0; i < nw; i++) if (world_has_files(saves, W[i])) { remove_world_files(saves, W[i]); changed = 1; }
-    nw = 0; reg_save();
+    for (int i = 0; tfw_listed(i); i++) if (world_has_files(saves, tfw_listed(i))) { remove_world_files(saves, tfw_listed(i)); changed = 1; }
+    tfw_title_clear();                                            /* still known: the mark and the record */
     if (changed) cmw_saves_changed();
 }
 static int f_show(void *ud, const char *guid, const char *save_name, int toggle_on) {

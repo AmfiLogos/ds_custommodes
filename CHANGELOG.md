@@ -12,6 +12,9 @@ Test Fights:
 - Units picked straight from a save keep that save's Auto Skill switch and their per-skill auto-use choices. Before,
   every unit started with Auto Skill on and every skill on auto. Units from My Units, the Gallery and the Unit Builder
   still start with Auto Skill on.
+- Test worlds stay out of the Load list and the Steam Cloud backup for good. Before, a test world was only known until
+  you went back to the title, so a copy left in the cloud showed up as a normal save, also on another computer. New test
+  worlds carry a mark in their save id, and this computer keeps a list of every test world it made.
 
 DPS Check:
 - "DPS Log in Chat" acts at once: off takes the log out of the chat, on brings the whole log back, including the hits
