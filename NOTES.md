@@ -416,6 +416,14 @@
     not move on a right drag (or snaps back, or its place is not kept), a Reckless Assault line per re-apply, a `<b>` name
     line, effect lines that stay in the chat with Effects in Log off (or do not come back), a cut Restart label. The probe
     has `drag_xy` (press, 20 frames moving, release).
+- 0.1.45 SIZE RULE (owner 2026-10-25: "allow to both make the chat and the DPS check window smaller or bigger with a plus
+  or minus"; the kit's template dsl_panel_size, kit 0.1.29; loader/NOTES.md "New in-game panel? dsl_movable +
+  dsl_panel_size"): "-" / "+" at the right end of the title bar of the DPS meter (key "custom-modes.dps_meter",
+  DSL_SIZE_OWN: place_now multiplies its own scale, UI Scale or the room's, by `dsl_panel_size_get`, then keeps all of it on
+  the screen; a click is laid out the same frame) and of our DPS log panel (".dps_log", the kit draws UI Scale x size).
+  The meter's status ("Waiting for the first hit") then takes two lines left of them (the kit's text fit). 10 % a click, 60 % .. 150 %, kept
+  in ui_places.tsv ("<key>@size"). dps_test size_checks: meter "+" 110 % / "-" "-" 90 % by its rect and kept, the chat's
+  open box "+" 110 % / "-" 100 % (multiplayer's chat, mpm_status chat.zoom / zoom_btns).
 - 0.1.41 (lead 2026-10-25, owner rule "existing places move onto the template"): the four windows ARE the kit's window
   template: mu_shell_open calls dsl_window_std (DSL_WIN_MODAL, band 72 = MU_SHELL_BAND = CMW_BAND, DSL_WIN_OWN_SCALE: UI
   Scale stays ours, KIT-SCALE). The shell owns the red X and Escape: close(ud) = the window's Close (My Units close_win,

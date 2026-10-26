@@ -19,6 +19,8 @@ Test Fights:
 DPS Check:
 - "DPS Log in Chat" acts at once: off takes the log out of the chat, on brings the whole log back, including the hits
   made while it was off. Before, off left every line in the chat and on lost the lines of the off time.
+- The DPS meter and the DPS log panel have "-" and "+" buttons at the right end of their title bar. Each click makes the
+  panel and its text 10 % smaller or bigger, from 60 % to 150 %. The size is kept for your next game.
 
 ### 0.1.43 (2026-10-25)
 
