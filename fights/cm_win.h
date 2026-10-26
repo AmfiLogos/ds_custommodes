@@ -41,7 +41,8 @@ void   cmw_test_state(void (*state)(char *out, size_t n));
 int  cmw_load_campaign(const char *save_name);
 /* the game: after files in the Saves folder changed, refresh its save list and the title's Continue (main thread). 0 ok */
 int  cmw_saves_changed(void);
-int  cmw_title_shown(void);                               /* the title menu is up (TitleMenuView active) */
+int  cmw_title_shown(void);                               /* the title menu is up (TitleMenuView active); cheap: no scene
+                                                           search in a world or while a scene loads */
 /* the game's own folders (read on the main thread at init): Application.persistentDataPath, and the save folder
  * (SaveLoadHelper.GetSaveDirectory). Safe from any thread once read. 0 ok */
 int  cmw_game_data(char *out, size_t n);

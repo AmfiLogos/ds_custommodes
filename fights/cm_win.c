@@ -155,8 +155,31 @@ static void dirs_read(void) {
     if (!g_data[0] && m_pdp) utf8_of(CALL0(m_pdp, Obj)(m_pdp), g_data, sizeof g_data);
     if (!g_saves[0] && m_save_dir) utf8_of(CALL0(m_save_dir, Obj)(m_save_dir), g_saves, sizeof g_saves);
 }
+/* the title menu is up. No scene search in a world or while a scene loads (frame-time audit 2026-10-26, ds_multiplayer
+   ext/fpsaudit mp.md #2: one FindAnyObjectByType per call, two calls per 30 frames in every world, where the view never
+   exists: MainFlow.Update frames over 2 ms 568/min with Units Laboratory on, 46/min off). MainFlow._currentScene must say
+   Title and its SceneLoader be idle; then the TitleMenuView, kept between calls (cm_kept: weak GC handle, alive, active;
+   a search at most once a second while it is missing). MainFlow lives the whole run: kept the same way */
+enum { SCENE_TITLE = 1 };                                       /* Refactor.Main.SceneType */
+static cm_keep keep_mf, keep_tmv;
+static int32_t off_mf_scene = -2, off_mf_sl = -1; static cm_m m_sl_loading;
 int cmw_title_shown(void) {
-    return k_tmv && m_find_any && CALL(m_find_any, Obj, Obj)(x_type_obj(x_class_type(k_tmv)), m_find_any) != NULL;
+    if (!k_tmv || cm_il_init(H, S) != 1) return 0;
+    if (off_mf_scene == -2) {
+        off_mf_scene = k_mainflow ? H->field_offset(k_mainflow, "_currentScene") : -1;
+        off_mf_sl = k_mainflow ? H->field_offset(k_mainflow, "_sceneLoader") : -1;
+        m_sl_loading = cm_il_method("Refactor.Main", "SceneLoader", "get_IsLoading", 0, NULL);
+        if (off_mf_scene < 0 || off_mf_sl < 0 || !m_sl_loading.fn)
+            cmw_log("cm_win: title check: MainFlow._currentScene %d, _sceneLoader %d, SceneLoader.IsLoading %s: %s", off_mf_scene, off_mf_sl,
+                    m_sl_loading.fn ? "found" : "missing", off_mf_scene < 0 ? "the view alone decides" : "no loading check");
+    }
+    if (off_mf_scene >= 0) {                                      /* not the title, or a scene loads: no search */
+        Obj mf = cm_kept(&keep_mf, k_mainflow, false, false);
+        if (!mf || CM_AT(mf, off_mf_scene, int32_t) != SCENE_TITLE) return 0;
+        Obj sl = off_mf_sl >= 0 ? CM_AT(mf, off_mf_sl, Obj) : NULL;
+        if (sl && m_sl_loading.fn && CM_CALL(m_sl_loading, bool, Obj, const void *)(sl, m_sl_loading.mi)) return 0;
+    }
+    return cm_kept(&keep_tmv, k_tmv, false, true) != NULL;
 }
 /* after we changed the Saves folder ourselves: the save list (CampaignSaveLoader.TryRefreshSave) and the title's Continue
    (TitleMenuPresenter.RefreshSaveState, what the title runs when it opens; it does not read its argument) */

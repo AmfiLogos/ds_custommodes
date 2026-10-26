@@ -78,7 +78,7 @@ void cm_il_hfree(uintptr_t h) { if (h) I.gc_free(h); }
 void cm_il_hset(uintptr_t *h, Obj o) { if (*h) I.gc_free(*h); *h = o ? I.gc_new(o, false) : 0; }
 
 /* ------------------------------------------------------------------ Unity */
-static cm_m m_getcomp_child, m_alive, m_find, m_go, m_tr, m_getcomp, m_setactive, m_parent, m_count, m_child, m_sib_get, m_sib_set, m_destroy,
+static cm_m m_act_h, m_rtime, m_getcomp_child, m_alive, m_find, m_go, m_tr, m_getcomp, m_setactive, m_parent, m_count, m_child, m_sib_get, m_sib_set, m_destroy,
             m_inst, m_rect, m_raycast, m_sprite, m_color, m_aspect, m_overflow, m_wrap, m_prefw, m_trunc, m_gettext,
             m_rl_item, m_rl_skill, m_rl_tree, m_rl_aff, m_rl_ready, m_portrait, m_spr_name;
 static void *k_graphic, *k_image, *k_tmp, *k_rl, *k_uvm; static int32_t f_uvm_db = -1;
@@ -102,6 +102,8 @@ int cm_il_init(const DSLHost *host, DSLPlugin *self) {
     const char *UE = "UnityEngine", *UI = "UnityEngine.UI", *TM = "TMPro";
     m_alive = cm_il_method(UE, "Object", "op_Implicit", 1, NULL);
     m_find = cm_il_method(UE, "Object", "FindObjectOfType", 2, "System.Type,System.Boolean");
+    m_act_h = cm_il_method(UE, "GameObject", "get_activeInHierarchy", 0, NULL);
+    m_rtime = cm_il_method(UE, "Time", "get_realtimeSinceStartup", 0, NULL);
     m_destroy = cm_il_method(UE, "Object", "Destroy", 1, NULL);
     m_inst = cm_il_method(UE, "Object", "Instantiate", 2, "UnityEngine.Object,UnityEngine.Transform");
     m_go = cm_il_method(UE, "Component", "get_gameObject", 0, NULL); m_tr = cm_il_method(UE, "Component", "get_transform", 0, NULL);
@@ -143,6 +145,17 @@ Obj cm_find(void *k, bool inactive) {
     return cm_alive(o) ? o : NULL;
 }
 Obj cm_go(Obj c) { return cm_alive(c) ? CM_CALL(m_go, Obj, Obj, const void *)(c, m_go.mi) : NULL; }
+static bool shown_h(Obj o) { Obj g = cm_go(o); return g && (!m_act_h.fn || CM_CALL(m_act_h, bool, Obj, const void *)(g, m_act_h.mi)); }
+Obj cm_kept(cm_keep *k, void *klass, bool inactive, bool active) {
+    if (!k || ok != 1) return NULL;
+    Obj o = cm_il_hget(k->h);
+    if (cm_alive(o) && (!active || shown_h(o))) return o;
+    float now = m_rtime.fn ? CM_CALL(m_rtime, float, const void *)(m_rtime.mi) : 0;
+    if (m_rtime.fn && now < k->next) return NULL;
+    k->next = now + 1.0f;
+    o = cm_find(klass, inactive); cm_il_hset(&k->h, o);
+    return o && (!active || shown_h(o)) ? o : NULL;
+}
 Obj cm_tr(Obj c) { return cm_alive(c) ? CM_CALL(m_tr, Obj, Obj, const void *)(c, m_tr.mi) : NULL; }
 Obj cm_comp(Obj c, void *k) {
     if (!cm_alive(c) || !k) return NULL;
