@@ -4,6 +4,21 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
+### Unreleased (0.1.48)
+
+Test Fights:
+- Every Test Fights choice is kept: the test, the room or boss, Magic Saturation, the monsters, the difficulty, the kits,
+  the inscription, the time of day and the squad (My Units, World Units or a Wiki Build Gallery build). They stay the
+  same for the next test and after the game restarts. <!-- roadmap: test-settings-kept -->
+- The hover card of a battle kit opens next to the kit you point at, no longer at the far side of the Test Fights
+  window. The inscription's card does the same. <!-- roadmap: test-kit-hover-card -->
+- Test units start with Auto Skill off. Turn it on with the unit's own Auto Skill button as usual. Units brought from
+  your own world keep the Auto Skill choice they have in that save. <!-- roadmap: test-autoskill-off -->
+- New "Time of Day" choice: Day Time (default, the test starts at 8:00) or Night Time (21:00).
+  <!-- roadmap: test-time-of-day -->
+- Every section of the Test Fights window (Squad, What to Test, Which Room, Difficulty, Battle Kits) folds with a
+  click on its title, and stays folded the next time, also after a restart. <!-- roadmap: test-sections-fold -->
+
 ### 0.1.47 (2026-10-26)
 
 Performance:

@@ -16,6 +16,9 @@ catches):
       the running world (test call tf_test_save) has BehaviourOption AutoAttack (1) off on every My Units squad unit;
   (4) a test world does not start at 08:00 (day) by default, or at night (21:00) with Time of Day = Night: the game's own
       save of the running world, TimeSaveData hour of day (the game takes day / night from it: 06:00-20:00 = day).
+  (5) a Test Fights section does not fold, or does not stay folded (owner 2026-11-01, PLAN_v013 item 6): every heading is
+      the kit's section header; a click folds "Difficulty"; still folded after a test, when the window opens again and
+      after a game restart; a second click opens it.
   setup_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer, mods/custom-modes)
                        LD_ROOT = a ds_modloader checkout (loader/test helpers; default ~/ds_launcher)
                        TS_WIN = a window size for the hover check (e.g. 1920x1080; default 960x540); TS_UISCALE = UI Scale
@@ -278,6 +281,13 @@ def run():
         return
     k2 = kept()
     check('[after a test] every choice is as it was before Start', k2 == k1, {k: (k1.get(k), k2.get(k)) for k in set(k1) | set(k2) if k1.get(k) != k2.get(k)})
+    # (5) a section folds (the kit's dsl_section): Difficulty folded by a click on its header
+    check('[sections] every heading is a fold header (the kit\'s section)', all(f'fights:sec.{k}' in controls() for k in ('squad', 'test', 'difficulty', 'kits')),
+          [k for k in controls() if k.startswith('fights:sec.')])
+    click('fights:sec.difficulty', 1.5)
+    c = controls()
+    check('[sections] a click on "Difficulty" folds it: its header stays, its rows go', 'fights:sec.difficulty' in c and 'fights:r.combat' not in c,
+          [k for k in c if k.startswith('fights:sec.') or k == 'fights:r.combat'])
     # day + My Units: the default time, Auto Skill off
     click('fights:l.src0', 1.5); cmf(cmd='set', name='fights:r.tod', index=0); time.sleep(0.8)
     k3 = kept(); t3 = tf()
@@ -285,11 +295,19 @@ def run():
           (t3.get('squad'), t3.get('team'), k3.get('tod')))
     if not fight('day, My Units', 8, True):
         return
+    if not open_tf('after a test, Difficulty folded'):
+        return
+    c = controls()
+    check('[sections] Difficulty still folded when Test Fights opens again', 'fights:sec.difficulty' in c and 'fights:r.combat' not in c, sorted(k for k in c if 'sec.' in k or k == 'fights:r.combat'))
     # a restart of the game copy
     HP.stop(X); time.sleep(3)
     start_copy()
     if not open_tf('after a restart'):
         return
+    c = controls()
+    check('[sections] Difficulty still folded after the game restarts', 'fights:sec.difficulty' in c and 'fights:r.combat' not in c, sorted(k for k in c if 'sec.' in k or k == 'fights:r.combat'))
+    click('fights:sec.difficulty', 1.5)
+    check('[sections] a second click opens it again', 'fights:r.combat' in controls())
     k4 = kept(); t4 = tf()
     check('[after a restart] the squad is the same team (the save keeps its name)', (t4.get('squad'), t4.get('team')) == (t3.get('squad'), t3.get('team')),
           ((t4.get('squad'), t4.get('team')), 'before', (t3.get('squad'), t3.get('team'))))

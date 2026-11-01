@@ -177,7 +177,7 @@ static void show_at(int i, V2 pos) {
     CM_CALL(m_show, void, Obj, Guid, int, Obj, V2, int, __typeof__(ctx), const void *)(v, TIP_ID, T[i].type, cm_il_str(T[i].key), pos, 0, ctx, m_show.mi);
 }
 /* the side, once the card's width is known: right of the window, else left of it, each only inside the screen and NEXT TO
-   the element (loader kit dsl_ui.c tip_choose, owner 2026-11-01: a card at the window's far side is "kind of off"; near =
+   the element (loader kit dsl_ui.c tip_choose, owner 2026-11-01: a card at the window's far side is "kind of off"; near_px =
    12 % of the screen width, at least 64 px); else beside the element itself, right, else left, when that is over another
    column of the window (other_column); else the window's left. */
 static void place_frame(void) {
@@ -185,13 +185,13 @@ static void place_frame(void) {
     tp_check--;
     float c[4], sw = screen_w(); if (!card_rect(c) || c[2] - c[0] <= 1 || c[2] <= 0 || c[0] >= sw) return;   /* not laid out on the screen yet */
     if (tp_side) { if (c[0] < tp_x - 1 || c[0] > tp_x + 1) move_screen(tp_x - c[0], 0); return; }   /* held: the game's layout may move it again */
-    float w = c[2] - c[0], near = sw * 0.12f > 64.f ? sw * 0.12f : 64.f;
+    float w = c[2] - c[0], near_px = sw * 0.12f > 64.f ? sw * 0.12f : 64.f;
     const float X[4] = { tp_panel[2] + 8, tp_panel[0] - 8 - w, tp_el[2] + 8, tp_el[0] - 8 - w };
     float x = -1;
     for (int i = 0; i < 4 && x < 0; i++) {
         if (X[i] < 0 || X[i] + w > sw) continue;
-        if (i == 0 && X[i] - tp_el[2] > near) continue;
-        if (i == 1 && tp_el[0] - (X[i] + w) > near) continue;
+        if (i == 0 && X[i] - tp_el[2] > near_px) continue;
+        if (i == 1 && tp_el[0] - (X[i] + w) > near_px) continue;
         if (i >= 2) { float h = c[3] - c[1], cc[4] = { X[i], tp_top - h, X[i] + w, tp_top }; if (!other_column(cc, tp_el)) continue; }
         x = X[i];
     }
