@@ -18,7 +18,7 @@
  * Auto Skill (owner 2026-10-25: "Auto skill was also activated on my units despite not turning it on"):
  *  - a unit from a save (fight build) does not keep the save's Auto Skill bit (BehaviourOption 1) or a per-skill auto-use;
  *    each save also runs as a copy with every unit's bit and every auto-use flipped (autoflip_*), so both ways are checked;
- *  - a stored build (no save: My Units, Gallery, Builder) does not get Auto Skill on (0.1.36: else it never casts a skill).
+ *  - a stored build (no save: My Units, Gallery, Builder) gets Auto Skill on (0.1.48: test units start with Auto Skill off; 0.1.36-0.1.47 turned it on).
  * usage: saveunits_test <builder dir> <templates dir> <out dir> SAVE...   (each SAVE is read only; pass copies) */
 #include "../sg_js.h"
 #include "../../fe/fe_json.h"
@@ -177,7 +177,7 @@ static void one_save(sg_engine *e, const char *src, const char *out) {
                 }
                 CHECK(same, "%s [%s] unit %d (%s): its bag = the save's bag (%zu vs %zu items) %s", bn, tags[c], k, s0->name, sbag->cnt, fbag->cnt, why);
             }
-            if (c == 0) {                                                /* Auto Skill: the save's bit and per-skill auto-use; a stored build: on */
+            if (c == 0) {                                                /* Auto Skill: the save's bit and per-skill auto-use; a stored build: off (0.1.48) */
                 int so = 0, fo = 0, po = 0; jv *sau = NULL, *fau = NULL; char e3[400] = "", why[300] = "";
                 if (mu_save_unit_auto(src, s0->guid, &so, &sau, e3, sizeof e3) || mu_save_unit_auto(gb[c], cu[k].guid, &fo, &fau, e3, sizeof e3)
                     || mu_save_unit_auto(gp, gu[k].guid, &po, NULL, e3, sizeof e3)) CHECK(0, "%s [auto] unit %d: read %s", bn, k, e3);
@@ -191,7 +191,7 @@ static void one_save(sg_engine *e, const char *src, const char *out) {
                     }
                     CHECK((fo & 1) == (so & 1), "%s [auto] unit %d (%s): Auto Skill %s as in the save (Option %d in the save, %d in the fight)", bn, k, s0->name, so & 1 ? "on" : "off", so, fo);
                     CHECK(!why[0] && (same > 0 || !sau->cnt), "%s [auto] unit %d (%s): per-skill auto-use as in the save (%d skills, %d off in the save)%s", bn, k, s0->name, same, off, why);
-                    CHECK(po & 1, "%s [plain] unit %d (%s): a stored build gets Auto Skill on (Option %d)", bn, k, s0->name, po);
+                    CHECK(!(po & 1), "%s [plain] unit %d (%s): a stored build gets Auto Skill off (Option %d; Test Fights 0.1.48: test units start with Auto Skill off)", bn, k, s0->name, po);
                 }
                 jfree(sau); jfree(fau);
             }
