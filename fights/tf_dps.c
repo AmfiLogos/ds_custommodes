@@ -262,11 +262,7 @@ static Grp grp[NGRP]; static int ngrp;
 static void finalize(int upto_all, long long now);
 static void grp_lines(const Grp *g);
 static int is_dummy_e(Obj e);
-/* lead task 18 (repeat order): each squad unit's last two hit times on the scarecrow (game seconds) */
-static double rep_last_t[64], rep_prev_t[64], rep_order_t[64], rep_nat[64];   /* + the last order sent, the shortest gap between two hits with no order between */
-static void rep_forget_all(void);
 static void log_clear(void) {
-    rep_forget_all(); memset(rep_last_t, 0, sizeof rep_last_t); memset(rep_prev_t, 0, sizeof rep_prev_t); memset(rep_order_t, 0, sizeof rep_order_t); memset(rep_nat, 0, sizeof rep_nat);
     for (int v = 0; v < 2; v++) { for (size_t i = 0; i < lv[v].n; i++) free(lv[v].l[i]); lv[v].n = 0; lv[v].last_unit = -1; clear_at[v] = 0; }
     sent = 0; hits = n_crit = n_miss = n_ev_done = 0; dmg_sum = 0; fb_use = 0; nheads = 0;
     n_dmg_ev = n_heal_ev = n_abs_ev = n_eff_ev = n_eff_seen = n_eff_capped = 0;
@@ -363,6 +359,61 @@ static Obj h_cse(Obj user, Obj inmap, const void *mi) {
     Obj d = cm_il_hget(h_dummy_ent);
     return d && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi) ? d : r;
 }
+/* Start move (lead task 20, 2026-11-01). Owner: a unit with a staff hit the scarecrow once and then stood; after he
+   moved it ("now it works properly") it kept hitting. Measured (dps_test DPS_PREMOVE): any player move order before the
+   attack order makes it keep hitting (Mariela 1 -> 22 hits a minute, even after a move 19 tiles away); a unit the save
+   puts next to the scarecrow with no move order still hits once. So at the start of a DPS Check every alive squad unit
+   gets the game's own move order (MoveOrder.Near, as a right click on the ground) to the scarecrow: each ends on a free
+   tile next to it, inside every unit's attack range. Once per DPS Check world, before any hit; the player's own orders
+   after it are never touched. No stat, gear or option change. */
+typedef void (*dma_fn)(Obj, const void *); static dma_fn o_dma;
+static uintptr_t h_move, h_map;                          /* the map's MoveOrder and InMapDataInterface, from the game's DefaultMode */
+static int32_t f_dm_cmd = -1, f_dc_flow = -1, f_dc_check = -1, f_cf_move = -1, f_cc_map = -1;
+static void dm_take(Obj dm) {                            /* DefaultMode._command: ._flow._move and ._check._map */
+    Obj c = dm && f_dm_cmd >= 0 ? FLD(dm, f_dm_cmd, Obj) : NULL; if (!c) return;
+    Obj fl = f_dc_flow >= 0 ? FLD(c, f_dc_flow, Obj) : NULL, ck = f_dc_check >= 0 ? FLD(c, f_dc_check, Obj) : NULL;
+    Obj mv = fl && f_cf_move >= 0 ? FLD(fl, f_cf_move, Obj) : NULL, mp = ck && f_cc_map >= 0 ? FLD(ck, f_cc_map, Obj) : NULL;
+    if (mv && mp && (mv != cm_il_hget(h_move) || mp != cm_il_hget(h_map))) {
+        cm_il_hset(&h_move, mv); cm_il_hset(&h_map, mp); cmw_log("tf: DPS Check: start move: the map's orders found");
+    }
+}
+static void h_dma(Obj self, const void *mi) { o_dma(self, mi); dm_take(self); }
+static cm_m m_allpu;
+static cm_m m_near;
+static int sm_state, sm_frames;                          /* 0 waiting, 1 done (this world); frames the world was ready */
+static unsigned long sm_sent;
+static Obj find_all(void *k, int32_t *n);
+static int dummy_tile(int *tx, int *ty) {                /* the scarecrow's tile: its BuildingObject's position, floored */
+    static cm_m pos; static void *kb; static int32_t f_pk = -1;
+    if (!kb) { kb = cm_il_class("Refactor.View", "BuildingObject"); f_pk = kb ? cm_il_field(kb, "<PoolKey>k__BackingField") : -1;
+               pos = cm_il_method("UnityEngine", "Transform", "get_position", 0, NULL); }
+    int32_t n = 0; Obj a = kb && f_pk >= 0 && pos.fn ? find_all(kb, &n) : NULL;
+    for (int32_t i = 0; a && i < n; i++) {
+        Obj b = FLD(a, 0x20 + 8 * i, Obj); if (!cm_alive(b)) continue;
+        char pk[96] = ""; cm_il_utf8(FLD(b, f_pk, Obj), pk, sizeof pk);
+        if (strcmp(pk, "BUILDING_DungeonScareCrow")) continue;
+        V3 w = CM_CALL(pos, V3, Obj, const void *)(cm_tr(b), pos.mi);
+        *tx = (int)floorf(w.x); *ty = (int)floorf(w.y); return 1;
+    }
+    return 0;
+}
+static void sm_tick(void) {
+    if (sm_state || title_up || !m_near.fn || !m_allpu.fn) return;
+    Obj mv = cm_il_hget(h_move), mp = cm_il_hget(h_map), pd = mp, l = mp ? CM_CALL(m_allpu, Obj, Obj, bool, const void *)(mp, false, m_allpu.mi) : NULL;
+    int32_t n = l ? FLD(l, 0x18, int32_t) : 0; Obj items = l ? FLD(l, 0x10, Obj) : NULL;
+    int tx = 0, ty = 0;
+    if (!mv || !items || n <= 0 || !dummy_tile(&tx, &ty)) {
+        static unsigned w; if (w++ % 300 == 0 && w < 1000) cmw_log("tf: start move waits: move %d map %d list %d n %d", mv != NULL, pd != NULL, l != NULL, (int)n);
+        sm_frames = 0; return; }
+    if (++sm_frames < 30) return;                        /* the world settled for 30 frames */
+    sm_state = 1;
+    uint64_t at = (uint64_t)(uint32_t)tx | ((uint64_t)(uint32_t)ty << 32);
+    for (int32_t i = 0; i < n && i < 64; i++) {
+        Obj u = FLD(items, 0x20 + 8 * i, Obj); if (!u) continue;
+        CM_CALL(m_near, void, Obj, Obj, uint64_t, const void *)(mv, u, at, m_near.mi); sm_sent++;
+    }
+    cmw_log("tf: DPS Check: start move: %d squad unit(s) sent next to the scarecrow (%d,%d)", (int)n, tx, ty);
+}
 /* Summons (lead 2026-10-25, as damage meters do): what a squad unit's summon does counts for that unit: in the log under its
    header as "<summon> (summon)", in the meter in its row with the summon as its own skill row. -1 = not a squad unit's. */
 static int owner_of(int ui) {
@@ -393,11 +444,6 @@ static void ev_add(int kind, Obj user, Obj tgt, const char *key, int basic, floa
     else snprintf(h->skill, sizeof h->skill, "%s", unitv[h->unit].name);   /* no skill / affecter behind it: the source itself (an item) */
     int ow = user ? owner_of(h->unit) : -1;
     if (ow >= 0) { snprintf(h->skill, sizeof h->skill, TR("%s (summon)"), unitv[h->unit].base); h->unit = ow; h->basic = 0; }   /* "Strange Seed (summon)" */
-    if (kind == TFK_DMG && h->on_dummy && h->unit >= 0 && h->unit < MAXU) {
-        int u = h->unit; double pv = rep_last_t[u];
-        if (pv > 0 && rep_order_t[u] < pv && h->t > pv && (!rep_nat[u] || h->t - pv < rep_nat[u])) rep_nat[u] = h->t - pv;
-        rep_prev_t[u] = pv; rep_last_t[u] = h->t;
-    }
     nhit++;
     if (kind == TFK_DMG && h->on_dummy) { hits++; dmg_sum += amt; n_crit += res == TFD_CRIT; n_miss += res == TFD_MISS; }
     n_dmg_ev += kind == TFK_DMG; n_heal_ev += kind == TFK_HEAL; n_abs_ev += kind == TFK_ABSORB; n_eff_ev += kind == TFK_EFFECT;
@@ -759,69 +805,6 @@ double tf_dps_durability(double *max) {
     return sr ? bstat(sr, ST_DURABILITY) : -1;
 }
 
-/* ---------------------------------------------------------------- the player's attack order, repeated (lead task 18)
-   Proven (lead tasks 12-17, 2026-11-01): Auto Skill off, a ranged unit with no torch (the owner's world units Mariela, Alice,
-   Arion) hits the scarecrow ONCE per attack order and then stands, even right next to it; with a torch it keeps hitting.
-   The cause in the game is not found. So in a DPS Check only, the player's own attack order on the scarecrow is remembered
-   (the game's ActionOrder.Execute: right click -> DefaultCommand -> CommandFlow -> InteractionRunner -> ActionOrder) and given
-   again, through the same call, when that unit is idle (rep_tick). Any other order for that unit forgets it; any move order (MoveOrder.All / TryMove) forgets every unit's. */
-#define IA_SIZE 0xD8                                     /* Refactor.Control.Interaction (decomp 25846389) */
-static const int ia_refs[] = { 0x10, 0x18, 0x28, 0x30, 0x38, 0x50, 0x68, 0x70, 0xB0, 0xC0, 0xC8 };   /* its object fields */
-#define IA_NREF ((int)(sizeof ia_refs / sizeof ia_refs[0]))
-typedef bool (*ao_fn)(Obj self, void *data, Obj unit, Obj check, const void *mi);
-static ao_fn o_ao; static const void *ao_mi; static int ao_replaying;
-static struct { int on; uint8_t data[IA_SIZE]; uintptr_t h_self, h_unit, h_check, h_ref[IA_NREF]; double t; } rep[64];
-static unsigned long n_rep_saved, n_rep_sent, n_rep_forgot;
-static void rep_forget(int u) {
-    if (u < 0 || u >= 64 || !rep[u].on) return;
-    rep[u].on = 0; n_rep_forgot++;
-    cm_il_hset(&rep[u].h_self, NULL); cm_il_hset(&rep[u].h_unit, NULL); cm_il_hset(&rep[u].h_check, NULL);
-    for (int k = 0; k < IA_NREF; k++) cm_il_hset(&rep[u].h_ref[k], NULL);
-}
-static void rep_forget_all(void) { for (int u = 0; u < 64; u++) rep_forget(u); }
-static bool h_ao(Obj self, void *data, Obj unit, Obj check, const void *mi) {
-    ao_mi = mi;
-    if (!ao_replaying && dps_on && !title_up && data && unit) {
-        int type = *(int32_t *)data; Obj tgt = *(Obj *)((uint8_t *)data + 0x30);
-        int u = ent_of(unit);
-        if (u >= 0 && u < 64) {
-            if ((type == 2 || type == 3) && tgt && is_dummy_e(tgt) && unitv[u].is_player) {
-                rep_forget(u); rep[u].on = 1; memcpy(rep[u].data, data, IA_SIZE); rep[u].t = rep_order_t[u] = tf_dps_clock();
-                cm_il_hset(&rep[u].h_self, self); cm_il_hset(&rep[u].h_unit, unit); cm_il_hset(&rep[u].h_check, check);
-                for (int k = 0; k < IA_NREF; k++) cm_il_hset(&rep[u].h_ref[k], *(Obj *)((uint8_t *)data + ia_refs[k]));
-                n_rep_saved++;
-            } else rep_forget(u);
-        }
-    }
-    return o_ao(self, data, unit, check, mi);
-}
-typedef void (*mva_fn)(Obj self, Obj sel, uint64_t pos, const void *mi);
-typedef void (*mvt_fn)(Obj self, Obj sel, const void *mi);
-static mva_fn o_mva; static mvt_fn o_mvt;
-static void h_mva(Obj self, Obj sel, uint64_t pos, const void *mi) { if (dps_on) rep_forget_all(); o_mva(self, sel, pos, mi); }
-static void h_mvt(Obj self, Obj sel, const void *mi) { if (dps_on) rep_forget_all(); o_mvt(self, sel, mi); }
-static void rep_tick(void) {
-    if (!o_ao || !ao_mi || title_up) return;
-    double now = tf_dps_clock();
-    for (int u = 0; u < nunit && u < 64; u++) {
-        if (!rep[u].on) continue;
-        /* idle = no hit for 2 of its own attack intervals (its shortest gap between two hits with no order between; 1.5 s until
-           known) after its last hit; with no hit since the last order, 6 s (a repeat sooner cuts the attack it started:
-           measured 2026-11-01, 3 s gave 5 hits for 14 orders). A unit that keeps hitting on its own is never sent an order
-           (measured: a repeat 1 s after each hit cut a melee unit from 50 to 34 hits a minute). */
-        int hit_since = rep_last_t[u] > rep[u].t;
-        double iv = rep_nat[u] > 0 ? rep_nat[u] : 1.5, last = hit_since ? rep_last_t[u] : rep[u].t, thr = hit_since ? 2 * iv : 6.0;
-        if (thr < 2) thr = 2;
-        if (now - last < thr) continue;
-        Obj self = cm_il_hget(rep[u].h_self), unit = cm_il_hget(rep[u].h_unit), check = cm_il_hget(rep[u].h_check);
-        if (!self || !unit || !check) { rep_forget(u); continue; }
-        uint8_t buf[IA_SIZE]; memcpy(buf, rep[u].data, IA_SIZE);
-        rep[u].t = now; rep_order_t[u] = now; ao_replaying = 1;
-        o_ao(self, buf, unit, check, ao_mi);
-        ao_replaying = 0; n_rep_sent++;
-    }
-}
-
 /* ---------------------------------------------------------------- frame */
 static void tick(void *ud) {
     (void)ud;
@@ -837,8 +820,7 @@ static void tick(void *ud) {
         if (cmw_title_shown()) restart_line = 30;
         else if (!--restart_line) for (int v = 0; v < 2; v++) add_line(v, "<color=" C_SUB ">--- restart ---</color>");
     }
-    if (!title_up) { finalize(0, game_tick()); flush(); if (live_hp != 1) { live_tick(); ins_tick(); } }
-    if (!title_up) rep_tick();
+    if (!title_up) { finalize(0, game_tick()); flush(); sm_tick(); if (live_hp != 1) { live_tick(); ins_tick(); } }
     fb_tick();
 }
 
@@ -850,7 +832,8 @@ void tf_dps_world(const char *stem) {
     if (on) { log_clear(); fb_off = 0; fb_n = (size_t)-1; restart_line = restarting ? 30 : 0; restarting = 0; }   /* the line once the world shows */
                                                          /* (a restart also loads the title's background world first: not that one) */
     cm_il_hset(&h_view, NULL); cm_il_hset(&h_sr, NULL); shown_c = shown_m = -1;
-    cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1; cm_il_hset(&h_dummy_ent, NULL); rep_forget_all();
+    cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1; cm_il_hset(&h_dummy_ent, NULL);
+    sm_state = 0; sm_frames = 0;
     dps_on = on;
 }
 void tf_dps_restarting(void) { restarting = dps_on; }
@@ -924,15 +907,20 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
         int r = H->hook_method(self, "Refactor.Combat.ExecutionProcess", "AffecterSimulator", "Simulate", 4, (void *)h_asim, (void **)&o_asim);
         cmw_log("tf: DPS Check: effects in the log %s (%d)", r ? "hook refused" : "on", r);
     }
+    m_near = cm_il_method("Refactor.Control", "MoveOrder", "Near", 2, NULL);
+    m_allpu = cm_il_method("Refactor", "InMapDataInterface", "GetAllPlayerUnits", 1, NULL);
+    { const char *RCo = "Refactor.Control";
+      f_dm_cmd = cm_il_field(cm_il_class(RCo, "DefaultMode"), "_command"); f_dc_flow = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_flow");
+      f_dc_check = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_check"); f_cf_move = cm_il_field(cm_il_class(RCo, "CommandFlow"), "_move");
+      f_cc_map = cm_il_field(cm_il_class(RCo, "CommandCheck"), "_map"); }
+    if (m_near.fn && m_allpu.fn && f_dm_cmd >= 0 && f_dc_flow >= 0 && f_dc_check >= 0 && f_cf_move >= 0 && f_cc_map >= 0) {
+        int r = H->hook_method(self, "Refactor.Control", "DefaultMode", "ActivateMode", 0, (void *)h_dma, (void **)&o_dma);
+        cmw_log("tf: DPS Check: start move %s (%d)", r ? "hook refused" : "on", r);
+        if (r) m_near.fn = NULL;
+    } else cmw_log("tf: DPS Check: start move off (fields %d %d %d %d %d)", f_dm_cmd, f_dc_flow, f_dc_check, f_cf_move, f_cc_map);
     if (m_isplayer.fn) {
         int r = H->hook_method(self, "Refactor.Combat", "CombatUtility", "GetClosestSingleEnemy", 2, (void *)h_cse, (void **)&o_cse);
         cmw_log("tf: DPS Check: Auto Skill on the scarecrow %s (%d)", r ? "hook refused" : "on", r);
-    }
-    {
-        int r1 = H->hook_method(self, "Refactor.Control", "ActionOrder", "Execute", 3, (void *)h_ao, (void **)&o_ao);
-        int r2 = H->hook_method(self, "Refactor.Control", "MoveOrder", "All", 2, (void *)h_mva, (void **)&o_mva);
-        int r3 = H->hook_method(self, "Refactor.Control", "MoveOrder", "TryMove", 1, (void *)h_mvt, (void **)&o_mvt);
-        cmw_log("tf: DPS Check: repeat the attack order on the scarecrow %s (%d %d %d)", r1 || r2 || r3 ? "hook refused" : "on", r1, r2, r3);
     }
     k_fxd = cm_il_class(RC, "FXCallExecutionData"); f_fx_user = cm_il_field(k_fxd, "<User>k__BackingField");
     f_ins_el = cm_il_field(cm_il_class(RU, "SubUI_EntityInspectionStatus"), "_buildingElements");
@@ -1172,10 +1160,10 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
                         o += text_json(out + o, cap - o, "max", FLD(bs, f_s_max, Obj)); o += (size_t)snprintf(out + o, cap - o, ","); }
     o += (size_t)snprintf(out + o, cap - o, "\"repaired\":%.3f,\"heads\":%d,\"units\":%d,\"clock\":%.3f,\"speech_shown\":%lu,\"speech_hidden\":%lu,\"heal_shown\":%lu,\"heal_hidden\":%lu,"
                             "\"sw\":[%d,%d,%d,%d,%d],\"ins\":%d,\"ins_c\":%.3f,\"ins_txt\":\"%s\",\"restart_ready\":%d,"
-                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu,\"effect_capped\":%lu},\"live_hp\":%d,\"rep\":[%lu,%lu,%lu],",
+                            "\"events\":%zu,\"ev_done\":%lu,\"ev\":{\"dmg\":%lu,\"heal\":%lu,\"absorb\":%lu,\"effect\":%lu,\"effect_seen\":%lu,\"effect_capped\":%lu},\"live_hp\":%d,\"sm\":[%d,%lu],",
                             repaired, nheads, nunit, tf_dps_clock(), n_speech_shown, n_speech_hidden, n_heal_shown, n_heal_hidden,
                             tf_dps_switch(0), tf_dps_switch(1), tf_dps_switch(2), tf_dps_switch(3), tf_dps_switch(4), cm_alive(cm_il_hget(h_ins)) && go_on(cm_il_hget(h_ins), 1), ins_c, ins_text(), tf_restart_ready(),
-                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, n_eff_capped, live_hp, n_rep_saved, n_rep_sent, n_rep_forgot);
+                            nhit, n_ev_done, n_dmg_ev, n_heal_ev, n_abs_ev, n_eff_ev, n_eff_seen, n_eff_capped, live_hp, sm_state, sm_sent);
     o += (size_t)snprintf(out + o, cap - o, "\"last\":[");
     for (size_t i = nl > 8 ? nl - 8 : 0; i < nl && o + 300 < cap; i++) {
         char e[260]; size_t k = 0; for (const char *p = lines[i]; *p && k + 2 < sizeof e; p++) { if (*p == '"' || *p == '\\') e[k++] = '\\'; e[k++] = *p; } e[k] = 0;

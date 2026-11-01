@@ -319,6 +319,17 @@ def unit_spots():
         (sum(1 for x in p if x.get('u') == 0), sum(1 for x in p if x.get('u') == 1))
 
 
+def unit_spots_settled():
+    """unit_spots once the squad stands still (task 20: each unit walks next to the scarecrow at the start)"""
+    a = unit_spots()
+    for _ in range(25):
+        time.sleep(1); b = unit_spots()
+        if b == a:
+            return b
+        a = b
+    return a
+
+
 def chat_lines(frm=0):
     """the chat's local lines ever added, those in its history now, and the history's local lines from frm on"""
     chat = dlog(f'chat {frm}').split('\n')
@@ -374,7 +385,7 @@ BASIC = {None: 'Basic Attack', '3': 'Grundangriff', '4': 'Базовая ата�
 def run():
     start_fight()
     shot(f'world_{LANG or "en"}')
-    spots0, counts0 = unit_spots()
+    spots0, counts0 = unit_spots_settled()
     at = select_dummy()
     check('the scarecrow selected by a click, the mouse kept on it (inspect panel shows it)', at is not None)
     if not at:
@@ -610,7 +621,8 @@ def run():
         click('dps:restart', 0.5)
         until(lambda: (lambda s: s.get('on') == 1 and s.get('title') == 0 and s.get('hits', 9) < 3)(dps('state')), f'the restarted world ({r_i})', 300, 2)
         time.sleep(8)
-        spots, counts = unit_spots(); m = meter(); total, inhist, cl = chat_lines()
+        m = meter(); total, inhist, cl = chat_lines()            # before the squad's walk to the scarecrow ends (task 20)
+        spots, counts = unit_spots_settled()
         at2 = select_dummy(); s = dps('state')
         check(f'Restart test #{r_i}: the scarecrow full, the squad at its start spots, the same objects, the meter at 0, "--- restart ---" in the chat',
               at2 is not None and s.get('dur') == s.get('dmax') == 1000000.0 and spots == spots0 and counts == counts0 and m.get('total') == 0 and cl[:1] and 'restart' in cl[0],
@@ -985,17 +997,6 @@ def run_hold():
     check('the squad ordered to attack the scarecrow', n >= 1, n)
     time.sleep(10)
     hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on'))
-    if os.environ.get('DPS_MOVE'):                              # task 18: a player's move order is kept (the repeat stops)
-        us = [b for b in dps('pos').get('b', []) if b.get('u') == 1 and b.get('on')]
-        if not us:
-            check('(task 18) a squad unit on screen for the move order', False); return
-        u = us[0]; req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(1.0)
-        req('click_xy', x=u['s'][0] - 160, y=u['s'][1] + 120, button=1); time.sleep(8)
-        n0 = len(hits_dump(0)); w0 = [b.get('w') for b in dps('pos').get('b', []) if b.get('u') == 1]; time.sleep(20)
-        ev = [h for h in hits_dump(0)[n0:] if h['kind'] == 0 and h['on_dummy']]; rep = dps('state').get('rep') or [0, 0, 0]
-        log('move', json.dumps({'hits_after': len(ev), 'rep': rep, 'pos': w0}))
-        check('(task 18) after a move order the unit is not sent back to the scarecrow: no hit in 20 s, the repeat forgotten',
-              not ev and rep[2] >= 1, json.dumps({'hits_after': len(ev), 'rep': rep}))
 
 
 info = {}
