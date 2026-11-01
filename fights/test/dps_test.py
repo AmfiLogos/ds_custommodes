@@ -31,7 +31,8 @@ from hostmods_pair import lrig, log, check  # noqa: E402
 X = os.environ.get('DPS_COPY', 'DPS'); HP.H = HP.G = X      # the test copy's name (a lane may take its own)
 NO_MP = '--no-mp' in sys.argv
 HEAL = '--heal' in sys.argv                                   # a Custom fight: a healer + barrier squad that monsters attack
-SOLO = '--solo' in sys.argv                                   # owner 2026-11-01 (item 13): a 1-unit DPS Check shows the meter, one row
+SOLO = '--solo' in sys.argv or bool(os.environ.get('DPS_PATH'))
+PATH1 = os.environ.get('DPS_PATH')                            # lead task 8 (item 13 not reproduced): world | custom                                   # owner 2026-11-01 (item 13): a 1-unit DPS Check shows the meter, one row
 LIVE_HP = '--no-live-hp' not in sys.argv
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
 UISCALE = os.environ.get('DPS_UISCALE')
@@ -316,11 +317,16 @@ def size_checks():
     minus"): the kit's "-" / "+" (dsl_panel_size) on the DPS meter and on the chat: 10 % a click, the panel and its text,
     kept for the next start (ui_places.tsv); each is left at 100 % for the checks after this"""
     wd = lambda r: (r or [0, 0, 0, 0])[2] - (r or [0, 0, 0, 0])[0]
-    m0 = meter(); zb = m0.get('size_btns') or [0]
+    def hov(r):                                                   # kit 0.1.30: the "-" / "+" show only while the mouse is over the panel
+        if r and r[2] > r[0]:
+            req('hover_xy', x=(r[0] + r[2]) / 2, y=r[3] - 8); time.sleep(0.6)
+    def mh():
+        hov(meter().get('rect')); return meter()
+    m0 = mh(); zb = m0.get('size_btns') or [0]
     check('size: the DPS meter has "-" / "+" (kit panel_size)', zb[0] == 1 and zb[3] - zb[1] > 4 and abs(m0.get('size', 0) - 1) < 1e-3, (m0.get('size'), zb))
     if zb[0] == 1:
-        size_click(zb[1:], True); m1 = meter()
-        size_click((m1.get('size_btns') or [0, 0, 0, 0, 0])[1:], False); size_click((meter().get('size_btns') or [0, 0, 0, 0, 0])[1:], False); m2 = meter()
+        size_click(zb[1:], True); m1 = mh()
+        size_click((m1.get('size_btns') or [0, 0, 0, 0, 0])[1:], False); size_click((mh().get('size_btns') or [0, 0, 0, 0, 0])[1:], False); m2 = mh()
         places = os.path.join(lrig.idir(X), 'data', 'Mods', 'ui_places.tsv')
         kept = os.path.exists(places) and 'custom-modes.dps_meter@size\t0.9' in open(places, encoding='utf-8', errors='replace').read()
         shot(f'meter_size90_{LANG or "en"}')
@@ -328,14 +334,14 @@ def size_checks():
               abs(m1.get('size', 0) - 1.1) < 1e-3 and abs(wd(m1.get('rect')) / wd(m0.get('rect')) - 1.1) < 0.03
               and abs(m2.get('size', 0) - 0.9) < 1e-3 and abs(wd(m2.get('rect')) / wd(m0.get('rect')) - 0.9) < 0.03 and kept,
               json.dumps({'w': [wd(m0.get('rect')), wd(m1.get('rect')), wd(m2.get('rect'))], 'size': [m1.get('size'), m2.get('size')], 'kept': kept}))
-        size_click((m2.get('size_btns') or [0, 0, 0, 0, 0])[1:], True)
+        size_click((mh().get('size_btns') or [0, 0, 0, 0, 0])[1:], True)
     if NO_MP:
         return
     chat = lambda: (HP.c(X, cmd='mpm_status') or {}).get('chat') or {}
-    req('key', code=36); time.sleep(1.5); c0 = chat(); zb = c0.get('zoom_btns')     # Enter: the box (read only: no session)
+    req('key', code=36); time.sleep(1.5); hov(chat().get('rect')); c0 = chat(); zb = c0.get('zoom_btns')     # Enter: the box (read only: no session)
     check('size: the chat\'s open box has "-" / "+" (kit panel_size)', zb and zb[3] - zb[1] > 4 and abs(c0.get('zoom', 0) - 1) < 1e-3, (c0.get('zoom'), zb))
     if zb:
-        size_click(zb, True); c1 = chat(); shot(f'chat_size110_{LANG or "en"}'); size_click(c1.get('zoom_btns') or zb, False); c2 = chat()
+        size_click(zb, True); hov(chat().get('rect')); c1 = chat(); shot(f'chat_size110_{LANG or "en"}'); size_click(c1.get('zoom_btns') or zb, False); hov(chat().get('rect')); c2 = chat()
         check('size: the chat: "+" = 110 % (the open box with it), "-" = 100 % again',
               abs(c1.get('zoom', 0) - 1.1) < 1e-3 and abs(wd(c1.get('rect')) / wd(c0.get('rect')) - 1.1) < 0.03
               and abs(c2.get('zoom', 0) - 1) < 1e-3 and abs(wd(c2.get('rect')) - wd(c0.get('rect'))) <= 2,
@@ -759,8 +765,10 @@ def status_checks(tag):
         ok = (m.get('rows_n') == 0 and st.get('where') == 1 and st.get('text') and abs(cx) <= 3 and abs(cy) <= 3
               and sr[0] >= lr[0] - 1 and sr[2] <= lr[2] + 1 and not st.get('cut') and 0 < st.get('pw', 0) <= st.get('bw', 0) + 0.5
               and not (zb[0] and overlap(sr, zb[1:])))
+        seen_btns.add(bool(zb[0]))
         return check(f'(item 7, {tag}) {lbl}: the empty list shows "{st.get("text")}" centred in it, one line, not cut, never over the "-" / "+"', ok,
                      json.dumps({'status': st, 'list': lr, 'btns': zb, 'size': m.get('size'), 'rows_n': m.get('rows_n'), 'd': [round(cx, 1), round(cy, 1)]}, ensure_ascii=False))
+    seen_btns = set()
     m = meter(); r = m.get('rect') or [0, 0, 0, 0]
     if m.get('rows_n') != 0:
         check(f'(item 7, {tag}) the meter is empty before the first hit', False, m.get('rows_n')); return
@@ -769,14 +777,13 @@ def status_checks(tag):
     over(); one('100 %, mouse over the panel'); away(); one('100 %, mouse away'); shot(f'empty_{tag}_100')
     for want, plus, n in ((0.6, False, 4), (1.5, True, 9), (1.0, False, 5)):
         for _ in range(n):
-            m = meter(); zb = m.get('size_btns') or [0, 0, 0, 0, 0]
-            if not zb[0]:
-                over(); time.sleep(0.5); zb = meter().get('size_btns') or [0, 0, 0, 0, 0]
+            over(); time.sleep(0.6); zb = meter().get('size_btns') or [0, 0, 0, 0, 0]
             size_click(zb[1:], plus)
         m = meter(); r = m.get('rect') or r
         if abs(m.get('size', 0) - want) > 1e-3:
             check(f'(item 7, {tag}) size {want:.0%} reached', False, m.get('size')); return
         over(); one(f'{want:.0%}, mouse over the panel'); away(); one(f'{want:.0%}, mouse away'); shot(f'empty_{tag}_{int(want * 100)}')
+    log('item 7: "-" / "+" states seen (True = shown)', sorted(seen_btns))
 
 
 def run_solo():
@@ -800,6 +807,73 @@ def run_solo():
     check('(item 13) a 1-unit DPS Check shows the meter (not the small Restart panel), with one row for the unit, inside the visible list',
           m.get('shown') == 1 and len(us) == 1 and m.get('rows_n') == 1 and m.get('rows_h', 1e9) <= m.get('view_h', -1) + 0.5,
           json.dumps({k: m.get(k) for k in ('shown', 'small', 'rows_n', 'rows_h', 'view_h')} | {'units': [u.get('name') for u in us]}, ensure_ascii=False))
+
+
+def solo_meter(tag, want_full=True):
+    """the meter after the one unit hit (or the small panel): logged and checked"""
+    m = meter(); us = m.get('units') or []
+    log(f'path {tag}: meter', json.dumps({k: m.get(k) for k in ('shown', 'small', 'folded', 'rect', 'rows_n', 'rows_h', 'view_h', 'total')}), [u.get('name') for u in us])
+    shot(f'path_{tag}')
+    if want_full:
+        check(f'(task 8, {tag}) the meter shows with one row for the one unit', m.get('shown') == 1 and len(us) == 1 and m.get('rows_n') == 1
+              and m.get('rows_h', 1e9) <= m.get('view_h', -1) + 0.5, json.dumps({k: m.get(k) for k in ('shown', 'small', 'folded', 'rows_n', 'rows_h', 'view_h')}))
+    return m
+
+
+def attack_and_wait(tag):
+    at = select_dummy()
+    if not at:
+        check(f'(task 8, {tag}) the scarecrow selected', False); return False
+    order_attack(at)
+    try:
+        until(lambda: dps('state').get('hits', 0) > 5, 'the unit hits', 120, 1)
+    except RuntimeError:
+        h = dps('state').get('hits', 0); log(f'path {tag}: only {h} hits in 120 s')
+        if not h:
+            check(f'(task 8, {tag}) the unit hits the scarecrow', False, dps('state')); return False
+    time.sleep(3); return True
+
+
+def run_paths():
+    """lead task 8: other ways a 1-unit test may start (owner: "Test fight : doesn't display dps meter if one character")"""
+    rows = column()
+    lab = next((r[0] for r in rows if r and r[0] == 'Units Laboratory' and len(r) > 1 and r[1] == '1'), None) or by_index(rows, COL_LAB) or 'Units Laboratory'
+    click('title:' + lab, 3); click('home:Test Fights', 3)
+    until(lambda: tfs().get('engine') == 2, "the wiki's Test Fights files", 300, 2)
+    if PATH1 == 'world':                                            # a world unit (from a save) as the only unit, DPS Check
+        click('fights:l.src2', 2); t = tfs(); log('worlds', t.get('worlds'))
+        click('fights:l.world0', 3); t = tfs(); us = [u for u in (t.get('wunits') or '').split(',') if u]
+        if not us:
+            check('(task 8, world) the save copy\'s world lists units', False, json.dumps(t)[:400]); return
+        click('fights:l.wtick0', 2); t = tfs()
+        check('(task 8, world) one world unit is the squad, mode DPS Check', t.get('squad') == 1 and t.get('mode') == 'dps', json.dumps(t)[:400])
+        click('fights:start', 1)
+        until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0)(dps('state')), 'the DPS Check world', 600, 3); time.sleep(8)
+        log('path world: stem', dps('state').get('stem'), meter().get('shown'))
+        if not attack_and_wait('world'):
+            return
+        solo_meter('world')
+        # the meter folded while the fight runs, opened again: the row still there
+        click('dps:fold', 1.5); click('dps:fold', 1.5); solo_meter('world_refold')
+        # a second test right after the first (Restart Test Floor), the meter at 0, the row back after the hits
+        click('dps:restart', 2)
+        until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0 and x.get('hits', 1) == 0)(dps('state')), 'the restarted world', 600, 3); time.sleep(8)
+        m = meter(); check('(task 8, restart) the meter shows after Restart Test Floor (empty, waiting)', m.get('shown') == 1 and m.get('rows_n') == 0, json.dumps({k: m.get(k) for k in ('shown', 'small', 'rows_n')}))
+        if attack_and_wait('restart'):
+            solo_meter('restart')
+    else:                                                           # a Custom fight with one unit of his side (monsters)
+        click('fights:l.team0', 2)
+        cmf(cmd='set', name='fights:r.mode', index=2); time.sleep(1.5)
+        cmf(cmd='set', name='fights:r.moncount', index=0); time.sleep(0.5)
+        cmf(cmd='type', name='fights:r.monq', text='Rat'); time.sleep(1.2); cmf(cmd='click', name='fights:r.hit0'); time.sleep(1.0)
+        t = tfs(); check('(task 8, custom) one unit, Custom fight', t.get('squad') == 1 and t.get('mode') == 'arena', json.dumps(t)[:300])
+        click('fights:start', 1)
+        until(lambda: (lambda x: x.get('shown', 0) + x.get('small', 0) > 0)(meter()), 'the Custom fight world', 600, 3)
+        time.sleep(15)
+        m = solo_meter('custom', want_full=False)
+        info['custom_fight_meter'] = {'shown': m.get('shown'), 'small': m.get('small')}
+        check('(task 8, custom) recorded: a Custom fight shows the small "Restart Test Floor" panel, not the DPS meter (by design: the meter is the DPS Check\'s)',
+              m.get('small') == 1 and m.get('shown') == 0, json.dumps({k: m.get(k) for k in ('shown', 'small')}))
 
 
 info = {}
@@ -842,7 +916,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
-        run_heal() if HEAL else run_solo() if SOLO else run()
+        run_heal() if HEAL else run_paths() if PATH1 else run_solo() if SOLO else run()
     except BaseException as e:
         log(traceback.format_exc())
         check('run finished', False, repr(e))
