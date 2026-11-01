@@ -36,6 +36,9 @@ DPS meter:
   Before, it sat squeezed in the title bar next to the "-" / "+" buttons. <!-- roadmap: dps-waiting-text -->
 - The DPS meter's "Stats" and "Settings" blocks fold: click their title. They stay folded for the next test and after
   a game restart. The buttons, the unit list and "Restart Test Floor" always show. <!-- roadmap: test-sections-fold -->
+- In a DPS Check, a unit that stops after one hit gets your attack order on the scarecrow again, so the DPS meter keeps
+  counting. Before, a unit with a staff and no torch hit once and then stood still, and the meter showed no DPS. Units
+  that keep hitting on their own get no extra order. A move order you give stops the repeat. <!-- roadmap: dps-repeat-order -->
 
 ### 0.1.47 (2026-10-26)
 

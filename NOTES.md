@@ -317,6 +317,12 @@
   item's own stats (HitChance +15, VisionRange +3). Test: `DPS_HOLD=1` (60 s hold check, hits per key),
   `DPS_SOLO_UNIT=<n>`, `DPS_NOTORCH=1`, `DPS_AFF=<affecter>`, `DPS_SECONDARY=<item>`,
   `DPS_PATH=world DPS_HOLD_WORLD=1 DPS_WUNIT=<n>`.
+- Fix (lead task 18, tf_dps.c rep_tick): in a DPS Check the player's own attack order on the scarecrow
+  (Refactor.Control.ActionOrder.Execute, the right click's path) is remembered per unit and sent again through the same
+  call when the unit is idle: no hit for 2 of its own attack intervals (shortest gap between two hits with no order
+  between; 1.5 s until known), or 6 s after an order with no hit. Any other ActionOrder for the unit, or MoveOrder.All /
+  TryMove, forgets it. Measured: Mariela (staff, no torch) 0 -> 11 hits a minute; fixtures unchanged (50; 22/24/21/51).
+  Guard: `DPS_HOLD=1` (+ `DPS_MOVE=1` for the move order), `DPS_PATH=world DPS_HOLD_WORLD=1`.
 - Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,
   DPS log in chat ON, Start on first hit ON. Speech and the "+200" are their view iterators ended at once
   (AffecterFX_SelfRepair.OnFXCall, StatusResultFX.HandleFX: "<>1__state" = -1); the sim is untouched, the repair goes on.

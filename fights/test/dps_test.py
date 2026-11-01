@@ -947,7 +947,7 @@ def hold_check(tag, secs=60):
     keys = {}
     for h in ev:
         keys[h['key']] = keys.get(h['key'], 0) + 1
-    m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'keys': keys, 'dps5': m.get('dps5')}
+    m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'keys': keys, 'dps5': m.get('dps5'), 'rep': dps('state').get('rep')}
     log(f'hold {tag}', json.dumps(info['hold'][tag], ensure_ascii=False))
     noauto = bool(os.environ.get('DPS_NOAUTO'))
     check(f'(task 12, {tag}) every squad unit keeps hitting the scarecrow for {secs} s (at least 5 hits each), DPS (last 5 s) > 0'
@@ -965,6 +965,17 @@ def run_hold():
     check('the squad ordered to attack the scarecrow', n >= 1, n)
     time.sleep(10)
     hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on'))
+    if os.environ.get('DPS_MOVE'):                              # task 18: a player's move order is kept (the repeat stops)
+        us = [b for b in dps('pos').get('b', []) if b.get('u') == 1 and b.get('on')]
+        if not us:
+            check('(task 18) a squad unit on screen for the move order', False); return
+        u = us[0]; req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(1.0)
+        req('click_xy', x=u['s'][0] - 160, y=u['s'][1] + 120, button=1); time.sleep(8)
+        n0 = len(hits_dump(0)); w0 = [b.get('w') for b in dps('pos').get('b', []) if b.get('u') == 1]; time.sleep(20)
+        ev = [h for h in hits_dump(0)[n0:] if h['kind'] == 0 and h['on_dummy']]; rep = dps('state').get('rep') or [0, 0, 0]
+        log('move', json.dumps({'hits_after': len(ev), 'rep': rep, 'pos': w0}))
+        check('(task 18) after a move order the unit is not sent back to the scarecrow: no hit in 20 s, the repeat forgotten',
+              not ev and rep[2] >= 1, json.dumps({'hits_after': len(ev), 'rep': rep}))
 
 
 info = {}
