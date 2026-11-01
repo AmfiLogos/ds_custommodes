@@ -871,10 +871,25 @@ def solo_meter(tag, want_full=True):
     return m
 
 
+def premove(at):
+    """task 20 (DPS_PREMOVE=dx,dy screen points from the scarecrow): the player's move order next to it first"""
+    if not os.environ.get('DPS_PREMOVE'):
+        return at
+    dx, dy = (float(v) for v in os.environ['DPS_PREMOVE'].split(','))
+    log('premove options before', req('call', fn='tf_dps_test', s='options').get('out'))
+    for u in [b for b in dps('pos').get('b', []) if b.get('u') == 1 and b.get('on')]:
+        req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(1.0)
+        req('click_xy', x=at[0] + dx, y=at[1] + dy, button=1); time.sleep(8)
+    log('premove options after', req('call', fn='tf_dps_test', s='options').get('out'))
+    log('premove', [(b.get('go'), b.get('w'), b.get('s')) for b in dps('pos').get('b', []) if b.get('u') == 1])
+    return select_dummy() or at
+
+
 def attack_and_wait(tag):
     at = select_dummy()
     if not at:
         check(f'(task 8, {tag}) the scarecrow selected', False); return False
+    at = premove(at)
     order_attack(at)
     if DEMO:                                                      # the owner watches 60 s; the hit count goes to the log
         shot('demo_order'); time.sleep(60); log('DEMO hits after 60 s', dps('state').get('hits', 0)); shot('demo_60s'); return True
@@ -965,6 +980,7 @@ def run_hold():
     check('the scarecrow selected by a click', at is not None)
     if not at:
         return
+    at = premove(at)
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow', n >= 1, n)
     time.sleep(10)
