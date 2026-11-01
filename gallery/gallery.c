@@ -1,5 +1,6 @@
 /* gallery - see gallery.h */
 #include "gallery.h"
+#include "../units/wk_lang.h"
 #include "../fights/cm_http.h"
 #include "../fe/fe_json.h"
 #include "i18n/ds_i18n.h"
@@ -254,11 +255,8 @@ gal_words *gal_words_fetch(char *err, size_t errn) {
     return w;
 }
 gal_words *gal_words_fetch_lang(const char *lang_code, char *err, size_t errn) {
-    static const struct { const char *game, *wiki; } L[] = {
-        { "fr", "fr" }, { "de", "de" }, { "ja", "ja" }, { "ko", "ko" }, { "ru", "ru" }, { "zh-Hans", "zh" }, { "zh-Hant", "zht" } };
-    const char *w = NULL;
-    for (size_t i = 0; lang_code && i < sizeof L / sizeof *L; i++) if (!strcmp(L[i].game, lang_code)) w = L[i].wiki;
-    if (!w) return gal_words_fetch(err, errn);
+    const char *w = wk_wiki_lang(lang_code);                      /* the one game -> wiki language table (units/wk_lang.h) */
+    if (!*w) return gal_words_fetch(err, errn);
     char url[160]; cmh_resp r;
     snprintf(url, sizeof url, CM_WIKI "/%s/builds/words.json", w);
     if (fetch_json(url, GAL_WORDS_MAX, &r, err, errn)) return gal_words_fetch(err, errn);   /* that page missing: English */

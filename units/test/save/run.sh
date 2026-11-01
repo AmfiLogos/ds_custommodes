@@ -9,7 +9,7 @@ mkdir -p $T $H/old
 mkdir -p $T/run
 nice -n 19 cc -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -fsanitize=address,undefined \
   -I $C/units -I $C -I $C/fe -o $T/save_test $H/save_test.c \
-  $C/units/{mu_save.c,mu_worlds.c,myunits.c,pvp_wiki.c,pvp_build.c,mu_card.c} $C/fe/{fe_json.c,fe_save.c} $C/units/test/dsi_impl.c -lz -lm
+  $C/units/{mu_save.c,mu_worlds.c,myunits.c,pvp_wiki.c,pvp_build.c,mu_card.c,wk_export.c} $C/fe/{fe_json.c,fe_save.c} $C/units/test/dsi_impl.c -lz -lm
 export ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 B=~/DungeonSettlers_SaveBackups/2026-10-11-1827/Saves
 I=~/ds_multiplayer/instances/A/data/Saves
@@ -36,5 +36,18 @@ done
 python3 -I -c 'import json,sys; [print(json.dumps(u["build"])) for u in json.load(open(sys.argv[1]))["units"]]' \
   $C/units/test/data/launcher_library.json > $T/run/builds_library.jsonl
 $T/save_test rt $T/run/builds_library.jsonl $T/run > $T/run/rt_library.txt || st=1
+# "Open in Wiki Builder" (wk_export.c): every real save's units + the random builds -> C team codes, which the builder
+# itself must decode exactly as its own encodeTeam of the same builds (export_check.js)
+EXPORT_OUT=$T/run/export.jsonl $T/save_test export $SAVES > $T/run/export.txt || st=1
+EXPORT_OUT=$T/run/export.jsonl $T/save_test enc $T/run/builds_*.jsonl > $T/run/enc.txt || st=1
+node $H/export_check.js $T/run/export.jsonl > $T/run/export_check.txt || st=1
+# the export's live-data check (wkx_codec_check): the wiki's builder tables == ours (else no link goes out); a renamed item
+# key and a changed bonus range must be refused (the size-only fingerprint misses both)
+CODEC=${DSB_DIR:-$HOME/dungeonsettlersdb/site/builder}/../dbdata/gallery_codec.js
+$T/save_test codec $CODEC 1 > $T/run/codec.txt || st=1
+python3 -I -c 'import sys; s=open(sys.argv[1]).read(); open(sys.argv[2],"w").write(s.replace("\"ITEM_WoodClub\"","\"ITEM_WoodClubX\"",1))' $CODEC $T/run/codec_key.js
+python3 -I -c 'import sys,re; s=open(sys.argv[1]).read(); i=s.index("ITEM_SilverRing"); j=s.index("5.0,10.0",i); open(sys.argv[2],"w").write(s[:j]+"5.0,11.0"+s[j+8:])' $CODEC $T/run/codec_range.js
+$T/save_test codec $T/run/codec_key.js 0 > $T/run/codec_key.txt || st=1
+$T/save_test codec $T/run/codec_range.js 0 > $T/run/codec_range.txt || st=1
 grep -h "^==\|passed\|FAIL\|ERROR\|Sanitizer\|runtime error" $T/run/*.txt | head -60
 exit $st

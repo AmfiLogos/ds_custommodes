@@ -13,6 +13,8 @@
 #include "myunits.h"
 #include "mu_save.h"
 #include "mu_worlds.h"
+#include "wk_export.h"
+#include "mu_export.h"
 #include "cm_home.h"
 #include "cm_il.h"
 #include "cm_win.h"
@@ -34,7 +36,7 @@ static struct {
     int box_on;
     DSLObj box_add, box_cancel, b_rename_ok, b_rename_cancel;
     DSLObj win, status, box, box_field, rename_row, rename_field, left, right, bottom, pager;
-    DSLObj b_add, b_new, b_close, b_team, b_rename, b_edit, b_delete, b_renteam, b_delteam, b_snap, b_prev, b_next, t_sel, t_page;
+    DSLObj b_add, b_new, b_close, b_team, b_rename, b_edit, b_delete, b_renteam, b_delteam, b_snap, b_export, t_pub, b_prev, b_next, t_sel, t_page;
     DSLObj team_btn[64]; int nteam_btn; DSLObj all_btn; char team_txt[64][300];   /* team rows and their texts (tests) */
     float bar_x0, bar_room, bar_w[6]; DSLObj bar_b[6]; int bar_n;   /* the bottom bar's library buttons (layout_bottom) */
     int ren_team, ren_on; char ren_tid[17];   /* the name box renames: 0 the ticked unit, 1 the team ren_tid (selected when opened); ren_on = it shows */
@@ -51,6 +53,7 @@ static struct {
     DSLObj world_btn[WMAX]; int nworld_btn;
     mu_save_unit su[NMAX]; int nsu, su_for; char su_err[400];
     char wticked[NMAX][40]; int nwticked;
+    int x_busy, x_n, x_pub;           /* "Open in Wiki Builder": a job runs (mu_export.h); its unit count and gallery switch */
     /* library cards with a source (a snapshot): the line inside the card (nsrc = drawn on this page; their text) */
     int nsrc; char card_src[16][200], card_src_full[16][400];
     /* "Delete team" box: Cancel / Team only / Team and units */
@@ -61,6 +64,7 @@ static struct {
 
 static void refresh(void);
 static void win_poll(void);
+static void export_poll(void);
 static void poll_fn(void) { win_poll(); }
 static int build_ui(void);
 static void set_msg(const char *m, uint32_t col) {
@@ -185,6 +189,7 @@ static void win_poll(void) {
             refresh();
         }
     }
+    if (W.x_busy) export_poll();
     mul_result r;
     int st = mul_poll(&r);
     if (st == MUL_DONE || st == MUL_FAILED) {
@@ -264,6 +269,86 @@ static void on_snapshot(void *ud, DSLObj w) {
     char m[200]; snprintf(m, sizeof m, TRN("Saved a snapshot of %d unit to My Units.", "Saved a snapshot of %d units to My Units.", n), n); set_msg(m, MU_C_GOLD);
     mu_log("my units: snapshot of %d units from %s", n, wd->save);
     W.nwticked = 0;
+    refresh();
+}
+/* "Open in Wiki Builder" (owner 2026-11-01, PLAN_v013 item 16): the ticked units of the world's newest save (none ticked
+   and 8 or fewer in the save = all of them) open in the wiki's Character Builder, in the player's own browser, as one new
+   team of his roster; the builder publishes it at once to the Build Gallery unless the switch says private (wk_export.h) */
+#define EXPORT_PREF "wiki_export.txt"
+static void export_pref_path(char *out, size_t n) {
+    char p[1200]; mu_lib_path(p, sizeof p);
+    char *s = strrchr(p, '/'); char *b = strrchr(p, '\\'); if (b > s) s = b;
+    if (s) s[1] = 0; else p[0] = 0;
+    snprintf(out, n, "%s%s", p, EXPORT_PREF);
+}
+static int export_pub_get(void) {                                     /* kept; default public (owner 2026-11-01) */
+    char p[1300]; export_pref_path(p, sizeof p);
+    FILE *f = fopen(p, "rb"); if (!f) return 1;
+    char l[64] = ""; int pub = 1;
+    while (fgets(l, sizeof l, f)) if (!strncmp(l, "public=", 7)) pub = l[7] != '0';
+    fclose(f); return pub;
+}
+static void export_pub_set(int on) {
+    char p[1300], t[1400]; export_pref_path(p, sizeof p); snprintf(t, sizeof t, "%s.tmp", p);
+    FILE *f = fopen(t, "wb"); if (!f) { mu_log("my units: could not keep the gallery switch (%s)", p); return; }
+    fprintf(f, "public=%d\n", on ? 1 : 0); fclose(f);
+#ifdef _WIN32
+    remove(p);
+#endif
+    if (rename(t, p)) mu_log("my units: could not keep the gallery switch (%s)", p);
+}
+static void on_pub(void *ud, DSLObj w) { (void)ud; export_pub_set(U->toggle_get(w)); mu_log("my units: export gallery switch %s", U->toggle_get(w) ? "public" : "private"); }
+static int export_count(void) { return W.nwticked ? W.nwticked : (W.nsu <= WK_MAX_UNITS ? W.nsu : 0); }
+static void on_export(void *ud, DSLObj w) {
+    (void)ud; (void)w; if (W.sel_world < 0 || W.sel_world >= W.nworlds || W.x_busy) return;
+    if (W.nwticked > WK_MAX_UNITS || (!W.nwticked && W.nsu > WK_MAX_UNITS)) {
+        char m[200]; snprintf(m, sizeof m, TRN("A wiki team holds %d unit at most. Tick the units to open.", "A wiki team holds %d units at most. Tick the units to open.", WK_MAX_UNITS), WK_MAX_UNITS);
+        set_msg(m, MU_C_BAD); return;
+    }
+    int n = export_count(); if (n < 1) return;
+    const mu_world *wd = &W.worlds[W.sel_world];
+    wk_build *b = calloc((size_t)n, sizeof *b); if (!b) return;
+    char names[WK_MAX_UNITS][96]; const char *np[WK_MAX_UNITS];
+    for (int i = 0; i < WK_MAX_UNITS; i++) { names[i][0] = 0; np[i] = names[i]; }
+    char e[400] = "";
+    for (int i = 0; i < n; i++) {
+        const char *g = W.nwticked ? W.wticked[i] : W.su[i].guid, *nm = NULL;
+        for (int k = 0; k < W.nsu; k++) if (!strcmp(W.su[k].guid, g)) nm = W.su[k].name;
+        if (mu_save_build(wd->path, g, &b[i], e, sizeof e)) {
+            char m[600]; snprintf(m, sizeof m, TR("Could not read a unit of this save: %s"), e); set_msg(m, MU_C_BAD);
+            mu_log("my units: export of %s failed: %s", g, e); free(b); return;
+        }
+        if (nm && nm[0]) snprintf(names[i], sizeof names[i], "%s", nm);   /* the name the game shows (its own text, quotes kept) */
+        else snprintf(names[i], sizeof names[i], "%s", b[i].name);
+    }
+    int pub = W.t_pub ? U->toggle_get(W.t_pub) : export_pub_get();
+    static char url[16384];
+    if (wk_export_url(b, n, np, wd->name, pub, wk_wiki_lang(dsi_code()), url, sizeof url)) {
+        free(b); set_msg(TR("Could not make the wiki link for these units."), MU_C_BAD); mu_log("my units: export link failed"); return;
+    }
+    free(b);
+    mu_log("my units: export url %s", url);
+    mu_log("my units: export of %d units from %s (%s): checking the wiki's data", n, wd->save, pub ? "public" : "private");
+    if (mux_start(url) != MUX_BUSY) return;
+    W.x_n = n; W.x_pub = pub; W.x_busy = 1;
+    set_msg(TR("Checking the wiki..."), MU_C_SUB);
+    if (W.b_export) U->set_enabled(W.b_export, 0);
+}
+/* the export job's end (mu_export.h), polled each frame */
+static void export_poll(void) {
+    char d[400] = ""; int st = mux_poll(d, sizeof d);
+    if (st == MUX_IDLE || st == MUX_BUSY) return;
+    W.x_busy = 0;
+    char m[600]; int n = W.x_n;
+    if (st == MUX_OPENED) {
+        if (W.x_pub) snprintf(m, sizeof m, TRN("Opened %d unit in the wiki builder. It goes to the Build Gallery.", "Opened %d units in the wiki builder. They go to the Build Gallery.", n), n);
+        else snprintf(m, sizeof m, TRN("Opened %d unit in the wiki builder. Private: not in the Build Gallery.", "Opened %d units in the wiki builder. Private: not in the Build Gallery.", n), n);
+    } else if (st == MUX_OUTDATED) snprintf(m, sizeof m, "%s", TR("The wiki's game data changed since this version of Units Laboratory. Update Units Laboratory, then try again."));
+    else if (st == MUX_OFFLINE) snprintf(m, sizeof m, TR("Could not reach the wiki: %s"), d);
+    else snprintf(m, sizeof m, "%s", TR("Could not open your web browser."));
+    set_msg(m, st == MUX_OPENED ? MU_C_GOLD : MU_C_BAD);
+    mu_log("my units: export %s%s%s", st == MUX_OPENED ? "browser opened" : st == MUX_OUTDATED ? "REFUSED: the wiki's tables differ" : st == MUX_OFFLINE ? "failed: wiki not reached" : "failed: browser not opened",
+           d[0] ? ": " : "", d);
     refresh();
 }
 static void on_save_team(void *ud, DSLObj w) {
@@ -575,6 +660,8 @@ static void refresh(void) {
     U->set_active(W.b_team, !wv); U->set_active(W.b_rename, !wv); U->set_active(W.b_delete, !wv);
     if (W.b_edit) U->set_active(W.b_edit, !wv);
     if (W.b_snap) { U->set_active(W.b_snap, wv); U->set_enabled(W.b_snap, W.nwticked >= 1); }
+    if (W.b_export) { U->set_active(W.b_export, wv); U->set_enabled(W.b_export, wv && !W.x_busy && (W.nwticked >= 1 || (W.nsu >= 1 && W.nsu <= WK_MAX_UNITS))); }
+    if (W.t_pub) U->set_active(W.t_pub, wv);
     U->set_enabled(W.b_team, W.nticked >= 1); U->set_enabled(W.b_rename, W.nticked == 1);
     U->set_enabled(W.b_delete, W.nticked >= 1);
     if (W.b_edit) U->set_enabled(W.b_edit, W.nticked == 1);
@@ -590,7 +677,7 @@ static int build_ui(void) {
     /* 746 high: 4 cards fit the list at UI scale 1 under the template's header (owner 2026-10-17) */
     W.win = mu_shell_open(&W.sh, TR("My Units"), 1100, 746, 0, &w, &h, win_close, NULL, NULL);
     if (!W.win) { mu_log("my units: kit not ready"); return -1; }
-    W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = W.nworld_btn = 0; W.b_snap = NULL;
+    W.w = w; W.h = h; W.left = W.right = NULL; W.ncard = W.nteam_btn = W.nworld_btn = 0; W.b_snap = W.b_export = W.t_pub = NULL;
     W.dlg = W.dlg_units = W.dlg_only = W.dlg_cancel = W.dlg_x = NULL;
     W.lw = W.lh = 0; cm_rect_size(cm_parent(W.win), &W.lw, &W.lh); W.scale = mu_ui_scale();
     /* top bar under the header (the red X closes: no Close button) */
@@ -636,6 +723,17 @@ static int build_ui(void) {
         W.b_snap = mu_button(W.bottom, 136 + 8, 2, 160, 40, TR("Save Snapshot"), on_snapshot, NULL);
         { float sw = fit_w(W.b_snap, 160); if (sw > room) sw = room; U->place(W.b_snap, 136 + 8, 2, sw, 40); }
         U->tooltip(W.b_snap, TR("Save Snapshot"), TR("Copies the ticked units into My Units as they are in this save. Your save is not changed."));
+        /* a world's view: Open in Wiki Builder + its Build Gallery switch after Save snapshot, each as wide as its label;
+           too little room: all three shrink by the same factor (as layout_bottom) */
+        W.b_export = mu_button(W.bottom, 0, 2, 200, 40, TR("Open in Wiki Builder"), on_export, NULL);
+        U->tooltip(W.b_export, TR("Open in Wiki Builder"), TR("Opens the ticked units (or all units of the save, up to 8) in the wiki's Character Builder in your browser, as a new team you can edit. Your save is not changed."));
+        W.t_pub = U->toggle(W.bottom, 0, 2, 280, TR("Public in the Build Gallery"), export_pub_get(), on_pub, NULL);
+        {
+            float ws = fit_w(W.b_snap, 160) + 6, we = fit_w(W.b_export, 200) + 6, wt = 300, sum = ws + we + wt, k = sum > room ? room / sum : 1, x0 = 136 + 8;
+            U->place(W.b_snap, x0, 2, ws * k - 6, 40); x0 += ws * k;
+            U->place(W.b_export, x0, 2, we * k - 6, 40); x0 += we * k;
+            if (W.t_pub) U->place(W.t_pub, x0, 2, wt * k - 6, 40);
+        }
         W.b_prev = mu_button(W.bottom, w - 40 - 160, 2, 44, 40, "<", on_page, (void *)(intptr_t)-1);
         W.t_page = mu_text(W.bottom, w - 40 - 112, 0, 64, 44, "", 14, DSL_TXT_CENTER, MU_C_SUB);
         W.b_next = mu_button(W.bottom, w - 40 - 44, 2, 44, 40, ">", on_page, (void *)(intptr_t)1);
@@ -690,7 +788,7 @@ DSLObj mu_window_test_find(const char *n) {
         { "save_team", &W.b_team }, { "rename", &W.b_rename }, { "edit", &W.b_edit }, { "delete", &W.b_delete },
         { "delete_team", &W.b_delteam }, { "rename_team", &W.b_renteam }, { "prev", &W.b_prev }, { "next", &W.b_next }, { "rename_field", &W.rename_field }, { "rename_ok", &W.b_rename_ok }, { "rename_cancel", &W.b_rename_cancel },
         { "status", &W.status }, { "box_add", &W.box_add }, { "box_cancel", &W.box_cancel }, { "win", &W.win }, { "all", &W.all_btn }, { "right", &W.right },
-        { "snapshot", &W.b_snap }, { "dlg", &W.dlg }, { "dlg_units", &W.dlg_units }, { "dlg_only", &W.dlg_only }, { "dlg_cancel", &W.dlg_cancel }, { "dlg_x", &W.dlg_x } };
+        { "snapshot", &W.b_snap }, { "export", &W.b_export }, { "export_pub", &W.t_pub }, { "dlg", &W.dlg }, { "dlg_units", &W.dlg_units }, { "dlg_only", &W.dlg_only }, { "dlg_cancel", &W.dlg_cancel }, { "dlg_x", &W.dlg_x } };
     for (size_t i = 0; i < sizeof map / sizeof *map; i++) if (!strcmp(n, map[i].n)) return *map[i].o;
     int k;
     if (sscanf(n, "tip%d", &k) == 1) return mu_tip_test_target(k);       /* the k-th icon with a game hover card */
@@ -724,8 +822,8 @@ size_t mu_window_test_state(char *out, size_t cap) {
     }
     return (size_t)snprintf(out, cap, "{\"open\":%d,\"units\":%d,\"teams\":%d,\"sel_team\":%d,\"shown\":%d,\"cards\":%d,\"ticked\":%d,"
                             "\"page\":%d,\"per_page\":%d,\"box\":%d,\"link\":%d,\"msg\":\"%s\",\"builder\":%d,\"w\":%.0f,\"h\":%.0f,"
-                            "\"worlds\":[%s],\"sel_world\":%d,\"wunits\":[%s],\"wticked\":%d,\"dlg\":%d,\"rename\":%d,\"src_lines\":%d,\"lib\":\"%s\",\"card_list\":[%s],\"team_rows\":[%s],%s}",
+                            "\"worlds\":[%s],\"sel_world\":%d,\"wunits\":[%s],\"wticked\":%d,\"dlg\":%d,\"rename\":%d,\"src_lines\":%d,\"lib\":\"%s\",\"card_list\":[%s],\"team_rows\":[%s],\"x_busy\":%d,\"x_pub\":%d,%s}",
                             W.open, W.lib ? (int)mu_count(W.lib) : -1, W.lib ? (int)mu_team_count(W.lib) : -1, W.sel_team, W.nids,
                             W.ncard, W.nticked, W.page, W.per_page, W.box_on, mul_poll(NULL), m, mu_builder_present(), W.w, W.h,
-                            wl, W.sel_world, gl, W.nwticked, W.dlg_on, W.ren_on, W.nsrc, lpe, cl, tr, tip);
+                            wl, W.sel_world, gl, W.nwticked, W.dlg_on, W.ren_on, W.nsrc, lpe, cl, tr, W.x_busy, W.t_pub ? U->toggle_get(W.t_pub) : -1, tip);
 }

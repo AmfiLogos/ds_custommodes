@@ -19,6 +19,14 @@ Test Fights:
 - Every section of the Test Fights window (Squad, What to Test, Which Room, Difficulty, Battle Kits) folds with a
   click on its title, and stays folded the next time, also after a restart. <!-- roadmap: test-sections-fold -->
 
+My Units:
+- New "Open in Wiki Builder" button in World Units: the units you tick in one of your worlds (or all of them, up to 8)
+  open in the wiki's Character Builder in your web browser, as a new team you can edit there. The team goes to the Build
+  Gallery at once, like the builds you save on the wiki; the "Public in the Build Gallery" switch next to the button
+  keeps them private instead (the switch is remembered). Your save is not changed. When the wiki's game data is newer
+  than your Units Laboratory, the button says so and opens nothing, so a unit never arrives with other items or skills.
+  <!-- roadmap: export-team-wiki -->
+
 ### 0.1.47 (2026-10-26)
 
 Performance:
