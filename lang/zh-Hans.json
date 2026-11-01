@@ -57,6 +57,9 @@
   "每支队伍最多容纳 %d 个单位。"
  ],
  "A unit holds one soul stone: picking another replaces it.": "一个单位只能持有一块灵魂石：选择另一块会将其替换。",
+ "A wiki team holds %d unit at most. Tick the units to open.||A wiki team holds %d units at most. Tick the units to open.": [
+  "维基队伍最多 %d 个单位。请勾选要打开的单位。"
+ ],
  "Absorbed": "吸收",
  "Acquired Traits": "获得的特质",
  "Active": "主动",
@@ -100,6 +103,7 @@
  "Builds by %s": "%s 的作品",
  "Can Learn": "可学习",
  "Cancel": "取消",
+ "Checking the wiki...": "正在检查维基……",
  "Choose Management Difficulty Separately": "单独选择管理难度",
  "Choose a build, open its Details, then press \"Use This Unit\".": "选择一个构筑，打开详情，然后点击“使用此单位”。",
  "Clear": "清除",
@@ -114,7 +118,11 @@
  "Could not add to My Units: %s": "无法添加到我的单位：%s",
  "Could not load the gallery. Try again later.": "无法加载作品库。请稍后再试。",
  "Could not load this team. Try again later.": "无法加载此队伍。请稍后再试。",
+ "Could not make the wiki link for these units.": "无法为这些单位生成维基链接。",
+ "Could not open your web browser.": "无法打开网页浏览器。",
+ "Could not reach the wiki: %s": "无法连接维基：%s",
  "Could not read My Units: %s": "无法读取我的单位：%s",
+ "Could not read a unit of this save: %s": "无法读取此存档中的一个单位：%s",
  "Could not save My Units: %s": "无法保存我的单位：%s",
  "Could not save the snapshot: %s": "无法保存快照：%s",
  "Custom Fight": "自定义战斗",
@@ -215,10 +223,18 @@
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "每级一个铭文：共 %d 个（等级 %d）。额外技能树用去 %d 个，铭文用去 %d 个，因此剩余 %d 个。",
  "One-handed.": "单手武器。",
  "Open a world and tick the units to send in. They fight as they are in that save.": "打开一个世界，勾选要入场的单位。它们会以该存档中的状态作战。",
+ "Open in Wiki Builder": "在维基构筑器中打开",
  "Open the Wiki Build Gallery": "打开维基作品库",
+ "Opened %d unit in the wiki builder. It goes to the Build Gallery.||Opened %d units in the wiki builder. They go to the Build Gallery.": [
+  "已在维基构筑器中打开 %d 个单位。它们会进入作品库。"
+ ],
+ "Opened %d unit in the wiki builder. Private: not in the Build Gallery.||Opened %d units in the wiki builder. Private: not in the Build Gallery.": [
+  "已在维基构筑器中打开 %d 个单位。私密：不进入作品库。"
+ ],
  "Opening the build...": "正在打开构筑……",
  "Opens": "打开",
  "Opens the Wiki Build Gallery. The unit you choose there fills this window.": "打开维基作品库。你在那里选择的单位会填入此窗口。",
+ "Opens the ticked units (or all units of the save, up to 8) in the wiki's Character Builder in your browser, as a new team you can edit. Your save is not changed.": "在浏览器的维基单位构筑器中打开勾选的单位（未勾选时为存档中的全部单位，最多 8 个），作为可编辑的新队伍。不会改动你的存档。",
  "Or save a gallery build to My Units, then press Edit there.": "或者将作品库的构筑保存到“我的单位”，然后在那里按“编辑”。",
  "Page %d / %d": "第 %d / %d 页",
  "Page %d / %d+": "第 %d / %d+ 页",
@@ -234,6 +250,7 @@
  "Portrait": "头像",
  "Potion Buff Kit": "药水增益套装",
  "Presets": "预设",
+ "Public in the Build Gallery": "在作品库中公开",
  "Race": "种族",
  "Races": "种族",
  "Randomize": "随机",
@@ -276,6 +293,7 @@
  "Skill trees: %s": "技能树：%s",
  "Skills": "技能",
  "Snapshot": "快照",
+ "Some items, traits or skills are no longer on the wiki and were left out.": "部分物品、特质或技能已不在维基上，已略去。",
  "Spear": "矛",
  "Special": "特殊",
  "Squad": "小队",
@@ -336,6 +354,7 @@
  "The save that was made has no usable name.": "生成的存档没有可用的名称。",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "此存档会开启魔力饱和，并写入你选择的日期。只有无尽深渊的怪物会获得它。",
  "The test world could not be written into the Saves folder.": "无法将测试世界写入存档文件夹。",
+ "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "维基读取构筑的方式已改变。请更新单位实验室，然后重试。",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "维基未能打开此短链接（错误 %d）。请稍后再试，或在维基上复制完整链接。",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "维基的测试战斗文件适用于游戏版本 %s，而此游戏为版本 %s。两者匹配后测试战斗才会重新开放。",
  "The wiki's Unit Builder could not start. Try again later.": "维基的单位构筑器无法启动。请稍后再试。",

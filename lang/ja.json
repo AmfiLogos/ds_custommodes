@@ -57,6 +57,9 @@
   "1つのチームには最大%d体のユニットを入れられます。"
  ],
  "A unit holds one soul stone: picking another replaces it.": "ユニットが持てる魂石は1つです。別の魂石を選ぶと置き換わります。",
+ "A wiki team holds %d unit at most. Tick the units to open.||A wiki team holds %d units at most. Tick the units to open.": [
+  "Wikiのチームは最大%d体です。開くユニットにチェックを入れてください。"
+ ],
  "Absorbed": "吸収",
  "Acquired Traits": "獲得した特性",
  "Active": "アクティブ",
@@ -100,6 +103,7 @@
  "Builds by %s": "%s のビルド",
  "Can Learn": "習得可能",
  "Cancel": "キャンセル",
+ "Checking the wiki...": "Wikiを確認中...",
  "Choose Management Difficulty Separately": "管理難易度を別に選ぶ",
  "Choose a build, open its Details, then press \"Use This Unit\".": "ビルドを選び、詳細を開いて「このユニットを使う」を押してください。",
  "Clear": "クリア",
@@ -114,7 +118,11 @@
  "Could not add to My Units: %s": "マイユニットに追加できませんでした：%s",
  "Could not load the gallery. Try again later.": "ギャラリーを読み込めませんでした。後でもう一度お試しください。",
  "Could not load this team. Try again later.": "このチームを読み込めませんでした。後でもう一度お試しください。",
+ "Could not make the wiki link for these units.": "これらのユニットのWikiリンクを作成できませんでした。",
+ "Could not open your web browser.": "Webブラウザを開けませんでした。",
+ "Could not reach the wiki: %s": "Wikiに接続できませんでした: %s",
  "Could not read My Units: %s": "マイユニットを読み取れませんでした：%s",
+ "Could not read a unit of this save: %s": "このセーブのユニットを読み込めませんでした: %s",
  "Could not save My Units: %s": "マイユニットを保存できませんでした：%s",
  "Could not save the snapshot: %s": "スナップショットを保存できませんでした：%s",
  "Custom Fight": "カスタム戦闘",
@@ -215,10 +223,18 @@
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "刻印はレベルごとに1つ：%d（レベル%d）。追加スキルツリーに%d、刻印に%d、残り%dが空き。",
  "One-handed.": "片手武器。",
  "Open a world and tick the units to send in. They fight as they are in that save.": "ワールドを開き、入るユニットにチェックを入れます。そのセーブのままの状態で戦います。",
+ "Open in Wiki Builder": "Wikiビルダーで開く",
  "Open the Wiki Build Gallery": "Wikiビルドギャラリーを開く",
+ "Opened %d unit in the wiki builder. It goes to the Build Gallery.||Opened %d units in the wiki builder. They go to the Build Gallery.": [
+  "%d体のユニットをWikiビルダーで開きました。ビルドギャラリーに公開されます。"
+ ],
+ "Opened %d unit in the wiki builder. Private: not in the Build Gallery.||Opened %d units in the wiki builder. Private: not in the Build Gallery.": [
+  "%d体のユニットをWikiビルダーで開きました。非公開: ビルドギャラリーには載りません。"
+ ],
  "Opening the build...": "ビルドを開いています...",
  "Opens": "閲覧",
  "Opens the Wiki Build Gallery. The unit you choose there fills this window.": "Wikiビルドギャラリーを開きます。そこで選んだユニットがこのウィンドウに入ります。",
+ "Opens the ticked units (or all units of the save, up to 8) in the wiki's Character Builder in your browser, as a new team you can edit. Your save is not changed.": "チェックしたユニット(なければセーブの全ユニット、最大8体)を、ブラウザのWikiユニットビルダーで編集できる新しいチームとして開きます。セーブは変更されません。",
  "Or save a gallery build to My Units, then press Edit there.": "または、ギャラリーのビルドをマイユニットに保存し、そこで「編集」を押してください。",
  "Page %d / %d": "%d / %d ページ",
  "Page %d / %d+": "%d / %d+ ページ",
@@ -234,6 +250,7 @@
  "Portrait": "肖像画",
  "Potion Buff Kit": "ポーション強化キット",
  "Presets": "プリセット",
+ "Public in the Build Gallery": "ビルドギャラリーに公開",
  "Race": "種族",
  "Races": "種族",
  "Randomize": "ランダム",
@@ -276,6 +293,7 @@
  "Skill trees: %s": "スキルツリー：%s",
  "Skills": "スキル",
  "Snapshot": "スナップショット",
+ "Some items, traits or skills are no longer on the wiki and were left out.": "一部のアイテム、特性、スキルはWikiから削除されているため、除外しました。",
  "Spear": "槍",
  "Special": "特殊",
  "Squad": "部隊",
@@ -336,6 +354,7 @@
  "The save that was made has no usable name.": "作成されたセーブに使える名前がありません。",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "このセーブは魔力飽和をオンにし、選んだ日を書き込みます。深淵のモンスターだけが対象です。",
  "The test world could not be written into the Saves folder.": "テスト用のワールドをセーブフォルダに書き込めませんでした。",
+ "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "Wikiのビルドの読み方が変わりました。ユニット研究所を更新してから、もう一度お試しください。",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "Wikiがこの短いリンクを開けませんでした（エラー %d）。後でもう一度お試しいただくか、Wikiで長いリンクをコピーしてください。",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "Wikiのテスト戦闘ファイルはゲームビルド %s 用で、このゲームはビルド %s です。両方が一致すると、テスト戦闘が再び開きます。",
  "The wiki's Unit Builder could not start. Try again later.": "Wikiのユニットビルダーを起動できませんでした。後でもう一度お試しください。",
