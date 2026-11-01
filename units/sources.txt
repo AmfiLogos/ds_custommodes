@@ -3,6 +3,8 @@ units/pvp_build.c
 units/myunits.c
 units/wk_link.c
 units/wk_http.c
+units/wk_export.c
+units/mu_export.c
 units/mu_card.c
 units/mu_link.c
 units/mu_clip.c

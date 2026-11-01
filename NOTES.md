@@ -557,3 +557,21 @@
   MainFlow 0 (the kit searches it once at the title, then holds it; at boot, scene 0, it is not searched: the title check
   says 0 there anyway); EntityInspectionView DSL_VIEW_WORLD | INACTIVE. mp_pin = ds_multiplayer 1c369a0 (its
   sdk/dsl_sdk.h = ds_modloader 6fc71e6); build.sh stops on an SDK copy without dsl_view_find.
+
+## Open in Wiki Builder (export a team to the wiki, 0.1.48; owner 2026-11-01, PLAN_v013 item 16)
+- My Units > World Units > "Open in Wiki Builder": the ticked units of the world's newest save (none ticked and <= 8 in
+  the save = all) open in the player's browser at `dungeonsettlers.wiki[/<lang>]/builder?team=<code>&from=game&pub=1|0&tn=<world>&gx=<16 hex>`.
+  The wiki builder (dungeonsettlersdb, boot `from=game`) imports them as one new team of the reader's roster and publishes
+  it to the Build Gallery at once unless pub=0; the same gx (same units) only opens that team and applies pub. The
+  "Public in the Build Gallery" switch is kept in `wiki_export.txt` next to the library file.
+- RULE: a wiki link the mod MAKES is written by `units/wk_export.c` only (`wk_encode` = the inverse of pvp_wiki.c
+  `wk_decode`, v1 raw blob: the Windows module has no deflate). The wiki language prefix comes from `units/wk_lang.h`
+  only (the gallery words use it too).
+- RULE: the link carries table INDEXES and the wiki's fingerprint only counts table sizes, so no link goes out before
+  `wkx_codec_check` proved the live wiki's tables (`/dbdata/gallery_codec.js`, the builder's own dsbIdx lists, portraits,
+  item bonus ranges) equal ours key for key (`units/mu_export.c`, worker thread, 8 s). Different = "Update Units
+  Laboratory", nothing opened. Not checked: the hunger / exhaustion groups (not in that file).
+- GUARDS: `units/test/save/run.sh` (export_check.js: the builder itself decodes every C code of the real saves and of
+  the random builds exactly as its own encodeTeam; the live-data check passes on the wiki's file and refuses a renamed
+  key and a changed bonus range) and `units/test/export_test.py` (in game: the opened link loads exactly the ticked
+  units per the builder's own save import + computeBuild; pub switch kept; outdated wiki data = refused, no open).
