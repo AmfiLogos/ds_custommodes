@@ -4,6 +4,15 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
+### Unreleased (0.1.48)
+
+Fixes:
+- The DPS meter shows a row for every unit in the fight. Before, it showed only 2 rows and hid the other units in a
+  list you had to scroll. The meter now grows with its rows (a bit smaller when the screen has no more room); only
+  when the screen is full does the list scroll. <!-- roadmap: dps-all-units -->
+- "Waiting for the first hit" (and "Stopped" before any hit) now shows centred in the empty unit list, on one line.
+  Before, it sat squeezed in the title bar next to the "-" / "+" buttons. <!-- roadmap: dps-waiting-text -->
+
 ### 0.1.47 (2026-10-26)
 
 Performance:

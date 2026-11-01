@@ -28,9 +28,10 @@ sys.path.insert(0, os.path.join(LD, 'loader', 'test'))
 import hostmods_pair as HP  # noqa: E402  (copies, kits, start/stop, owner screen guard)
 from hostmods_pair import lrig, log, check  # noqa: E402
 
-X = 'DPS'; HP.H = HP.G = X
+X = os.environ.get('DPS_COPY', 'DPS'); HP.H = HP.G = X      # the test copy's name (a lane may take its own)
 NO_MP = '--no-mp' in sys.argv
 HEAL = '--heal' in sys.argv                                   # a Custom fight: a healer + barrier squad that monsters attack
+SOLO = '--solo' in sys.argv                                   # owner 2026-11-01 (item 13): a 1-unit DPS Check shows the meter, one row
 LIVE_HP = '--no-live-hp' not in sys.argv
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
 UISCALE = os.environ.get('DPS_UISCALE')
@@ -79,13 +80,13 @@ def make_library():
         os.makedirs(os.path.dirname(LIB), exist_ok=True)
         json.dump(lib, open(LIB, 'w'), indent=2)
         return
-    units = fx['units'][:4]
+    units = fx['units'][:1 if SOLO else 4]
     for i, u in enumerate(units):                                 # the fixture units carry no weapon: a squad must hit
         u['id'] = f'{0xb0 + i:02x}' * 8
         u['build'].setdefault('eq', {})['Primary'] = ('ITEM_CopperSword', 'ITEM_NatureCopperStaff', 'ITEM_FireCopperStaff', 'ITEM_CopperSpear')[i]
     units[0]['name'] = units[0]['build']['name'] = NAMEKEY                # a unit with the game's default name key (never renamed)
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
-           'teams': [{'id': 'dd' * 8, 'name': 'DPS squad', 'unit_ids': [u['id'] for u in units]}]}
+           'teams': [{'id': 'dd' * 8, 'name': 'Solo' if SOLO else 'DPS squad', 'unit_ids': [u['id'] for u in units]}]}
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
     json.dump(lib, open(LIB, 'w'), indent=2)
 
@@ -181,7 +182,8 @@ def start_fight():
     until(lambda: tfs().get('engine') == 2, "the wiki's Test Fights files", 300, 2)
     click('fights:l.team0', 2)
     tf = tfs()
-    check('the 4-unit team is the squad, mode DPS Check', tf.get('squad') == 4 and tf.get('mode') == 'dps', json.dumps(tf))
+    n = 1 if SOLO else 4
+    check(f'the {n}-unit team is the squad, mode DPS Check', tf.get('squad') == n and tf.get('mode') == 'dps', json.dumps(tf))
     sw_left = [n for n in ('speech', 'healnum', 'chatlog', 'effects') if req('rect', target=f'fights:r.dps_{n}').get('rc', -1) > 0]
     check('round 2: no DPS switches on the Test Fights start screen (they are on the in-game meter)', not sw_left, sw_left)
     click('fights:start', 1)
@@ -277,6 +279,20 @@ def placement(tag):
     shot(f'meter_{tag}')
 
 
+def rows_check(tag):
+    """owner 2026-10-26 (item 5): the DPS window "should show all of the units ... that are in the fight" (it showed 2 of 4):
+    a row for every unit that hit, every row inside the shown list (no row only reachable by scrolling)"""
+    try:
+        m = until(lambda: (lambda x: x if len(x.get('units') or []) >= 4 else None)(meter()), 'every squad unit hit the scarecrow', 60, 1)
+    except RuntimeError:
+        m = meter()
+    us = m.get('units') or []
+    check(f'(item 5, {tag}) a row for each of the {len(us)} units that hit, every row shown without scrolling (rows {m.get("rows_h")} <= list {m.get("view_h")})',
+          len(us) >= 4 and m.get('rows_n') == len(us) and m.get('rows_h', 1e9) <= m.get('view_h', -1) + 0.5,
+          json.dumps({k: m.get(k) for k in ('rows_n', 'rows_h', 'view_h', 'rect')} | {'units': [u.get('name') for u in us], 'place': m.get('place')}, ensure_ascii=False)[:600])
+    shot(f'meter_rows_{LANG or "en"}')
+
+
 def unit_spots():
     p = dps('pos').get('b', [])
     return sorted((round(x['w'][0], 2), round(x['w'][1], 2)) for x in p if x.get('u') == 1 and x.get('on')), \
@@ -357,6 +373,7 @@ def run():
     if PLACE:
         time.sleep(4); placement(PLACE); return
     placement(f'{LANG or "en"}_1.0_960')
+    rows_check('4-unit fight')
     # (b) the panel follows while the mouse stays on it (live-hp; the stock game keeps the value it had when filled)
     ok, seen = True, []
     for _ in range(8):                                            # the read is between frames: the text may be one frame behind
@@ -730,6 +747,61 @@ def run_heal():
     req('key', code=36); time.sleep(1.5); shot('heal_fight_chat'); req('key', code=53)
 
 
+def status_checks(tag):
+    """owner 2026-10-26 (item 7): "Waiting for the first hit" "is kind of displaced and looks kind of odd" since the "-" / "+".
+    With an empty list (before the first hit) the status shows in the list: its box centred in the list (within 3 px),
+    its text on one line and not cut, never over the "-" / "+"; at 60 %, 100 % and 150 % size, with the mouse over the
+    panel (the "-" / "+" shown) and away from it (hover-only "-" / "+", kit 0.1.30)"""
+    def one(lbl):
+        time.sleep(1.0); m = meter(); st, lr, zb = m.get('status') or {}, m.get('list_rect') or [0, 0, 0, 0], m.get('size_btns') or [0, 0, 0, 0, 0]
+        sr = st.get('rect') or [0, 0, 0, 0]
+        cx, cy = (sr[0] + sr[2]) / 2 - (lr[0] + lr[2]) / 2, (sr[1] + sr[3]) / 2 - (lr[1] + lr[3]) / 2
+        ok = (m.get('rows_n') == 0 and st.get('where') == 1 and st.get('text') and abs(cx) <= 3 and abs(cy) <= 3
+              and sr[0] >= lr[0] - 1 and sr[2] <= lr[2] + 1 and not st.get('cut') and 0 < st.get('pw', 0) <= st.get('bw', 0) + 0.5
+              and not (zb[0] and overlap(sr, zb[1:])))
+        return check(f'(item 7, {tag}) {lbl}: the empty list shows "{st.get("text")}" centred in it, one line, not cut, never over the "-" / "+"', ok,
+                     json.dumps({'status': st, 'list': lr, 'btns': zb, 'size': m.get('size'), 'rows_n': m.get('rows_n'), 'd': [round(cx, 1), round(cy, 1)]}, ensure_ascii=False))
+    m = meter(); r = m.get('rect') or [0, 0, 0, 0]
+    if m.get('rows_n') != 0:
+        check(f'(item 7, {tag}) the meter is empty before the first hit', False, m.get('rows_n')); return
+    over = lambda: req('hover_xy', x=(r[0] + r[2]) / 2, y=r[3] - 8)          # the title bar (screen y up)
+    away = lambda: req('hover_xy', x=r[2] + 300, y=(r[1] + r[3]) / 2)
+    over(); one('100 %, mouse over the panel'); away(); one('100 %, mouse away'); shot(f'empty_{tag}_100')
+    for want, plus, n in ((0.6, False, 4), (1.5, True, 9), (1.0, False, 5)):
+        for _ in range(n):
+            m = meter(); zb = m.get('size_btns') or [0, 0, 0, 0, 0]
+            if not zb[0]:
+                over(); time.sleep(0.5); zb = meter().get('size_btns') or [0, 0, 0, 0, 0]
+            size_click(zb[1:], plus)
+        m = meter(); r = m.get('rect') or r
+        if abs(m.get('size', 0) - want) > 1e-3:
+            check(f'(item 7, {tag}) size {want:.0%} reached', False, m.get('size')); return
+        over(); one(f'{want:.0%}, mouse over the panel'); away(); one(f'{want:.0%}, mouse away'); shot(f'empty_{tag}_{int(want * 100)}')
+
+
+def run_solo():
+    """owner 2026-11-01 (item 13): "the DPS meter does not show when the fight has ONE unit". A 1-unit DPS Check: the meter
+    shows, with exactly one row (the unit), visible in the list; then the empty-list status checks (item 7)"""
+    start_fight()
+    m0 = meter(); s0 = dps('state')
+    log('solo: before hits', json.dumps({'meter': {k: m0.get(k) for k in ('shown', 'small', 'folded', 'rect', 'rows_n', 'view_h')}, 'dps': {k: s0.get(k) for k in ('on', 'title', 'hits')}}))
+    shot('solo_world')
+    status_checks('solo')                                         # the list is empty until the unit is ordered to attack
+    at = select_dummy()
+    check('(solo) the scarecrow selected by a click', at is not None)
+    if not at:
+        return
+    n = order_attack(at)
+    check('(solo) the unit ordered to attack the scarecrow', n == 1, n)
+    until(lambda: dps('state').get('hits', 0) > 5, 'the unit hits the scarecrow', 120, 1)
+    time.sleep(3); m = meter(); shot('solo_meter')
+    us = m.get('units') or []
+    log('solo: meter', json.dumps({k: m.get(k) for k in ('shown', 'small', 'rect', 'rows_n', 'rows_h', 'view_h', 'total')}), [u.get('name') for u in us])
+    check('(item 13) a 1-unit DPS Check shows the meter (not the small Restart panel), with one row for the unit, inside the visible list',
+          m.get('shown') == 1 and len(us) == 1 and m.get('rows_n') == 1 and m.get('rows_h', 1e9) <= m.get('view_h', -1) + 0.5,
+          json.dumps({k: m.get(k) for k in ('shown', 'small', 'rows_n', 'rows_h', 'view_h')} | {'units': [u.get('name') for u in us]}, ensure_ascii=False))
+
+
 info = {}
 def main():
     g = threading.Thread(target=HP.guard, daemon=True); g.start()
@@ -770,7 +842,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
-        run_heal() if HEAL else run()
+        run_heal() if HEAL else run_solo() if SOLO else run()
     except BaseException as e:
         log(traceback.format_exc())
         check('run finished', False, repr(e))

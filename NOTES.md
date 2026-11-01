@@ -288,6 +288,12 @@
   feeds the meter and the chat. Placed from the game's own panels at run time (resource list, unit panel, an open
   Inspect window: then right of it), checked at UI 1.0 / 1.4 and 960x540 / 1920x1080. Game clock = TimeHandler
   _currentTick * TICK_INTERVAL (speed / pause do not use Time.timeScale).
+  Rows (owner 2026-10-26: "should show all of the units ... that are in the fight"): place_now asks the room for ALL rows,
+  the scale shrinks to fit them (never under 0.5), only past that the list scrolls; a moved panel grows down to the
+  screen's bottom. The status ("Waiting for the first hit" / "Stopped") shows centred in the EMPTY list (owner: it was
+  "displaced" in the title bar by the "-" / "+"); the title bar holds it only while rows show or the panel is folded.
+  Guards: dps_test.py rows_check (4 units) and --solo (1 unit, one row; empty-list status at 60 / 100 / 150 %, mouse over
+  / away).
 - Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,
   DPS log in chat ON, Start on first hit ON. Speech and the "+200" are their view iterators ended at once
   (AffecterFX_SelfRepair.OnFXCall, StatusResultFX.HandleFX: "<>1__state" = -1); the sim is untouched, the repair goes on.

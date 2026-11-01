@@ -332,12 +332,13 @@ typedef struct { DSLObj b, por, name, dmg, heal, dps, sh, fill; int unit, on, po
 typedef struct { DSLObj p, name, dmg, heal, dps, hits; int on; float y; char tn[96], td[40], tl[40], tp[40], th[24]; } SRow;
 #define NSW 4
 #define NVAL 6
-static DSLObj p_root, p_body, p_fold, p_status, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail, p_size;
+static DSLObj p_root, p_body, p_fold, p_status, p_empty, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail, p_size;
 static float p_f = 1;                                     /* its "-" / "+" size when it was last placed (kit panel_size) */
 static DSLObj s_root, s_btn;
-static char c_status[96], c_val[NVAL][48];
+static char c_status[96], c_empty[96], c_val[NVAL][48];
+static int n_shown = -1, st_where = -1;                   /* rows painted; where the status shows (0 title bar, 1 the empty list) */
 static Row *rows; static int nrows; static SRow *srows; static int nsrows;
-static float rows_h = -1;
+static float rows_h = -1, view_h;                       /* the rows' height; the list's shown height (panel units) */
 static int folded, prefs_read, mode, en_start = -1, en_stop = -1, en_rst = -1, st_kind = -1, s_en = -1;
 static unsigned gen, last_ref;
 static const int sw_of[NSW] = { TFD_SW_SPEECH, TFD_SW_HEALNUM, TFD_SW_CHATLOG, TFD_SW_EFFECTS };
@@ -402,9 +403,9 @@ static void fold_click(void *ud, DSLObj w) {
 static void forget_all(void) {
     cmw_forget("dps:");
     free(rows); rows = NULL; nrows = 0; free(srows); srows = NULL; nsrows = 0;
-    p_root = p_body = p_fold = p_status = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = p_size = NULL; p_f = 1;
+    p_root = p_body = p_fold = p_status = p_empty = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = p_size = NULL; p_f = 1;
     memset(t_sw, 0, sizeof t_sw); memset(l_val, 0, sizeof l_val);
-    c_status[0] = 0; memset(c_val, 0, sizeof c_val); rows_h = -1;
+    c_status[0] = c_empty[0] = 0; memset(c_val, 0, sizeof c_val); rows_h = -1; n_shown = st_where = -1;
     en_start = en_stop = en_rst = st_kind = s_en = -1;
     s_root = s_btn = NULL;
 }
@@ -449,6 +450,9 @@ static int build_full(void) {
     txt(p_body, PAD + C_SH, Y_HEAD, W_SH, 18, TR("Share"), 12, DSL_TXT_RIGHT, SUB);
     plate(p_body, PAD, Y_ROWS - 2, RW, 1, COPPER);
     sc_rows = U->scroll(p_body, PAD, Y_ROWS, RW, MIN_ROWS * ROW_H);
+    /* owner 2026-10-26 (item 7: "Waiting for the first hit" "is kind of displaced and looks kind of odd" since the "-" / "+"):
+       while the list is empty the status shows centred in it, on one line, never near the title bar's "-" / "+" */
+    p_empty = txt(p_body, PAD, Y_ROWS, RW, MIN_ROWS * ROW_H, "", 15, DSL_TXT_CENTER, SUB);
     l_tail = plate(p_body, PAD, Y_ROWS, RW, 1, COPPER);
     for (int k = 0; k < NSW; k++) {
         const char *l = tf_dps_switch_label(sw_of[k]);
@@ -538,8 +542,8 @@ static int sorted_skills(const Un *u, int *ord, int cap) {
 }
 #define MAXU 256
 #define MAXSK 128
-static void rows_paint(double div) {
-    if (!sc_rows) return;
+static int rows_paint(double div) {             /* the unit rows painted */
+    if (!sc_rows) return 0;
     int ord[MAXU], n = sorted_units(ord, MAXU), si = 0; float y = 0; char b[64];
     for (int k = 0; k < n; k++) {
         Row *r = row_at(k); if (!r) break;
@@ -588,7 +592,8 @@ static void rows_paint(double div) {
     }
     for (int k = n; k < nrows; k++) if (rows[k].on) { act(rows[k].b, 0); rows[k].on = 0; rows[k].unit = -1; }
     for (int k = si; k < nsrows; k++) if (srows[k].on) { act(srows[k].p, 0); srows[k].on = 0; }
-    if (y != rows_h) { rows_h = y; U->scroll_height(sc_rows, y); }
+    if (y != rows_h) { rows_h = y; U->scroll_height(sc_rows, y); m_layout = 1; }   /* the panel grows with its rows (item 5) */
+    return n;
 }
 
 /* ---------------------------------------------------------------- texts (at most every 10 frames, only what changed) */
@@ -603,12 +608,19 @@ static void refresh(void) {
     fmt_rate(m_dps5(el), b, sizeof b); named_if(l_val[3], c_val[3], sizeof c_val[3], b);
     fmt_n(m_repaired(), b, sizeof b); named_if(l_val[4], c_val[4], sizeof c_val[4], b);
     fmt_n(M.absorbed, b, sizeof b); named_if(l_val[5], c_val[5], sizeof c_val[5], b);
-    int kind = M.running ? 0 : M.armed ? 1 : 2;
-    named_if(p_status, c_status, sizeof c_status, kind == 0 ? TR("Running") : kind == 1 ? TR("Waiting for the first hit") : TR("Stopped"));
-    if (kind != st_kind) { txt_color(p_status, kind == 0 ? GOLD : SUB); st_kind = kind; }
     if (en_start != !M.running) U->set_enabled(b_start, en_start = !M.running);
     if (en_stop != (M.running || M.armed)) U->set_enabled(b_stop, en_stop = M.running || M.armed);
-    if (!folded) rows_paint(div);
+    if (!folded) n_shown = rows_paint(div);
+    int kind = M.running ? 0 : M.armed ? 1 : 2;
+    const char *st = kind == 0 ? TR("Running") : kind == 1 ? TR("Waiting for the first hit") : TR("Stopped");
+    int where = !folded && n_shown == 0 && p_empty ? 1 : 0;   /* the empty list holds it; else the title bar (rows shown, or folded) */
+    if (where != st_where) {
+        st_where = where; act(p_empty, where == 1); c_status[0] = c_empty[0] = 0;
+        set_if(where ? p_status : p_empty, where ? c_status : c_empty, 96, "");
+        cmw_named(where ? p_empty : p_status, CMW_TEXT, "dps:status", NULL, NULL, "");
+    }
+    named_if(where ? p_empty : p_status, where ? c_empty : c_status, 96, st);
+    if (kind != st_kind) { txt_color(p_status, kind == 0 ? GOLD : SUB); st_kind = kind; }
 }
 
 /* ================================================================ placement */
@@ -696,14 +708,22 @@ static void region(float need, float w, float *x, float *y, float *s, float *ava
 static void place_now(void) {
     if (mode == 1 && p_root) {
         float x, y, s, avail, rh = rows_h > MIN_ROWS * ROW_H ? rows_h : MIN_ROWS * ROW_H, f = dsl_panel_size_get(U, p_root);
-        region(H_FIXED + MIN_ROWS * ROW_H, MW, &x, &y, &s, &avail);
+        /* owner 2026-10-26 (item 5: "should show all of the units ... that are in the fight"): the room asked for is the
+           whole list, so the scale fits every row (never under 0.5); past that the list scrolls */
+        region(H_FIXED + rh, MW, &x, &y, &s, &avail);
         if (!moved_m && was_moved(p_root, PL.x, PL.y)) moved_m = 1;
-        if (moved_m) { x = PL.x; y = PL.y; s = PL.ds; }      /* the player's place: only size and scale from here on */
+        if (moved_m) {                                    /* the player's place: only size and scale from here on */
+            x = PL.x; y = PL.y; s = PL.ds;
+            float ty = y;                                 /* its top now (the kit's place): it grows down to the screen's bottom */
+            if (m_getpos.fn) ty = -CM_CALL(m_getpos, V2, Obj, const void *)((Obj)p_root, m_getpos.mi).y;
+            avail = PL.lh - 8 - ty; if (avail < 100) avail = 100;
+        }
         s *= f;                                           /* the player's "-" / "+" size, on top of UI Scale (and of the room) */
         float h = H_FIXED + rh, room = avail / s;
         if (h > room) h = room;
         if (h < H_FIXED + MIN_ROWS * ROW_H) h = H_FIXED + MIN_ROWS * ROW_H;
         float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h;
+        view_h = vh;
         { float fs = (PL.lw - 16) / MW; if ((PL.lh - 16) / ph < fs) fs = (PL.lh - 16) / ph;   /* all of it on the screen */
           if (s > fs) s = fs;
           if (!moved_m) { if (x + MW * s > PL.lw - 8) x = PL.lw - 8 - MW * s; if (y + ph * s > PL.lh - 8) y = PL.lh - 8 - ph * s;
@@ -714,6 +734,7 @@ static void place_now(void) {
             set_scale(p_root, s);
             put(p_body, 0, 0, MW, h);
             put(sc_rows, PAD, Y_ROWS, RW, vh);
+            put(p_empty, PAD + 4, Y_ROWS, RW - 8, vh);
             put(l_tail, PAD, ty - 3, RW, 1);
             for (int k = 0; k < NSW; k++) put(t_sw[k], PAD, ty + (float)k * TOG_H, RW, 36);
             put(b_restart, PAD, ty + NSW * TOG_H + 2, RW, 32);
@@ -837,6 +858,18 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
     if (t_rect && p_size && mode == 1) zon = t_rect(p_size, zr) > 0;
 #endif
     ADD("],\"size\":%.3f,\"size_btns\":[%d,%.0f,%.0f,%.0f,%.0f]", p_root ? dsl_panel_size_get(U, p_root) : -1.f, zon, zr[0], zr[1], zr[2], zr[3]);
+    /* items 5 / 7: the rows painted, the list's view height (panel units), the status text where it shows (screen rects) */
+    {   DSLObj st = st_where == 1 ? p_empty : p_status; float sr[4] = { 0 }, lr[4] = { 0 }, bw = 0, bh = 0; char e[200];
+#ifndef _WIN32
+        if (t_rect && st && mode == 1) t_rect(st, sr);
+        if (t_rect && sc_rows && mode == 1) t_rect(sc_rows, lr);
+#endif
+        if (st) cm_rect_size((Obj)st, &bw, &bh);
+        jesc(e, sizeof e, st_where == 1 ? c_empty : c_status);
+        ADD(",\"rows_n\":%d,\"rows_h\":%.1f,\"view_h\":%.1f,\"status\":{\"where\":%d,\"text\":\"%s\",\"cut\":%d,\"pw\":%.1f,\"bw\":%.1f,\"rect\":[%.0f,%.0f,%.0f,%.0f]},\"list_rect\":[%.0f,%.0f,%.0f,%.0f]",
+            n_shown, rows_h, view_h, st_where, e, st ? cm_text_truncated(st) : -1, st ? cm_text_preferred_w(st) : -1, bw,
+            sr[0], sr[1], sr[2], sr[3], lr[0], lr[1], lr[2], lr[3]);
+    }
     ADD(",\"rect\":[%.0f,%.0f,%.0f,%.0f],\"game_rects\":{", r[0], r[1], r[2], r[3]);
     if (PL.list_found) ADD("\"resources\":[%.0f,%.0f,%.0f,%.0f]", PL.rs[0], PL.rs[1], PL.rs[2], PL.rs[3]); else ADD("\"resources\":null");
     if (PL.up_found) ADD(",\"unitpanel\":[%.0f,%.0f,%.0f,%.0f]", PL.us[0], PL.us[1], PL.us[2], PL.us[3]); else ADD(",\"unitpanel\":null");
