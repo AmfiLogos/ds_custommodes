@@ -137,6 +137,7 @@
  "Damage": "Schaden",
  "Damage Dealt": "Verursachter Schaden",
  "Day %d": "Tag %d",
+ "Day Time": "Tag",
  "Delete": "Löschen",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "%d Einheit aus Meine Einheiten löschen?\nSie verlässt auch ihre Teams. Deine Spielstände bleiben unverändert.",
@@ -209,6 +210,7 @@
  "Nature Staff": "Naturstab",
  "New Unit": "Neue Einheit",
  "Newest": "Neueste",
+ "Night Time": "Nacht",
  "No kit ticked: the squad walks in with only its gear.": "Kein Paket markiert: Der Trupp geht nur mit seiner Ausrüstung hinein.",
  "No link. Copy a team or unit link on the wiki builder first.": "Kein Link. Kopiere zuerst einen Team- oder Einheiten-Link im Wiki-Builder.",
  "No monster matches.": "Kein Monster passt.",
@@ -376,6 +378,7 @@
  "This unit is not one of your clan's units in this save.": "Diese Einheit gehört in diesem Spielstand nicht zu deinem Clan.",
  "Tick the units to send in. A team's tick adds or removes all its units.": "Hake die Einheiten an, die mitkämpfen sollen. Der Haken eines Teams wählt alle seine Einheiten aus oder ab.",
  "Time": "Zeit",
+ "Time of Day": "Tageszeit",
  "Torch": "Fackel",
  "Traits": "Traits",
  "Traits (%d of %d)": "Traits (%d von %d)",

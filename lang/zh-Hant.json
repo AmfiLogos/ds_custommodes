@@ -126,6 +126,7 @@
  "Damage": "傷害",
  "Damage Dealt": "造成的傷害量",
  "Day %d": "第 %d 日",
+ "Day Time": "白天",
  "Delete": "刪除",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "要從「我的單位」刪除 %d 個單位嗎？\n它們也會離開所屬隊伍。你的存檔不會被更改。"
@@ -196,6 +197,7 @@
  "Nature Staff": "自然法杖",
  "New Unit": "新單位",
  "Newest": "最新",
+ "Night Time": "夜晚",
  "No kit ticked: the squad walks in with only its gear.": "未勾選任何套組：小隊只會攜帶其裝備進場。",
  "No link. Copy a team or unit link on the wiki builder first.": "沒有連結。請先在維基構築器複製隊伍或單位連結。",
  "No monster matches.": "沒有符合的怪物。",
@@ -358,6 +360,7 @@
  "This unit is not one of your clan's units in this save.": "此單位不是此存檔中你探險隊的單位。",
  "Tick the units to send in. A team's tick adds or removes all its units.": "勾選要進場的單位。勾選隊伍會一次加入或移除其全部單位。",
  "Time": "時間",
+ "Time of Day": "時段",
  "Torch": "火把",
  "Traits": "特質",
  "Traits (%d of %d)": "特質（%d / %d）",

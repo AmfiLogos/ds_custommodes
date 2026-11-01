@@ -148,6 +148,7 @@
  "Damage": "Урон",
  "Damage Dealt": "Нанесённый урон",
  "Day %d": "День %d",
+ "Day Time": "День",
  "Delete": "Удалить",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "Удалить %d юнит из «Моих юнитов»?\nОн также выходит из своих команд. Ваши сохранения не меняются.",
@@ -222,6 +223,7 @@
  "Nature Staff": "Посох природы",
  "New Unit": "Новый юнит",
  "Newest": "Новые",
+ "Night Time": "Ночь",
  "No kit ticked: the squad walks in with only its gear.": "Наборы не отмечены: отряд входит только со снаряжением.",
  "No link. Copy a team or unit link on the wiki builder first.": "Ссылки нет. Сначала скопируйте ссылку на команду или юнита в конструкторе вики.",
  "No monster matches.": "Нет подходящих монстров.",
@@ -394,6 +396,7 @@
  "This unit is not one of your clan's units in this save.": "Этот юнит не принадлежит вашему клану в этом сохранении.",
  "Tick the units to send in. A team's tick adds or removes all its units.": "Отметьте юнитов, которые войдут. Отметка команды добавляет или снимает всех её юнитов.",
  "Time": "Время",
+ "Time of Day": "Время суток",
  "Torch": "Факел",
  "Traits": "Черты",
  "Traits (%d of %d)": "Черты (%d из %d)",

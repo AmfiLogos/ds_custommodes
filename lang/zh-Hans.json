@@ -126,6 +126,7 @@
  "Damage": "伤害",
  "Damage Dealt": "造成伤害",
  "Day %d": "第 %d 天",
+ "Day Time": "白天",
  "Delete": "删除",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "要从我的单位中删除 %d 个单位吗？它们也会退出其队伍。你的存档不会改变。"
@@ -196,6 +197,7 @@
  "Nature Staff": "自然法杖",
  "New Unit": "新单位",
  "Newest": "最新",
+ "Night Time": "夜晚",
  "No kit ticked: the squad walks in with only its gear.": "未勾选套装：小队只带着它的装备入场。",
  "No link. Copy a team or unit link on the wiki builder first.": "没有链接。请先在维基构筑器中复制队伍或单位链接。",
  "No monster matches.": "没有匹配的怪物。",
@@ -358,6 +360,7 @@
  "This unit is not one of your clan's units in this save.": "此单位不是此存档中你团队的单位。",
  "Tick the units to send in. A team's tick adds or removes all its units.": "勾选要入场的单位。勾选队伍会一次加入或移除其全部单位。",
  "Time": "时间",
+ "Time of Day": "时段",
  "Torch": "火把",
  "Traits": "特质",
  "Traits (%d of %d)": "特质（%d / %d）",

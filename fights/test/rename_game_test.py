@@ -23,6 +23,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 LD = os.path.expanduser(os.environ.get('LD_ROOT', '~/ds_launcher'))
 sys.path.insert(0, os.path.join(LD, 'loader', 'test'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'fights', 'test'))
+import tf_fresh  # noqa: E402
 import hostmods_pair as HP  # noqa: E402  (copies, kits, start/stop, owner screen guard)
 from hostmods_pair import lrig, log, check  # noqa: E402
 
@@ -213,6 +215,7 @@ def main():
               [b.get('name') for b in snap])
         library(snap, '')                                     # a library file before the start (names set again once the game runs)
         HP.make_copy(X)
+        tf_fresh.fresh_settings(os.path.join(lrig.idir(X), 'data'), OUT)   # Test Fights keeps its choices (tf_ui.c pref_kv): start from the defaults
         pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'multi-bar': zip_dir(MB_DIR, 'multi-bar'),
               'font-probe': probe_pkg('font-probe', os.path.join(REPO, 'home', 'test', 'font_probe', 'font_probe.c'),
                                       os.path.join(REPO, 'home', 'test', 'font_probe', 'mod.json')),

@@ -126,6 +126,7 @@
  "Damage": "피해량",
  "Damage Dealt": "주는 피해량",
  "Day %d": "%d일차",
+ "Day Time": "낮",
  "Delete": "삭제",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "내 유닛에서 유닛 %d개를 삭제하시겠습니까?\n속한 팀에서도 빠집니다. 세이브는 변경되지 않습니다."
@@ -196,6 +197,7 @@
  "Nature Staff": "자연 마법 스태프",
  "New Unit": "새 유닛",
  "Newest": "최신순",
+ "Night Time": "밤",
  "No kit ticked: the squad walks in with only its gear.": "체크한 키트가 없습니다: 분대는 장비만 가지고 들어갑니다.",
  "No link. Copy a team or unit link on the wiki builder first.": "링크가 없습니다. 먼저 위키 빌더에서 팀 또는 유닛 링크를 복사하십시오.",
  "No monster matches.": "일치하는 몬스터가 없습니다.",
@@ -358,6 +360,7 @@
  "This unit is not one of your clan's units in this save.": "이 유닛은 이 세이브의 내 클랜 유닛이 아닙니다.",
  "Tick the units to send in. A team's tick adds or removes all its units.": "들어갈 유닛을 체크하십시오. 팀을 체크하면 그 팀의 유닛을 모두 넣거나 뺍니다.",
  "Time": "시간",
+ "Time of Day": "시간대",
  "Torch": "횃불",
  "Traits": "특성",
  "Traits (%d of %d)": "특성 (%d / %d)",
