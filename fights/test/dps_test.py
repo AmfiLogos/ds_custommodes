@@ -222,7 +222,7 @@ def order_attack(at):
         for dx, dy in ((0, 0), (0, 12), (0, 24), (0, 36)):
             req('click_xy', x=u['s'][0] + dx, y=u['s'][1] + dy); time.sleep(1.0)
             if not dps('state').get('bpanel_on'):
-                tg = next((o for o in json.loads(req('call', fn='tf_dps_test', s='options').get('out') or '[]') if o.get('opt') == 1 and o.get('on')), None)
+                tg = None if os.environ.get('DPS_NOAUTO') else next((o for o in json.loads(req('call', fn='tf_dps_test', s='options').get('out') or '[]') if o.get('opt') == 1 and o.get('on')), None)
                 if tg:
                     r = tg['r']; req('click_xy', x=(r[0] + r[2]) / 2, y=(r[1] + r[3]) / 2); time.sleep(0.6); auto_on[0] += 1
                 req('click_xy', x=at[0], y=at[1], button=1); time.sleep(1.0); n += 1
