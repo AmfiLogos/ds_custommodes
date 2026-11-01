@@ -32,6 +32,7 @@ X = os.environ.get('DPS_COPY', 'DPS'); HP.H = HP.G = X      # the test copy's na
 NO_MP = '--no-mp' in sys.argv
 HEAL = '--heal' in sys.argv                                   # a Custom fight: a healer + barrier squad that monsters attack
 SOLO = '--solo' in sys.argv or bool(os.environ.get('DPS_PATH'))
+DEMO = os.environ.get('DPS_DEMO')                              # lead task 19 B: visible owner demo, left open
 PATH1 = os.environ.get('DPS_PATH')                            # lead task 8 (item 13 not reproduced): world | custom                                   # owner 2026-11-01 (item 13): a 1-unit DPS Check shows the meter, one row
 LIVE_HP = '--no-live-hp' not in sys.argv
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
@@ -875,6 +876,8 @@ def attack_and_wait(tag):
     if not at:
         check(f'(task 8, {tag}) the scarecrow selected', False); return False
     order_attack(at)
+    if DEMO:                                                      # the owner watches 60 s; the hit count goes to the log
+        shot('demo_order'); time.sleep(60); log('DEMO hits after 60 s', dps('state').get('hits', 0)); shot('demo_60s'); return True
     try:
         until(lambda: dps('state').get('hits', 0) > 5, 'the unit hits', 120, 1)
     except RuntimeError:
@@ -949,6 +952,7 @@ def hold_check(tag, secs=60):
         keys[h['key']] = keys.get(h['key'], 0) + 1
     m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'keys': keys, 'dps5': m.get('dps5'), 'rep': dps('state').get('rep')}
     log(f'hold {tag}', json.dumps(info['hold'][tag], ensure_ascii=False))
+    log('meter raw', json.dumps(m, ensure_ascii=False)[:2500]); shot('hold_' + re.sub(r'\W+', '_', tag))
     noauto = bool(os.environ.get('DPS_NOAUTO'))
     check(f'(task 12, {tag}) every squad unit keeps hitting the scarecrow for {secs} s (at least 5 hits each), DPS (last 5 s) > 0'
           + (', no active skill cast (Auto Skill off)' if noauto else ''),
@@ -980,7 +984,18 @@ def run_hold():
 
 info = {}
 def main():
-    g = threading.Thread(target=HP.guard, daemon=True); g.start()
+    if not DEMO:
+        g = threading.Thread(target=HP.guard, daemon=True); g.start()
+    else:                                                          # owner demo (lead task 19 B): a VISIBLE player-like window
+        lrig.require_background_only = lambda x: None              # the lead set LSBackgroundOnly / LSUIElement false on this copy
+        popen0 = HP.subprocess.Popen
+        def popen_demo(args, *a, **kw):
+            if '-screen-width' not in args:                         # only the game's own start
+                return popen0(args, *a, **kw)
+            env = dict(kw.get('env') or {}); env.pop('DSL_SOFT_NOACTIVATE', None); env.pop('DSRIG_HIDEWIN', None)
+            env['DSRIG_LIVE'] = '1'; kw['env'] = env                # the loader's "not a hidden test copy" mode
+            return popen0(args, *a, **kw)
+        HP.subprocess.Popen = popen_demo
     res = {}
     try:
         make_library()
@@ -1015,6 +1030,10 @@ def main():
         places = os.path.join(lrig.idir(X), 'data', 'Mods', 'ui_places.tsv')        # the kit's kept panel places: a fresh start
         if os.path.exists(places):
             os.replace(places, os.path.join(OUT, 'old_ui_places.tsv'))
+        if os.environ.get('DPS_CMSET'):                           # task 19: a player's Units Laboratory switches (a copy of his file)
+            os.makedirs(os.path.dirname(cmset), exist_ok=True); shutil.copy(os.environ['DPS_CMSET'], cmset)
+        if os.environ.get('DPS_PLACES'):                          # task 19: a player's kept panel places (a copy of his file)
+            shutil.copy(os.environ['DPS_PLACES'], places)
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
@@ -1023,6 +1042,9 @@ def main():
         log(traceback.format_exc())
         check('run finished', False, repr(e))
     finally:
+        if DEMO:                                                  # left open: the lead closes it (its pid is in game.pid)
+            log('DEMO OPEN: pid', open(lrig.pidfile(X)).read().strip(), '(left running)')
+            os._exit(0)
         check('never a visible window on a display, never frontmost (guard)', not HP.violations, HP.violations[:3])
         HP.stop_guard.set()
         try:
