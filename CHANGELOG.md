@@ -14,8 +14,11 @@ Test Fights:
   window. The inscription's card does the same. <!-- roadmap: test-kit-hover-card -->
 - Test units start with Auto Skill off. Turn it on with the unit's own Auto Skill button as usual. Units brought from
   your own world keep the Auto Skill choice they have in that save. <!-- roadmap: test-autoskill-off -->
-- New "Time of Day" choice: Day Time (default, the test starts at 8:00) or Night Time (21:00).
-  <!-- roadmap: test-time-of-day -->
+- New "Time of Day" choice: Day Time (default, the test starts at 8:00) or Night Time (21:00). It is in the new
+  "Advanced" section at the bottom of the window. <!-- roadmap: test-time-of-day -->
+- Test fights now start in clear weather, also in the boss rooms that had rain (the rain made the map dark). A new
+  "Advanced" section (folded until you open it) has a "Weather" choice: Clear (default), Rain or Heavy Rain, with the
+  game's own names. The weather you pick stays for the whole test and is remembered like the other choices.
 - Every section of the Test Fights window (Squad, What to Test, Which Room, Difficulty, Battle Kits) folds with a
   click on its title, and stays folded the next time, also after a restart. <!-- roadmap: test-sections-fold -->
 

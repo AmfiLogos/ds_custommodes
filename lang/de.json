@@ -84,6 +84,7 @@
  "Added 1 unit to My Units: %s": "1 Einheit zu Meine Einheiten hinzugefügt: %s",
  "Added by default so every unit has enough carry weight for the battle kits.": "Standardmäßig hinzugefügt, damit jede Einheit genug Tragegewicht für die Kampfpakete hat.",
  "Added to the room: %s x%d.": "Zum Raum hinzugefügt: %s x%d.",
+ "Advanced": "Erweitert",
  "Aid Kit": "Erste-Hilfe-Paket",
  "All": "Alle",
  "All %s": "Alle %s",
@@ -180,6 +181,7 @@
  "Grant %s on Custom Saves": "%s für eigene Spielstände gewähren",
  "Greatsword": "Großschwert",
  "Healing": "Heilung",
+ "Heavy Rain": "Starkregen",
  "Helmet": "Helm",
  "Hood": "Kapuze",
  "How Many": "Wie viele",
@@ -269,6 +271,7 @@
  "Public in the Build Gallery": "Öffentlich in der Build-Galerie",
  "Race": "Rasse",
  "Races": "Rassen",
+ "Rain": "Regen",
  "Randomize": "Zufällig",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "Nur lesen: Diese Einheiten sind in deinem Spielstand. Hake Einheiten an und drücke dann „Snapshot speichern“, um sie nach Meine Einheiten zu kopieren.",
  "Reading the link...": "Link wird gelesen...",
@@ -377,6 +380,7 @@
  "The save that was made has no usable name.": "Der erstellte Spielstand hat keinen brauchbaren Namen.",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "Der Spielstand schaltet Magiesättigung ein und schreibt den Tag, den du wählst. Nur Abyss-Monster erhalten sie.",
  "The test world could not be written into the Saves folder.": "Die Testwelt konnte nicht in den Spielstände-Ordner geschrieben werden.",
+ "The test world keeps this weather for the whole test.": "Die Testwelt behält dieses Wetter für den ganzen Test.",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "Das Wiki liest Builds jetzt anders. Aktualisiere das Einheitenlabor und versuche es erneut.",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "Das Wiki hat diesen Kurzlink nicht geöffnet (Fehler %d). Versuche es später erneut oder kopiere den langen Link im Wiki.",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "Die Testkampf-Dateien des Wikis sind für Spiel-Build %s, und dieses Spiel ist Build %s. Testkämpfe öffnet sich wieder, wenn beides übereinstimmt.",
@@ -422,6 +426,7 @@
  "Waiting for the first hit": "Wartet auf den ersten Treffer",
  "Water Staff": "Wasserstab",
  "Weapon Trees": "Waffenbäume",
+ "Weather": "Wetter",
  "What to Test": "Was testen?",
  "Which Fight": "Welcher Kampf",
  "Which Room": "Welcher Raum",
@@ -495,5 +500,6 @@
  "too many filters": "zu viele Filter",
  "trait": "Trait",
  "tree %s has no pool": "Baum %s hat keinen Pool",
- "two-handed": "zweihändig"
+ "two-handed": "zweihändig",
+ "weather\u0004Clear": "Klar"
 }

@@ -197,6 +197,7 @@ static struct {
     struct { char world[40], guid[40], name[96]; } sv[8]; int nsv;   /* World units picks: world (campaign guid) + unit guid */
     int waff;                                   /* World units: bring the units' affecters from the save (default off) */
     int tod;                                    /* time of day of the test world: 0 Day (08:00, default), 1 Night (21:00) */
+    int weather;                                /* weather of the test world: an index of WEATHER_ID (0 Clear, the default) */
     int team_i;                                 /* the picked team's place in My Units, -1 = single units */
     char *gal_builds; char gal_title[160]; char gal_names[8][96]; int gal_n;
     int seeded;
@@ -229,12 +230,15 @@ static int gal_read(void) {                                      /* 0 = st.gal_*
     free(b);
     return st.gal_builds ? 0 : -1;
 }
-#define NKEPT 18
+#define NKEPT 19
 static const char *mode_id(void);
+/* the game's WeatherType names (enum WeatherType Sunny 0 / Rain 1 / HeavyRain 2): the save's WeatherDatas values,
+   fights/sg_glue.js setWeather; the shown names are the game's TEXTKEY_Shared_Weather<id>_NAME */
+static const char *const WEATHER_ID[3] = { "Sunny", "Rain", "HeavyRain" };
 static int pref_kv(int i, char *v, size_t n, const char **key) {   /* the i-th kept choice: its key, its value now; -1 = none */
     static const char *const K[NKEPT] = { "fights.mode", "fights.boss", "fights.msat", "fights.combat", "fights.mgmt_own", "fights.mgmt",
         "fights.kits", "fights.insc", "fights.mons", "fights.moncount", "fights.monq", "fights.src", "fights.ids", "fights.sv",
-        "fights.svn", "fights.waff", "fights.tod", "fights.gal" };
+        "fights.svn", "fights.waff", "fights.tod", "fights.gal", "fights.weather" };
     if (i < 0 || i >= NKEPT) return -1;
     *key = K[i]; v[0] = 0; size_t k = 0;
     switch (i) {
@@ -256,6 +260,7 @@ static int pref_kv(int i, char *v, size_t n, const char **key) {   /* the i-th k
     case 15: snprintf(v, n, "%d", st.waff); break;
     case 16: snprintf(v, n, "%s", st.tod ? "night" : "day"); break;
     case 17: snprintf(v, n, "%d", st.gal_builds != NULL); break;   /* the build itself: fights_gallery.txt */
+    case 18: snprintf(v, n, "%s", WEATHER_ID[st.weather]); break;
     }
     return 0;
 }
@@ -315,6 +320,7 @@ static void prefs_load(void) {
     }
     if (!cm_pref_get("fights.waff", v, sizeof v)) st.waff = atoi(v) != 0;
     if (!cm_pref_get("fights.tod", v, sizeof v)) st.tod = !strcmp(v, "night");
+    if (!cm_pref_get("fights.weather", v, sizeof v)) for (int i = 0; i < 3; i++) if (!strcmp(WEATHER_ID[i], v)) st.weather = i;
     if (!cm_pref_get("fights.src", v, sizeof v) && atoi(v) >= 0 && atoi(v) <= 2) st.src = atoi(v);
     if (!st.gal_builds && !cm_pref_get("fights.gal", v, sizeof v) && atoi(v)) gal_read();
     if (st.src == 1 && !st.gal_builds) st.src = 0;                  /* the Gallery build is gone: My Units */
@@ -518,14 +524,14 @@ static void start_click(void *ud, DSLObj w) {
     for (int i = 0; i < P.nkits; i++) if (st.kit[i]) { k += (size_t)snprintf(o + k, cap - k, "%s\"%s\"", first ? "" : ",", P.kits[i].id); first = 0; }
     k += (size_t)snprintf(o + k, cap - k, "],\"monsters\":[");
     for (int i = 0; i < st.nmon; i++) k += (size_t)snprintf(o + k, cap - k, "%s{\"k\":\"%s\",\"n\":%d}", i ? "," : "", st.mon[i].k, st.mon[i].n);
-    k += (size_t)snprintf(o + k, cap - k, "],\"tod\":\"%s\"", st.tod ? "night" : "day");
+    k += (size_t)snprintf(o + k, cap - k, "],\"tod\":\"%s\",\"weather\":\"%s\"", st.tod ? "night" : "day", WEATHER_ID[st.weather]);
     if (is_fight() && P.nbosses && P.bosses[st.boss].abyss && P.nmsat) k += (size_t)snprintf(o + k, cap - k, ",\"msat\":%d", P.msat_keys[st.msat]);
     k += (size_t)snprintf(o + k, cap - k, ",\"builds\":%s}", builds);
     free(builds);
     Job *b = calloc(1, sizeof *b); b->j.run = job_gen_run; b->j.done = job_gen_done; b->in = o;
     busy = 1; snprintf(status, sizeof status, "%s", TR("Building your save file...")); status_warn = 0;
     prefs_save();
-    cmw_log("tf: Start %s (%s)", mode_id(), st.tod ? "night" : "day");
+    cmw_log("tf: Start %s (%s, %s)", mode_id(), st.tod ? "night" : "day", WEATHER_ID[st.weather]);
     cm_work_post(&b->j);
     paint_all();
 }
@@ -567,14 +573,16 @@ static float head(DSLObj parent, float x, float y, float w, const char *s) {
    "custom-modes.fights.<id>" after closing and after a restart). *dy = its height; 1 = draw the body. An older kit: the
    plain heading, always open. Every heading of this window goes through here. */
 static void sec_changed(void *ud, DSLObj h, int open) { (void)ud; (void)h; (void)open; paint_all(); }
-static int sec(DSLObj parent, float x, float y, float w, const char *title, const char *id, float *dy) {
+/* flags: DSL_SEC_FOLDED = folded until the player opens it the first time ("Advanced") */
+static int sec_f(DSLObj parent, float x, float y, float w, const char *title, const char *id, int flags, float *dy) {
     char key[64], nm[48]; snprintf(key, sizeof key, "custom-modes.fights.%s", id); snprintf(nm, sizeof nm, "fights:sec.%s", id);
-    DSLObj h = dsl_section(U, parent, x, y, w, title, key, 0, sec_changed, NULL);
+    DSLObj h = dsl_section(U, parent, x, y, w, title, key, flags, sec_changed, NULL);
     if (!h) { *dy = head(parent, x, y, w, title); return 1; }
     cmw_named(h, CMW_TEXT, nm, NULL, NULL, title);                     /* test: its rect (a click on it = the player's click) */
     *dy = DSL_SECTION_H + 4;
-    return dsl_section_open(U, key, 1);
+    return dsl_section_open(U, key, !(flags & DSL_SEC_FOLDED));
 }
+static int sec(DSLObj parent, float x, float y, float w, const char *title, const char *id, float *dy) { return sec_f(parent, x, y, w, title, id, 0, dy); }
 
 /* left: the squad */
 static uintptr_t h_keep[2];
@@ -974,6 +982,7 @@ static void insc_change(void *ud, DSLObj w) { (void)ud; st.kit_insc = U->toggle_
 static void monq_submit(void *ud, DSLObj w) { (void)ud; U->field_get(w, st.monq, sizeof st.monq); paint_all(); }
 static void moncount_change(void *ud, DSLObj w) { (void)ud; st.mon_count = U->value_get(w) + 1; prefs_save(); }
 static void tod_change(void *ud, DSLObj w) { (void)ud; st.tod = U->value_get(w) != 0; prefs_save(); }
+static void weather_change(void *ud, DSLObj w) { (void)ud; int v = U->value_get(w); st.weather = v >= 0 && v < 3 ? v : 0; prefs_save(); }
 static const char *mon_name(const char *k);
 static void mon_add(void *ud, DSLObj w) {
     (void)w; Mon *m = &P.mons[(int)(intptr_t)ud]; int n = st.mon_count < 1 ? 1 : st.mon_count > 30 ? 30 : st.mon_count;
@@ -1144,15 +1153,6 @@ static void paint_right(void) {
         else snprintf(md, sizeof md, "%s", TR("A fully built base with all research done. Your squad walks in ready to play."));
         y += txt(right, "fights:r.modedesc", 12, y, w - 12, md, 15, SUB) + 10;
         if (!strcmp(mode_id(), "dps")) y += dps_card(right, y, w) + 10;   /* its switches are on the in-game meter only (tf_meter.c) */
-        /* time of day (owner 2026-11-01: "always day, 8 AM, by default; a setting picks day or night"): the game's own words */
-        {
-            static char tdn[2][96]; const char *tl[2];
-            snprintf(tdn[0], sizeof tdn[0], "%s", cm_gw("TEXTKEY_AFFECTER_DayTime_NAME", TR_NOOP("Day Time")));
-            snprintf(tdn[1], sizeof tdn[1], "%s", cm_gw("TEXTKEY_AFFECTER_NightTime_NAME", TR_NOOP("Night Time")));
-            tl[0] = tdn[0]; tl[1] = tdn[1];
-            cmw_named(U->value_row(right, 0, y, w, TR("Time of Day"), tl, 2, st.tod, tod_change, NULL), CMW_VALUE, "fights:r.tod", tod_change, NULL, tl[st.tod]);
-            y += 50;
-        }
     }
     /* Which fight / Which room */
     if (is_fight() && P.nbosses) {
@@ -1272,6 +1272,37 @@ static void paint_right(void) {
             }
             for (int i = 0; i < P.nmiss; i++) y += txt(right, NULL, 12, y, w - 12, P.miss[i], 14, WARN);
         }
+    }
+    /* Advanced (owner 2026-11-01: "you can add advanced options for weather (time of test probably should be an advanced
+       option too)"): folded until the player opens it once, then kept like every section */
+    open = sec_f(right, 0, y, w, TR("Advanced"), "advanced", DSL_SEC_FOLDED, &dy); y += dy;
+    if (open) {
+        /* weather (owner: "set the map to clear weather by default"): the game's own words, TEXTKEY_Shared_Weather<id>_NAME
+           = "<Weather>:<kind>" in every language (':' or the full-width one); the row = the part before, a choice = after */
+        static char wn[3][96], wl[96]; const char *wt[3];
+        snprintf(wl, sizeof wl, "%s", TR("Weather"));
+        for (int i = 0; i < 3; i++) {
+            char k[64], full[160]; snprintf(k, sizeof k, "TEXTKEY_Shared_Weather%s_NAME", WEATHER_ID[i]);
+            snprintf(full, sizeof full, "%s", cm_gw(k, NULL));
+            const char *c = strstr(full, "\xEF\xBC\x9A"); int cl = 3;            /* full-width colon (zh / ja) */
+            const char *a = strchr(full, ':'); if (a && (!c || a < c)) { c = a; cl = 1; }
+            const char *v = c ? c + cl : NULL; while (v && *v == ' ') v++;
+            if (v && *v) {
+                snprintf(wn[i], sizeof wn[i], "%s", v);
+                if (i == 0) { size_t n = (size_t)(c - full); while (n && full[n - 1] == ' ') n--; if (n && n < sizeof wl) { memcpy(wl, full, n); wl[n] = 0; } }
+            } else snprintf(wn[i], sizeof wn[i], "%s", i == 0 ? TRC("weather", "Clear") : i == 1 ? TR("Rain") : TR("Heavy Rain"));
+            wt[i] = wn[i];
+        }
+        cmw_named(U->value_row(right, 0, y, w, wl, wt, 3, st.weather, weather_change, NULL), CMW_VALUE, "fights:r.weather", weather_change, NULL, wt[st.weather]);
+        y += 50;
+        /* time of day (owner 2026-11-01: "always day, 8 AM, by default; a setting picks day or night"): the game's own words */
+        static char tdn[2][96]; const char *tl[2];
+        snprintf(tdn[0], sizeof tdn[0], "%s", cm_gw("TEXTKEY_AFFECTER_DayTime_NAME", TR_NOOP("Day Time")));
+        snprintf(tdn[1], sizeof tdn[1], "%s", cm_gw("TEXTKEY_AFFECTER_NightTime_NAME", TR_NOOP("Night Time")));
+        tl[0] = tdn[0]; tl[1] = tdn[1];
+        cmw_named(U->value_row(right, 0, y, w, TR("Time of Day"), tl, 2, st.tod, tod_change, NULL), CMW_VALUE, "fights:r.tod", tod_change, NULL, tl[st.tod]);
+        y += 50;
+        y += txt(right, NULL, 12, y, w - 12, TR("The test world keeps this weather for the whole test."), 14, SUB) + 6;
     }
     U->scroll_height(vp, y + 16);
     keep_set(1, vp, ky, y + 16 - PANEL_H);
@@ -1423,6 +1454,20 @@ __attribute__((visibility("default"))) int tf_test_save(const char *s, char *out
     snprintf(out, cap, "saved %d", ok);
     cmw_log("tf: test save %s: %d", s, ok);
     return ok ? 0 : -2;
+}
+
+/* test only (driver "call"; nothing in play calls it): the weather the map shows now, the game's MapWeatherHandler._nowWeather
+   (WeatherType: 0 Sunny, 1 Rain, 2 HeavyRain) -> "Sunny" | "Rain" | "HeavyRain" | "<n>". fights/test/setup_test.py: a
+   test world starts with the weather picked in Advanced (Clear by default). 0 ok. */
+__attribute__((visibility("default"))) int tf_test_weather(const char *s, char *out, size_t cap) {
+    (void)s;
+    void *k = cm_il_class("Refactor", "MapWeatherHandler");
+    int32_t f = k ? cm_il_field(k, "_nowWeather") : -1;
+    Obj h = k ? cm_find(k, false) : NULL;
+    if (!cm_alive(h) || f < 0) { snprintf(out, cap, "no weather handler (class %p, field %d, object %p)", k, f, h); return -1; }
+    int32_t v = CM_AT(h, f, int32_t);
+    if (v >= 0 && v < 3) snprintf(out, cap, "%s", WEATHER_ID[v]); else snprintf(out, cap, "%d", v);
+    return 0;
 }
 
 /* test only (driver "call"): the names on the game's unit portrait bar, left to right (the SubUI_UnitShortCutParts under

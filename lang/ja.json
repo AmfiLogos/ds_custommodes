@@ -73,6 +73,7 @@
  "Added 1 unit to My Units: %s": "1体のユニットをマイユニットに追加しました：%s",
  "Added by default so every unit has enough carry weight for the battle kits.": "すべてのユニットがバトルキットを運べるように、初期状態で追加されています。",
  "Added to the room: %s x%d.": "部屋に追加しました：%s x%d。",
+ "Advanced": "詳細設定",
  "Aid Kit": "救急キット",
  "All": "すべて",
  "All %s": "すべて%s",
@@ -166,6 +167,7 @@
  "Grant %s on Custom Saves": "カスタムセーブで%sを付与",
  "Greatsword": "大剣",
  "Healing": "回復",
+ "Heavy Rain": "豪雨",
  "Helmet": "ヘルメット",
  "Hood": "フード",
  "How Many": "数",
@@ -253,6 +255,7 @@
  "Public in the Build Gallery": "ビルドギャラリーに公開",
  "Race": "種族",
  "Races": "種族",
+ "Rain": "雨",
  "Randomize": "ランダム",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "読み取り専用：これらのユニットはこのセーブにあります。ユニットにチェックを入れて「スナップショットを保存」を押すと、マイユニットにコピーされます。",
  "Reading the link...": "リンクを読み取り中...",
@@ -356,6 +359,7 @@
  "The save that was made has no usable name.": "作成されたセーブに使える名前がありません。",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "このセーブは魔力飽和をオンにし、選んだ日を書き込みます。深淵のモンスターだけが対象です。",
  "The test world could not be written into the Saves folder.": "テスト用のワールドをセーブフォルダに書き込めませんでした。",
+ "The test world keeps this weather for the whole test.": "テストワールドはテスト中ずっとこの天候のままです。",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "Wikiのビルドの読み方が変わりました。ユニット研究所を更新してから、もう一度お試しください。",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "Wikiがこの短いリンクを開けませんでした（エラー %d）。後でもう一度お試しいただくか、Wikiで長いリンクをコピーしてください。",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "Wikiのテスト戦闘ファイルはゲームビルド %s 用で、このゲームはビルド %s です。両方が一致すると、テスト戦闘が再び開きます。",
@@ -401,6 +405,7 @@
  "Waiting for the first hit": "最初のヒット待ち",
  "Water Staff": "水の杖",
  "Weapon Trees": "武器ツリー",
+ "Weather": "天候",
  "What to Test": "テストする内容",
  "Which Fight": "どの戦闘",
  "Which Room": "どの部屋",
@@ -474,5 +479,6 @@
  "too many filters": "フィルターが多すぎます",
  "trait": "特性",
  "tree %s has no pool": "ツリー %s に候補がありません",
- "two-handed": "両手"
+ "two-handed": "両手",
+ "weather\u0004Clear": "晴れ"
 }

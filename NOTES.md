@@ -31,6 +31,13 @@
   (cm_gtip.c `place_frame`) use the same rule: a near free side, else beside the element over another column.
 - Test units start with Auto Skill off (sg_glue.js `autoSkill`); World units keep their save's bit. Time of Day: Day =
   08:00, Night = 21:00 (sg_glue.js `setClock`).
+- Weather (owner 2026-11-01: "clear weather by default", "advanced options for weather (time of test ... too)"): the save's
+  `EnvironmentSaveData.WeatherDatas` (every DungeonRegion, "None" = the base map) = Sunny | Rain | HeavyRain (game enum
+  WeatherType), and `BaseWeatherChangeMin` / `DungeonWeatherChangeMin` = the clock's minute + 100 days: no re-roll in a
+  test (sg_glue.js `setWeather`, after `setClock`). The Abyss / Sentinel boss templates hold Rain on the base map.
+  Names: TEXTKEY_Shared_Weather<id>_NAME "<Weather>:<kind>" split at ':' / '：'. Weather + Time of Day sit in the
+  "Advanced" section (tf_ui.c `sec_f(..., DSL_SEC_FOLDED)`: folded until first opened). MP: the guest loads the host's
+  save, so the weather is the same; no re-roll = no weather random draw.
 - Guard: fights/test/setup_test.py (one hidden copy): every choice kept after a test and after a restart, the kit rows'
   and the inscription's cards next to them at 4 screen sizes (TS_WIN / TS_UISCALE / TS_HOVER_ONLY=1), Auto Skill off and
   the clock (the game's own save of the running world), a folded section stays folded. Game tests that open Test Fights
