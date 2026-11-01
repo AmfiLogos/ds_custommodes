@@ -73,6 +73,7 @@
  "Added 1 unit to My Units: %s": "유닛 1개를 내 유닛에 추가했습니다: %s",
  "Added by default so every unit has enough carry weight for the battle kits.": "모든 유닛이 전투 키트를 들 수 있는 최대 무게를 갖도록 기본으로 추가됩니다.",
  "Added to the room: %s x%d.": "방에 추가함: %s x%d.",
+ "Advanced": "고급",
  "Aid Kit": "응급 키트",
  "All": "전체",
  "All %s": "모두 %s",
@@ -166,6 +167,7 @@
  "Grant %s on Custom Saves": "커스텀 세이브에 %s 부여",
  "Greatsword": "대검",
  "Healing": "회복",
+ "Heavy Rain": "폭우",
  "Helmet": "머리 방어구",
  "Hood": "두건",
  "How Many": "개수",
@@ -253,6 +255,7 @@
  "Public in the Build Gallery": "빌드 갤러리에 공개",
  "Race": "종족",
  "Races": "종족",
+ "Rain": "비",
  "Randomize": "무작위",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "읽기 전용: 이 유닛들은 이 세이브에 있습니다. 유닛을 체크한 뒤 \"스냅샷 저장\"을 누르면 내 유닛으로 복사됩니다.",
  "Reading the link...": "링크를 읽는 중...",
@@ -356,6 +359,7 @@
  "The save that was made has no usable name.": "생성된 세이브에 쓸 수 있는 이름이 없습니다.",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "이 세이브는 마력 포화를 켜고 선택한 날짜를 기록합니다. 심연 몬스터에만 적용됩니다.",
  "The test world could not be written into the Saves folder.": "세이브 폴더에 테스트 월드를 쓸 수 없습니다.",
+ "The test world keeps this weather for the whole test.": "테스트 월드는 테스트 내내 이 날씨를 유지합니다.",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "위키가 빌드를 읽는 방식이 바뀌었습니다. 유닛 연구소를 업데이트한 다음 다시 시도하십시오.",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "위키가 이 짧은 링크를 열지 못했습니다(오류 %d). 나중에 다시 시도하거나, 위키에서 긴 링크를 복사하십시오.",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "위키의 테스트 전투 파일은 게임 빌드 %s용이고, 이 게임은 빌드 %s입니다. 둘이 맞으면 테스트 전투가 다시 열립니다.",
@@ -401,6 +405,7 @@
  "Waiting for the first hit": "첫 타격 대기 중",
  "Water Staff": "물 마법 스태프",
  "Weapon Trees": "무기 트리",
+ "Weather": "날씨",
  "What to Test": "테스트할 내용",
  "Which Fight": "어떤 전투",
  "Which Room": "어떤 방",
@@ -474,5 +479,6 @@
  "too many filters": "필터가 너무 많습니다",
  "trait": "특성",
  "tree %s has no pool": "트리 %s에 풀이 없습니다",
- "two-handed": "양손"
+ "two-handed": "양손",
+ "weather\u0004Clear": "맑음"
 }

@@ -19,6 +19,12 @@ catches):
   (5) a Test Fights section does not fold, or does not stay folded (owner 2026-11-01, PLAN_v013 item 6): every heading is
       the kit's section header; a click folds "Difficulty"; still folded after a test, when the window opens again and
       after a game restart; a second click opens it.
+  (6) Weather (owner 2026-11-01: "set the map to clear weather by default, and you can add advanced options for weather
+      (time of test probably should be an advanced option too)"): the "Advanced" section (Weather + Time of Day) is folded
+      the first time and a click opens it; a test world with the default weather shows Clear (the game's live map weather,
+      test call tf_test_weather = MapWeatherHandler._nowWeather, and every region of the game's own save) also from an
+      Abyss room, whose template holds Rain; with Heavy Rain picked it shows Heavy Rain; the pick is kept after a test and
+      a restart, and Advanced stays open.
   setup_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer, mods/custom-modes)
                        LD_ROOT = a ds_modloader checkout (loader/test helpers; default ~/ds_launcher)
                        TS_WIN = a window size for the hover check (e.g. 1920x1080; default 960x540); TS_UISCALE = UI Scale
@@ -35,7 +41,7 @@ import hostmods_pair as HP  # noqa: E402  (copies, kits, start/stop, owner scree
 from hostmods_pair import lrig, log, check  # noqa: E402
 import tf_fresh  # noqa: E402
 
-X = 'TSU'; HP.H = HP.G = X
+X = os.environ.get('TS_COPY', 'TSU'); HP.H = HP.G = X   # TS_COPY: another copy name (lanes side by side)
 OUT = os.environ.get('TS_OUT') or os.path.join(os.path.dirname(HP.BUILD), 'test_env', 'setup', time.strftime('%Y%m%d-%H%M%S'))
 os.makedirs(OUT, exist_ok=True)
 DRV = os.path.join(OUT, 'drv'); os.makedirs(os.path.join(DRV, 'cap'), exist_ok=True)
@@ -195,10 +201,23 @@ def set_choices():
         cmf(cmd='click', name=k); time.sleep(0.8)
     if 'fights:r.insc' in controls():
         cmf(cmd='click', name='fights:r.insc'); time.sleep(0.8)
-    cmf(cmd='set', name='fights:r.tod', index=1); time.sleep(0.5)     # Night
+    adv_open()
+    cmf(cmd='set', name='fights:r.tod', index=1); time.sleep(0.5)     # Night (the weather stays Clear: the default's check)
     click('fights:l.src0', 1.5); click('fights:l.team0', 1.5)         # My Units: the 4-unit team
     click('fights:l.src2', 2.0); cmf(cmd='click', name='fights:l.waff'); time.sleep(0.8)
     click('fights:l.world0', 2.5); click('fights:l.world0.pick', 2.0)   # World units: Pick 1-4 of the seed save
+
+
+def adv_open():
+    """(6) open the folded "Advanced" section with a click on its header (scrolled into view: it is the last section)"""
+    if 'fights:r.tod' in controls():
+        return True
+    cmf(cmd='scroll', name='fights:sec.advanced', pos=0); time.sleep(0.8)
+    click('fights:sec.advanced', 1.5)
+    c = controls()
+    check('[advanced] a click on "Advanced" opens it: Weather and Time of Day show', 'fights:r.weather' in c and 'fights:r.tod' in c,
+          sorted(k for k in c if 'sec.' in k or k in ('fights:r.weather', 'fights:r.tod')))
+    return 'fights:r.tod' in c
 
 
 def game_save(tag):
@@ -225,7 +244,7 @@ def clan_options(s):
     return out
 
 
-def fight(tag, want_hour, autoskill_off):
+def fight(tag, want_hour, autoskill_off, want_weather):
     t0 = time.time()
     cmf(cmd='click', name='fights:start')
     ok = wait('test world loaded', lambda: HP.st(X).get('scene') == 2, 300, 2)
@@ -233,12 +252,18 @@ def fight(tag, want_hour, autoskill_off):
     if not ok:
         return False
     time.sleep(8)
+    live = call('tf_test_weather')
+    check(f'[{tag}] the map shows the weather {want_weather} (the game\'s MapWeatherHandler)', live == want_weather, live)
     s = game_save(tag)
     check(f'[{tag}] the game wrote the running test world', s is not None)
     if s:
         t = s.get('TimeSaveData') or {}
         check(f'[{tag}] the test world\'s clock is {want_hour:02d}:00 ({"day" if 6 <= want_hour < 20 else "night"}) as the game holds it',
               t.get('Hour', -1) % 24 == want_hour and t.get('Tick', 0) // 45 % 60 <= 30, t)               # the world runs a few game minutes before the save
+        e = s.get('EnvironmentSaveData') or {}; wd = e.get('WeatherDatas') or {}
+        check(f'[{tag}] every region of the game\'s save holds {want_weather}, no re-roll during the test',
+              wd and set(wd.values()) == {want_weather} and min(e.get('BaseWeatherChangeMin', 0), e.get('DungeonWeatherChangeMin', 0)) > t.get('Min', 0) + 1440,
+              {'weather': wd, 'base': e.get('BaseWeatherChangeMin'), 'dungeon': e.get('DungeonWeatherChangeMin'), 'min': t.get('Min')})
         o = clan_options(s)
         if autoskill_off:
             check(f'[{tag}] every squad unit starts with Auto Skill OFF (BehaviourOption AutoAttack 1 not set)', o and not [g for g, v in o.items() if v & 1], o)
@@ -265,6 +290,10 @@ def run():
         return
     k0 = kept(); log('defaults', k0)
     check('[first open] Time of Day defaults to Day', k0.get('tod') == 'day', k0)
+    check('[first open] Weather defaults to Clear (Sunny)', k0.get('weather') == 'Sunny', k0)
+    c0 = controls()
+    check('[first open] "Advanced" is folded: its header shows, Weather and Time of Day do not', 'fights:sec.advanced' in c0 and 'fights:r.tod' not in c0 and 'fights:r.weather' not in c0,
+          sorted(k for k in c0 if 'sec.' in k or k in ('fights:r.weather', 'fights:r.tod')))
     hover_check('first open')
     if HOVER_ONLY:
         return
@@ -275,7 +304,7 @@ def run():
     check('every choice was changed from its default (setup of the check)', not same and k1.get('src') == '2' and k1.get('tod') == 'night',
           {k: (k0.get(k), k1.get(k)) for k in same})
     # a new test: Start (World units, night) -> the world -> title -> Test Fights again
-    if not fight('night, World units', 21, False):
+    if not fight('night, World units, default weather', 21, False, 'Sunny'):
         return
     if not open_tf('after a test'):
         return
@@ -290,10 +319,13 @@ def run():
           [k for k in c if k.startswith('fights:sec.') or k == 'fights:r.combat'])
     # day + My Units: the default time, Auto Skill off
     click('fights:l.src0', 1.5); cmf(cmd='set', name='fights:r.tod', index=0); time.sleep(0.8)
+    check('[advanced] still open after a test', 'fights:r.weather' in controls())
+    cmf(cmd='set', name='fights:r.weather', index=2); time.sleep(0.8)  # Heavy Rain
     k3 = kept(); t3 = tf()
-    check('[day] My Units team still picked (4 units, the team named), Time of Day = Day', t3.get('squad') == 4 and t3.get('team') == 0 and k3.get('tod') == 'day',
-          (t3.get('squad'), t3.get('team'), k3.get('tod')))
-    if not fight('day, My Units', 8, True):
+    check('[day] My Units team still picked (4 units, the team named), Time of Day = Day, Weather = Heavy Rain',
+          t3.get('squad') == 4 and t3.get('team') == 0 and k3.get('tod') == 'day' and k3.get('weather') == 'HeavyRain',
+          (t3.get('squad'), t3.get('team'), k3.get('tod'), k3.get('weather')))
+    if not fight('day, My Units, Heavy Rain', 8, True, 'HeavyRain'):
         return
     if not open_tf('after a test, Difficulty folded'):
         return
@@ -308,6 +340,7 @@ def run():
     check('[sections] Difficulty still folded after the game restarts', 'fights:sec.difficulty' in c and 'fights:r.combat' not in c, sorted(k for k in c if 'sec.' in k or k == 'fights:r.combat'))
     click('fights:sec.difficulty', 1.5)
     check('[sections] a second click opens it again', 'fights:r.combat' in controls())
+    check('[advanced] still open after the game restarts', 'fights:r.weather' in controls())
     k4 = kept(); t4 = tf()
     check('[after a restart] the squad is the same team (the save keeps its name)', (t4.get('squad'), t4.get('team')) == (t3.get('squad'), t3.get('team')),
           ((t4.get('squad'), t4.get('team')), 'before', (t3.get('squad'), t3.get('team'))))

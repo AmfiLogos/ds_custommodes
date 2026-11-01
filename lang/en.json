@@ -51,6 +51,7 @@
  "Added 1 unit to My Units: %s": "Added 1 unit to My Units: %s",
  "Added by default so every unit has enough carry weight for the battle kits.": "Added by default so every unit has enough carry weight for the battle kits.",
  "Added to the room: %s x%d.": "Added to the room: %s x%d.",
+ "Advanced": "Advanced",
  "Aid Kit": "Aid Kit",
  "All": "All",
  "All %s": "All %s",
@@ -138,6 +139,7 @@
  "Grant %s on Custom Saves": "Grant %s on Custom Saves",
  "Greatsword": "Greatsword",
  "Healing": "Healing",
+ "Heavy Rain": "Heavy Rain",
  "Helmet": "Helmet",
  "Hood": "Hood",
  "How Many": "How Many",
@@ -221,6 +223,7 @@
  "Public in the Build Gallery": "Public in the Build Gallery",
  "Race": "Race",
  "Races": "Races",
+ "Rain": "Rain",
  "Randomize": "Randomize",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.",
  "Reading the link...": "Reading the link...",
@@ -314,6 +317,7 @@
  "The save that was made has no usable name.": "The save that was made has no usable name.",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.",
  "The test world could not be written into the Saves folder.": "The test world could not be written into the Saves folder.",
+ "The test world keeps this weather for the whole test.": "The test world keeps this weather for the whole test.",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "The wiki changed how it reads builds. Update Units Laboratory, then try again.",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.",
@@ -359,6 +363,7 @@
  "Waiting for the first hit": "Waiting for the first hit",
  "Water Staff": "Water Staff",
  "Weapon Trees": "Weapon Trees",
+ "Weather": "Weather",
  "What to Test": "What to Test",
  "Which Fight": "Which Fight",
  "Which Room": "Which Room",
@@ -432,5 +437,6 @@
  "too many filters": "too many filters",
  "trait": "trait",
  "tree %s has no pool": "tree %s has no pool",
- "two-handed": "two-handed"
+ "two-handed": "two-handed",
+ "weather\u0004Clear": "weather\u0004Clear"
 }

@@ -95,6 +95,7 @@
  "Added 1 unit to My Units: %s": "В «Мои юниты» добавлен 1 юнит: %s",
  "Added by default so every unit has enough carry weight for the battle kits.": "Добавлено по умолчанию, чтобы у каждого юнита хватало веса переноски для боевых наборов.",
  "Added to the room: %s x%d.": "Добавлено в комнату: %s x%d.",
+ "Advanced": "Дополнительно",
  "Aid Kit": "Аптечка",
  "All": "Все",
  "All %s": "Все: %s",
@@ -194,6 +195,7 @@
  "Grant %s on Custom Saves": "Выдавать в особых сохранениях: %s",
  "Greatsword": "Двуручный меч",
  "Healing": "Лечение",
+ "Heavy Rain": "Сильный дождь",
  "Helmet": "Шлем",
  "Hood": "Капюшон",
  "How Many": "Сколько",
@@ -285,6 +287,7 @@
  "Public in the Build Gallery": "Публично в Галерее сборок",
  "Race": "Раса",
  "Races": "Расы",
+ "Rain": "Дождь",
  "Randomize": "Случайно",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "Только чтение: эти юниты есть в вашем сохранении. Отметьте юниты и нажмите «Сохранить снимок», чтобы скопировать их в «Мои юниты».",
  "Reading the link...": "Чтение ссылки...",
@@ -398,6 +401,7 @@
  "The save that was made has no usable name.": "У созданного сохранения нет пригодного имени.",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "Сохранение включает «Магическое насыщение» и записывает выбранный день. Его получают только монстры Бездны.",
  "The test world could not be written into the Saves folder.": "Не удалось записать тестовый мир в папку сохранений.",
+ "The test world keeps this weather for the whole test.": "Тестовый мир сохраняет эту погоду на весь тест.",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "Вики изменила способ чтения сборок. Обновите Лабораторию юнитов и попробуйте снова.",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "Вики не открыла эту короткую ссылку (ошибка %d). Попробуйте позже или скопируйте длинную ссылку на вики.",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "Файлы «Тестовых боёв» вики созданы для сборки игры %s, а эта игра — сборка %s. «Тестовые бои» откроются снова, когда обе совпадут.",
@@ -443,6 +447,7 @@
  "Waiting for the first hit": "Ждёт первого удара",
  "Water Staff": "Посох воды",
  "Weapon Trees": "Деревья оружия",
+ "Weather": "Погода",
  "What to Test": "Что проверить",
  "Which Fight": "Какой бой",
  "Which Room": "Какая комната",
@@ -516,5 +521,6 @@
  "too many filters": "слишком много фильтров",
  "trait": "черта",
  "tree %s has no pool": "у дерева %s нет пула",
- "two-handed": "двуручное"
+ "two-handed": "двуручное",
+ "weather\u0004Clear": "Ясно"
 }

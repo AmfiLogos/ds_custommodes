@@ -84,6 +84,7 @@
  "Added 1 unit to My Units: %s": "1 unité ajoutée à Mes unités : %s",
  "Added by default so every unit has enough carry weight for the battle kits.": "Ajouté par défaut pour que chaque unité ait assez de poids à porter pour les kits de combat.",
  "Added to the room: %s x%d.": "Ajouté à la salle : %s x%d.",
+ "Advanced": "Avancé",
  "Aid Kit": "Kit de soins",
  "All": "Tous",
  "All %s": "Tout %s",
@@ -180,6 +181,7 @@
  "Grant %s on Custom Saves": "Accorder %s sur les sauvegardes personnalisées",
  "Greatsword": "Grande épée",
  "Healing": "Soins",
+ "Heavy Rain": "Forte pluie",
  "Helmet": "Casque",
  "Hood": "Capuche",
  "How Many": "Combien",
@@ -269,6 +271,7 @@
  "Public in the Build Gallery": "Publique dans la Galerie de builds",
  "Race": "Race",
  "Races": "Races",
+ "Rain": "Pluie",
  "Randomize": "Aléatoire",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "Lecture seule : ces unités sont dans votre sauvegarde. Cochez des unités, puis cliquez sur « Sauvegarder l'instantané » pour les copier dans Mes unités.",
  "Reading the link...": "Lecture du lien...",
@@ -377,6 +380,7 @@
  "The save that was made has no usable name.": "La sauvegarde générée n'a pas de nom utilisable.",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "La sauvegarde active la Saturation magique et inscrit le jour choisi. Seuls les monstres de l'Abîme la reçoivent.",
  "The test world could not be written into the Saves folder.": "Impossible d'écrire le monde de test dans le dossier des sauvegardes.",
+ "The test world keeps this weather for the whole test.": "Le monde de test garde cette météo pendant tout le test.",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "Le wiki a changé sa façon de lire les builds. Mettez à jour le Laboratoire d'unités, puis réessayez.",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "Le wiki n'a pas ouvert ce lien court (erreur %d). Réessayez plus tard, ou copiez le lien long depuis le wiki.",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "Les fichiers Combats d'essai du wiki sont pour le build %s du jeu, et ce jeu est en build %s. Combats d'essai rouvrira quand les deux correspondront.",
@@ -422,6 +426,7 @@
  "Waiting for the first hit": "En attente du premier coup",
  "Water Staff": "Bâton de magie de l'eau",
  "Weapon Trees": "Arbres d'armes",
+ "Weather": "Météo",
  "What to Test": "Que tester ?",
  "Which Fight": "Quel combat",
  "Which Room": "Quelle salle",
@@ -495,5 +500,6 @@
  "too many filters": "trop de filtres",
  "trait": "trait",
  "tree %s has no pool": "l'arbre %s n'a pas de liste",
- "two-handed": "à deux mains"
+ "two-handed": "à deux mains",
+ "weather\u0004Clear": "Dégagé"
 }

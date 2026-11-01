@@ -73,6 +73,7 @@
  "Added 1 unit to My Units: %s": "已將 1 個單位新增至「我的單位」：%s",
  "Added by default so every unit has enough carry weight for the battle kits.": "預設加入，使每個單位都有足夠的負重來攜帶戰鬥套組。",
  "Added to the room: %s x%d.": "已加入房間：%s x%d。",
+ "Advanced": "進階",
  "Aid Kit": "急救套組",
  "All": "全部",
  "All %s": "全部%s",
@@ -166,6 +167,7 @@
  "Grant %s on Custom Saves": "在自訂存檔中給予 %s",
  "Greatsword": "巨劍",
  "Healing": "治療",
+ "Heavy Rain": "暴雨",
  "Helmet": "頭盔",
  "Hood": "兜帽",
  "How Many": "數量",
@@ -253,6 +255,7 @@
  "Public in the Build Gallery": "在作品庫中公開",
  "Race": "種族",
  "Races": "種族",
+ "Rain": "雨",
  "Randomize": "隨機",
  "Read only: these units are in your save. Tick units, then press \"Save Snapshot\" to copy them to My Units.": "唯讀：這些單位在你的存檔中。勾選單位後按「保存快照」，即可將它們複製到「我的單位」。",
  "Reading the link...": "正在讀取連結...",
@@ -356,6 +359,7 @@
  "The save that was made has no usable name.": "產生的存檔沒有可用的名稱。",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "此存檔會開啟魔力飽和，並寫入你選擇的天數。只有深淵怪物會獲得它。",
  "The test world could not be written into the Saves folder.": "無法將測試世界寫入存檔資料夾。",
+ "The test world keeps this weather for the whole test.": "測試世界在整個測試中保持此天氣。",
  "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "維基讀取構築的方式已改變。請更新單位實驗室，然後再試一次。",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "維基無法開啟此短連結（錯誤 %d）。請稍後再試，或在維基上複製完整連結。",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "維基的測試戰鬥檔案適用於遊戲版本 %s，而此遊戲為版本 %s。兩者相符時，測試戰鬥會再次開啟。",
@@ -401,6 +405,7 @@
  "Waiting for the first hit": "等待首次命中",
  "Water Staff": "水法杖",
  "Weapon Trees": "武器技能樹",
+ "Weather": "天氣",
  "What to Test": "測試什麼",
  "Which Fight": "哪場戰鬥",
  "Which Room": "哪個房間",
@@ -474,5 +479,6 @@
  "too many filters": "篩選條件過多",
  "trait": "特質",
  "tree %s has no pool": "技能樹 %s 沒有池",
- "two-handed": "雙手"
+ "two-handed": "雙手",
+ "weather\u0004Clear": "晴朗"
 }

@@ -148,6 +148,22 @@ var CMF = (function () {
     t.Tick = nm * TPM; t.Min = (t.Min || 0) + d; t.Hour = Math.floor(nm / 60); t.Day = Math.floor(t.Hour / 24);
   }
 
+  // Weather (owner 2026-11-01: "set the map to clear weather by default, and you can add advanced options for weather"):
+  // the save's EnvironmentSaveData.WeatherDatas holds each region's weather by the game's WeatherType name (Sunny, Rain,
+  // HeavyRain; the region "None" = the base map). The boss templates hold Rain on the base map (the owner's dark test
+  // map). Every region gets the pick, and the game's next re-roll (BaseWeatherChangeMin / DungeonWeatherChangeMin, the
+  // campaign minute WeatherSystem.CheckWeatherChange waits for) moves 100 game days ahead: the weather stays for the
+  // whole test. Runs after setClock (it reads the clock's new minute).
+  var WEATHERS = { Sunny: 1, Rain: 1, HeavyRain: 1 };
+  function setWeather(save, w) {
+    var e = save.EnvironmentSaveData, t = save.TimeSaveData;
+    if (!e || !e.WeatherDatas) return;
+    if (!WEATHERS[w]) w = 'Sunny';
+    Object.keys(e.WeatherDatas).forEach(function (r) { e.WeatherDatas[r] = w; });
+    var until = ((t && typeof t.Min === 'number') ? t.Min : 0) + 100 * 1440;
+    e.BaseWeatherChangeMin = until; e.DungeonWeatherChangeMin = until;
+  }
+
   // World units (owner 2026-10-25: "when loading units from save directly bring over the items they carry", "Give the
   // option to import their affecters from save as is"). A build taken straight from a save holds `_cm`, made by the game
   // side from the save (units/mu_worlds.c mu_save_fight_build; keys the game does not know are already left out):
@@ -249,7 +265,8 @@ var CMF = (function () {
   }
 
   // opts = the tab's choices: { mode, boss, builds:[stored builds], combat, mgmt, monsters:[{k,n}],
-  //   supplies:{key:amount} | [{k,amount}], kits:{id:true} | [id], kitInsc, msat, team, tod: 'day' (default) | 'night' }
+  //   supplies:{key:amount} | [{k,amount}], kits:{id:true} | [id], kitInsc, msat, team, tod: 'day' (default) | 'night',
+  //   weather: 'Sunny' (default) | 'Rain' | 'HeavyRain' }
   // Builds go in as stored (the builder's own build objects, as the wiki's roster keeps them).
   // -> the wiki's generate() result with the save as the text its download writes (JSON.stringify(save, null, 2))
   function generate(o) {
@@ -277,6 +294,7 @@ var CMF = (function () {
       nameKeys(r.save);
       autoSkill(r.save, builds);
       setClock(r.save, o.tod);
+      setWeather(r.save, o.weather);
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
         clan: r.clan };
