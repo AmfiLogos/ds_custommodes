@@ -89,6 +89,12 @@ def make_library():
     if os.environ.get('DPS_NOTORCH'):                             # task 12 proof: the same units with no torch
         for u in units:
             u['build'].get('eq', {}).pop('Secondary', None)
+    if os.environ.get('DPS_AFF'):                                 # task 16: one affecter on every unit (as a world unit's brought effects)
+        for u in units:
+            u['build']['_cm'] = {'aff': [{'Key': os.environ['DPS_AFF'], 'Stack': 1, 'Duration': 100000, 'InitialDuration': 100000}]}
+    if os.environ.get('DPS_SECONDARY'):                           # task 16: this item in the Secondary slot
+        for u in units:
+            u['build'].setdefault('eq', {})['Secondary'] = os.environ['DPS_SECONDARY']
     if SOLO:                                                      # DPS_SOLO_UNIT: which one (1 = a staff user: a ranged unit alone)
         units = [units[int(os.environ.get('DPS_SOLO_UNIT', '0'))]]
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
@@ -938,7 +944,10 @@ def hold_check(tag, secs=60):
     un = units_dump(); sq = [i for i, u in un.items() if u['player']]
     per = {un[i]['name']: sum(1 for h in ev if h['unit'] == i) for i in sq}
     skills = sorted({h['key'] for h in ev if not h['basic'] and h['key'].startswith('SKILL_')})
-    m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'dps5': m.get('dps5')}
+    keys = {}
+    for h in ev:
+        keys[h['key']] = keys.get(h['key'], 0) + 1
+    m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'keys': keys, 'dps5': m.get('dps5')}
     log(f'hold {tag}', json.dumps(info['hold'][tag], ensure_ascii=False))
     noauto = bool(os.environ.get('DPS_NOAUTO'))
     check(f'(task 12, {tag}) every squad unit keeps hitting the scarecrow for {secs} s (at least 5 hits each), DPS (last 5 s) > 0'
