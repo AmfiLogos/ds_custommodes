@@ -883,6 +883,15 @@ def run_paths():
         log('path world: stem', dps('state').get('stem'), meter().get('shown'))
         if not attack_and_wait('world'):
             return
+        if os.environ.get('DPS_DIAG'):                              # task 11: what the world unit does after its first hit
+            log('diag hits', json.dumps(hits_dump(0), ensure_ascii=False)[:1500])
+            for k in range(6):
+                p = [x for x in dps('pos').get('b', []) if x.get('u') == 1]
+                log('diag pos', k, json.dumps(p)[:400], 'hits', dps('state').get('hits')); shot(f'diag_{k}'); time.sleep(5)
+            log('diag units', json.dumps(units_dump(), ensure_ascii=False)[:600])
+            at2 = select_dummy(); h0 = dps('state').get('hits'); order_attack(at2) if at2 else None; time.sleep(15)
+            log('diag second order: hits', h0, '->', dps('state').get('hits'), 'pos', json.dumps([x.get('w') for x in dps('pos').get('b', []) if x.get('u') == 1]))
+            log('diag tick hits', json.dumps([(h['tick'], h['key']) for h in hits_dump(0)]))
         solo_meter('world')
         # the meter folded while the fight runs, opened again: the row still there
         click('dps:fold', 1.5); click('dps:fold', 1.5); solo_meter('world_refold')
