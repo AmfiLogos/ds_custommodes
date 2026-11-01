@@ -42,11 +42,21 @@ typedef struct { float r, g, b, a; } Col;
 #define TOG_H 38.f
 #define Y_BTN (BAR + 8)                       /* Start Stop Reset */
 #define Y_FIRST (Y_BTN + 36)                  /* Start on first hit */
-#define Y_STATS (Y_FIRST + 40)                /* 6 lines */
-#define Y_HEAD (Y_STATS + 6 * LINE_H + 4)     /* the rows' column names */
-#define Y_ROWS (Y_HEAD + 20)
-#define TAIL (6 + 4 * TOG_H + 2 + 32 + PAD)   /* under the rows: the four switches, Restart test */
-#define H_FIXED (Y_ROWS + TAIL)
+/* SECTION RULE (owner, PLAN_v013 item 6: sections fold, "otherwise they just take a lot of space for no reason"; kit
+   0.1.30 dsl_section): the stats lines and the switches are two folding sections (state kept by the kit per key); the
+   buttons, the unit list and "Restart test" always show. Their places follow the sections (lay_y). */
+#define Y_SEC1 (Y_FIRST + 38)                 /* the "Stats" header, then 6 lines */
+#define STATS_H (6 * LINE_H + 4)
+#define K_SEC_STATS "custom-modes.dps_meter.stats"
+#define K_SEC_SETS "custom-modes.dps_meter.settings"
+static float sec_h;                                       /* DSL_SECTION_H with the kit's sections, 0 without (always open) */
+static int sec_stats = 1, sec_sets = 1;                   /* open */
+static float Y_ROWS, H_FIXED;                             /* the list's top, everything but the list (panel units) */
+static void lay_y(void) {
+    float yh = Y_SEC1 + sec_h + (sec_stats ? STATS_H : 4);        /* the rows' column names */
+    Y_ROWS = yh + 20;
+    H_FIXED = Y_ROWS + 6 + sec_h + (sec_sets ? 4 * TOG_H : 0) + 2 + 32 + PAD;   /* under the rows: the switches, Restart test */
+}
 #define MIN_ROWS 2
 /* columns inside a row (RW wide) */
 #define C_NAME 38.f
@@ -332,7 +342,7 @@ typedef struct { DSLObj b, por, name, dmg, heal, dps, sh, fill; int unit, on, po
 typedef struct { DSLObj p, name, dmg, heal, dps, hits; int on; float y; char tn[96], td[40], tl[40], tp[40], th[24]; } SRow;
 #define NSW 4
 #define NVAL 6
-static DSLObj p_root, p_body, p_fold, p_status, p_empty, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail, p_size;
+static DSLObj p_root, p_body, p_fold, p_status, p_empty, b_start, b_stop, b_reset, t_first, t_sw[NSW], b_restart, l_val[NVAL], sc_rows, l_tail, p_size, p_stats, p_head, h_stats, h_sets;
 static float p_f = 1;                                     /* its "-" / "+" size when it was last placed (kit panel_size) */
 static DSLObj s_root, s_btn;
 static char c_status[96], c_empty[96], c_val[NVAL][48];
@@ -403,7 +413,7 @@ static void fold_click(void *ud, DSLObj w) {
 static void forget_all(void) {
     cmw_forget("dps:");
     free(rows); rows = NULL; nrows = 0; free(srows); srows = NULL; nsrows = 0;
-    p_root = p_body = p_fold = p_status = p_empty = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = p_size = NULL; p_f = 1;
+    p_root = p_body = p_fold = p_status = p_empty = b_start = b_stop = b_reset = t_first = b_restart = sc_rows = l_tail = p_size = p_stats = p_head = h_stats = h_sets = NULL; p_f = 1;
     memset(t_sw, 0, sizeof t_sw); memset(l_val, 0, sizeof l_val);
     c_status[0] = c_empty[0] = 0; memset(c_val, 0, sizeof c_val); rows_h = -1; n_shown = st_where = -1;
     en_start = en_stop = en_rst = st_kind = s_en = -1;
@@ -415,6 +425,14 @@ static void destroy_all(void) {                          /* a language change: m
     forget_all(); mode = 0; mov_m = mov_s = moved_m = moved_s = 0;
 }
 
+static void sec_read(void) {
+    sec_stats = !sec_h || dsl_section_open(U, K_SEC_STATS, 1);
+    sec_sets = !sec_h || dsl_section_open(U, K_SEC_SETS, 1);
+}
+static void sec_cb(void *ud, DSLObj header, int open) {  /* a section header clicked: lay out again at once */
+    (void)ud; (void)header; (void)open;
+    sec_read(); lay_y(); m_layout = 1; refresh_now();
+}
 static int build_full(void) {
     il_init();
     p_root = cmw_flat(U->panel(NULL, 0, 0, MW, 400, 0), BODY);
@@ -438,17 +456,25 @@ static int build_full(void) {
     t_first = cmw_named(U->toggle(p_body, PAD, Y_FIRST, RW, lf, tf_dps_switch(TFD_SW_FIRSTHIT), first_change, NULL), CMW_TOGGLE, "dps:firsthit", first_change, NULL, lf);
     const char *lab[NVAL] = { cm_gw("TEXTKEY_Shared_Time_NAME", TR_NOOP("Time")), cm_gw("TEXTKEY_STATUS_DamageDealtBonus_NAME", TR_NOOP("Damage Dealt")),
                               TR("DPS"), TR("DPS (Last 5 s)"), TR("Repaired by the Scarecrow"), TR("Absorbed") };
+    h_stats = dsl_section(U, p_body, PAD, Y_SEC1, RW, cm_gw("TEXTKEY_EntityAbilityUI_Stats", TR_NOOP("Stats")), K_SEC_STATS, 0, sec_cb, NULL);
+    h_sets = dsl_section(U, p_body, PAD, Y_SEC1, RW, cm_gw("TEXTKEY_TitleMenu_Setting", TR_NOOP("Settings")), K_SEC_SETS, 0, sec_cb, NULL);
+    sec_h = h_stats && h_sets ? DSL_SECTION_H : 0;
+    if (h_stats) cmw_named(h_stats, CMW_BUTTON, "dps:sec_stats", NULL, NULL, "");
+    if (h_sets) cmw_named(h_sets, CMW_BUTTON, "dps:sec_settings", NULL, NULL, "");
+    sec_read(); lay_y();
+    p_stats = plate(p_body, 0, Y_SEC1 + sec_h, MW, STATS_H, 0);
     for (int i = 0; i < NVAL; i++) {
-        float y = Y_STATS + (float)i * LINE_H;
-        txt(p_body, PAD, y, RW - 112, LINE_H, lab[i], 14, DSL_TXT_LEFT, SUB);
-        l_val[i] = cmw_named(txt(p_body, PAD + RW - 110, y, 110, LINE_H, "", 15, DSL_TXT_RIGHT, i == 2 ? GOLD : MAIN), CMW_TEXT, val_name[i], NULL, NULL, "");
+        float y = (float)i * LINE_H;
+        txt(p_stats, PAD, y, RW - 112, LINE_H, lab[i], 14, DSL_TXT_LEFT, SUB);
+        l_val[i] = cmw_named(txt(p_stats, PAD + RW - 110, y, 110, LINE_H, "", 15, DSL_TXT_RIGHT, i == 2 ? GOLD : MAIN), CMW_TEXT, val_name[i], NULL, NULL, "");
     }
-    txt(p_body, PAD + C_NAME, Y_HEAD, W_NAME, 18, TR("Unit"), 12, DSL_TXT_LEFT, SUB);
-    txt(p_body, PAD + C_DMG, Y_HEAD, W_DMG, 18, TR("Damage"), 12, DSL_TXT_RIGHT, SUB);
-    txt(p_body, PAD + C_HEAL, Y_HEAD, W_HEAL, 18, TR("Healing"), 12, DSL_TXT_RIGHT, SUB);
-    txt(p_body, PAD + C_DPS, Y_HEAD, W_DPS, 18, TR("DPS"), 12, DSL_TXT_RIGHT, SUB);
-    txt(p_body, PAD + C_SH, Y_HEAD, W_SH, 18, TR("Share"), 12, DSL_TXT_RIGHT, SUB);
-    plate(p_body, PAD, Y_ROWS - 2, RW, 1, COPPER);
+    p_head = plate(p_body, 0, Y_ROWS - 20, MW, 20, 0);
+    txt(p_head, PAD + C_NAME, 0, W_NAME, 18, TR("Unit"), 12, DSL_TXT_LEFT, SUB);
+    txt(p_head, PAD + C_DMG, 0, W_DMG, 18, TR("Damage"), 12, DSL_TXT_RIGHT, SUB);
+    txt(p_head, PAD + C_HEAL, 0, W_HEAL, 18, TR("Healing"), 12, DSL_TXT_RIGHT, SUB);
+    txt(p_head, PAD + C_DPS, 0, W_DPS, 18, TR("DPS"), 12, DSL_TXT_RIGHT, SUB);
+    txt(p_head, PAD + C_SH, 0, W_SH, 18, TR("Share"), 12, DSL_TXT_RIGHT, SUB);
+    plate(p_head, PAD, 18, RW, 1, COPPER);
     sc_rows = U->scroll(p_body, PAD, Y_ROWS, RW, MIN_ROWS * ROW_H);
     /* owner 2026-10-26 (item 7: "Waiting for the first hit" "is kind of displaced and looks kind of odd" since the "-" / "+"):
        while the list is empty the status shows centred in it, on one line, never near the title bar's "-" / "+" */
@@ -722,7 +748,7 @@ static void place_now(void) {
         float h = H_FIXED + rh, room = avail / s;
         if (h > room) h = room;
         if (h < H_FIXED + MIN_ROWS * ROW_H) h = H_FIXED + MIN_ROWS * ROW_H;
-        float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h;
+        float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h, tw = ty + sec_h;
         view_h = vh;
         { float fs = (PL.lw - 16) / MW; if ((PL.lh - 16) / ph < fs) fs = (PL.lh - 16) / ph;   /* all of it on the screen */
           if (s > fs) s = fs;
@@ -733,11 +759,15 @@ static void place_now(void) {
             if (moved_m) resize(p_root, MW, ph); else put(p_root, x, y, MW, ph);
             set_scale(p_root, s);
             put(p_body, 0, 0, MW, h);
+            act(p_stats, sec_stats); put(p_stats, 0, Y_SEC1 + sec_h, MW, STATS_H);
+            put(p_head, 0, Y_ROWS - 20, MW, 20);
+            if (h_sets) put(h_sets, PAD, ty, RW, sec_h);
+            for (int k = 0; k < NSW; k++) act(t_sw[k], sec_sets);
             put(sc_rows, PAD, Y_ROWS, RW, vh);
             put(p_empty, PAD + 4, Y_ROWS, RW - 8, vh);
             put(l_tail, PAD, ty - 3, RW, 1);
-            for (int k = 0; k < NSW; k++) put(t_sw[k], PAD, ty + (float)k * TOG_H, RW, 36);
-            put(b_restart, PAD, ty + NSW * TOG_H + 2, RW, 32);
+            for (int k = 0; k < NSW; k++) put(t_sw[k], PAD, tw + (float)k * TOG_H, RW, 36);
+            put(b_restart, PAD, tw + (sec_sets ? NSW * TOG_H : 0) + 2, RW, 32);
             PL.x = x; PL.y = y; PL.s = s; PL.ph = ph; PL.avail = avail; m_layout = 0;
         }
         make_movable(p_root, "custom-modes.dps_meter", &mov_m);
@@ -866,6 +896,7 @@ __attribute__((visibility("default"))) int tf_meter_test(const char *s, char *ou
 #endif
         if (st) cm_rect_size((Obj)st, &bw, &bh);
         jesc(e, sizeof e, st_where == 1 ? c_empty : c_status);
+        ADD(",\"sec\":[%d,%d,%d]", sec_h > 0, sec_stats, sec_sets);
         ADD(",\"rows_n\":%d,\"rows_h\":%.1f,\"view_h\":%.1f,\"status\":{\"where\":%d,\"text\":\"%s\",\"cut\":%d,\"pw\":%.1f,\"bw\":%.1f,\"rect\":[%.0f,%.0f,%.0f,%.0f]},\"list_rect\":[%.0f,%.0f,%.0f,%.0f]",
             n_shown, rows_h, view_h, st_where, e, st ? cm_text_truncated(st) : -1, st ? cm_text_preferred_w(st) : -1, bw,
             sr[0], sr[1], sr[2], sr[3], lr[0], lr[1], lr[2], lr[3]);

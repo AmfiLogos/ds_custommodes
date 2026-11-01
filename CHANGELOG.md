@@ -12,6 +12,8 @@ Fixes:
   when the screen is full does the list scroll. <!-- roadmap: dps-all-units -->
 - "Waiting for the first hit" (and "Stopped" before any hit) now shows centred in the empty unit list, on one line.
   Before, it sat squeezed in the title bar next to the "-" / "+" buttons. <!-- roadmap: dps-waiting-text -->
+- The DPS meter's "Stats" and "Settings" blocks fold: click their title. They stay folded for the next test and after
+  a game restart. The buttons, the unit list and "Restart Test Floor" always show. <!-- roadmap: test-sections-fold -->
 
 ### 0.1.47 (2026-10-26)
 

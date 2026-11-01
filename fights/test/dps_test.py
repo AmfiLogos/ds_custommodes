@@ -786,6 +786,36 @@ def status_checks(tag):
     log('item 7: "-" / "+" states seen (True = shown)', sorted(seen_btns))
 
 
+def section_checks(tag):
+    """PLAN_v013 item 6 (owner: sections fold, "otherwise they just take a lot of space for no reason"), lead task 10: the
+    meter's "Stats" and "Settings" blocks fold with the kit's dsl_section (a click on the header); the state is kept when
+    the panel folds / opens and over Restart Test Floor (a new world); the unit rows still show"""
+    def hdr(name):
+        r = req('rect', target=name); a = r.get('at') or [0, 0, 0, 0]
+        if r.get('rc', -1) <= 0:
+            return False
+        req('click_xy', x=(a[0] + a[2]) / 2, y=(a[1] + a[3]) / 2); time.sleep(1.5); return True
+    m0 = meter()
+    if not (m0.get('sec') or [0])[0]:
+        check(f'(item 6, {tag}) the meter has the kit\'s sections (kit 0.1.30)', False, m0.get('sec')); return
+    ok1 = hdr('dps:sec_settings') and hdr('dps:sec_stats'); m1 = meter()
+    sw_vis = req('rect', target='dps:speech').get('rc', -1) > 0; tv = req('rect', target='dps:time').get('rc', -1) > 0
+    rs = req('rect', target='dps:restart').get('rc', -1) > 0
+    shot(f'sections_folded_{tag}')
+    check(f'(item 6, {tag}) a click on "Stats" / "Settings" folds them: their lines hidden, Restart Test Floor and the rows still show, the panel shorter',
+          ok1 and m1.get('sec') == [1, 0, 0] and not sw_vis and not tv and rs and m1.get('rows_n') == m0.get('rows_n')
+          and (m1.get('rect') or [0, 0, 0, 0])[3] - (m1.get('rect') or [0, 0, 0, 0])[1] < (m0.get('rect') or [0, 0, 0, 0])[3] - (m0.get('rect') or [0, 0, 0, 0])[1],
+          json.dumps({'sec': [m0.get('sec'), m1.get('sec')], 'switch_shown': sw_vis, 'time_shown': tv, 'restart': rs, 'rows': [m0.get('rows_n'), m1.get('rows_n')], 'rect': [m0.get('rect'), m1.get('rect')]}))
+    click('dps:fold', 1.5); click('dps:fold', 1.5); m2 = meter()
+    check(f'(item 6, {tag}) still folded after the panel is folded and opened again', m2.get('sec') == [1, 0, 0], m2.get('sec'))
+    click('dps:restart', 2)
+    until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0 and x.get('hits', 1) == 0)(dps('state')), 'the restarted world', 600, 3); time.sleep(8)
+    m3 = meter()
+    check(f'(item 6, {tag}) still folded in the new test (Restart Test Floor)', m3.get('shown') == 1 and m3.get('sec') == [1, 0, 0], json.dumps({k: m3.get(k) for k in ('shown', 'sec')}))
+    hdr('dps:sec_settings'); hdr('dps:sec_stats'); m4 = meter()
+    check(f'(item 6, {tag}) a second click opens them again (switches shown)', m4.get('sec') == [1, 1, 1] and req('rect', target='dps:speech').get('rc', -1) > 0, m4.get('sec'))
+
+
 def run_solo():
     """owner 2026-11-01 (item 13): "the DPS meter does not show when the fight has ONE unit". A 1-unit DPS Check: the meter
     shows, with exactly one row (the unit), visible in the list; then the empty-list status checks (item 7)"""
@@ -807,6 +837,7 @@ def run_solo():
     check('(item 13) a 1-unit DPS Check shows the meter (not the small Restart panel), with one row for the unit, inside the visible list',
           m.get('shown') == 1 and len(us) == 1 and m.get('rows_n') == 1 and m.get('rows_h', 1e9) <= m.get('view_h', -1) + 0.5,
           json.dumps({k: m.get(k) for k in ('shown', 'small', 'rows_n', 'rows_h', 'view_h')} | {'units': [u.get('name') for u in us]}, ensure_ascii=False))
+    section_checks('solo')
 
 
 def solo_meter(tag, want_full=True):
