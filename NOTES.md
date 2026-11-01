@@ -309,6 +309,14 @@
   "displaced" in the title bar by the "-" / "+"); the title bar holds it only while rows show or the panel is folded.
   Guards: dps_test.py rows_check (4 units) and --solo (1 unit, one row; empty-list status at 60 / 100 / 150 %, mouse over
   / away).
+- A ranged unit with no torch stops after one ordered hit on the scarecrow (lead task 12, proven 2026-11-01): the same
+  staff unit hits 21 times in 60 s with a torch and once without, Auto Skill off both times; melee units walk up and keep
+  hitting; a unit near a torch bearer keeps hitting. The torch gives VisionRange +3 (ITEM_Torch AdditionalStatuses), so
+  the squad loses the scarecrow when it stands outside its sight (about 7 tiles from the spawn, Hold Position on). Auto
+  Skill is not the cause. Hooks on VisionDataHandler.IsVisible / GetVisiblePositions, InMapDataInterface.IsInPlayerVision /
+  IsEntityInPlayerVision, CombatInfoComponent.SetForceAttackTarget / SetCombatTarget and StatusReader.GetValue(47) never
+  saw the drop (most are never called in the fight): the gate is elsewhere. Test: `DPS_HOLD=1` (60 s hold check),
+  `DPS_SOLO_UNIT=<n>`, `DPS_NOTORCH=1`, `DPS_PATH=world DPS_HOLD_WORLD=1 DPS_WUNIT=<n>`.
 - Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,
   DPS log in chat ON, Start on first hit ON. Speech and the "+200" are their view iterators ended at once
   (AffecterFX_SelfRepair.OnFXCall, StatusResultFX.HandleFX: "<>1__state" = -1); the sim is untouched, the repair goes on.

@@ -81,11 +81,16 @@ def make_library():
         os.makedirs(os.path.dirname(LIB), exist_ok=True)
         json.dump(lib, open(LIB, 'w'), indent=2)
         return
-    units = fx['units'][:1 if SOLO else 4]
+    units = fx['units'][:4]
     for i, u in enumerate(units):                                 # the fixture units carry no weapon: a squad must hit
         u['id'] = f'{0xb0 + i:02x}' * 8
         u['build'].setdefault('eq', {})['Primary'] = ('ITEM_CopperSword', 'ITEM_NatureCopperStaff', 'ITEM_FireCopperStaff', 'ITEM_CopperSpear')[i]
     units[0]['name'] = units[0]['build']['name'] = NAMEKEY                # a unit with the game's default name key (never renamed)
+    if os.environ.get('DPS_NOTORCH'):                             # task 12 proof: the same units with no torch
+        for u in units:
+            u['build'].get('eq', {}).pop('Secondary', None)
+    if SOLO:                                                      # DPS_SOLO_UNIT: which one (1 = a staff user: a ranged unit alone)
+        units = [units[int(os.environ.get('DPS_SOLO_UNIT', '0'))]]
     lib = {'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,
            'teams': [{'id': 'dd' * 8, 'name': 'Solo' if SOLO else 'DPS squad', 'unit_ids': [u['id'] for u in units]}]}
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
@@ -884,13 +889,15 @@ def run_paths():
         click('fights:l.world0', 3); t = tfs(); us = [u for u in (t.get('wunits') or '').split(',') if u]
         if not us:
             check('(task 8, world) the save copy\'s world lists units', False, json.dumps(t)[:400]); return
-        click('fights:l.wtick0', 2); t = tfs()
+        click(f"fights:l.wtick{os.environ.get('DPS_WUNIT', '0')}", 2); t = tfs()
         check('(task 8, world) one world unit is the squad, mode DPS Check', t.get('squad') == 1 and t.get('mode') == 'dps', json.dumps(t)[:400])
         click('fights:start', 1)
         until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0)(dps('state')), 'the DPS Check world', 600, 3); time.sleep(8)
         log('path world: stem', dps('state').get('stem'), meter().get('shown'))
         if not attack_and_wait('world'):
             return
+        if os.environ.get('DPS_HOLD_WORLD'):
+            hold_check('world unit ' + os.environ.get('DPS_WUNIT', '0')); return
         if os.environ.get('DPS_DIAG'):                              # task 11: what the world unit does after its first hit
             log('diag hits', json.dumps(hits_dump(0), ensure_ascii=False)[:1500])
             for k in range(6):
@@ -922,6 +929,33 @@ def run_paths():
         info['custom_fight_meter'] = {'shown': m.get('shown'), 'small': m.get('small')}
         check('(task 8, custom) recorded: a Custom fight shows the small "Restart Test Floor" panel, not the DPS meter (by design: the meter is the DPS Check\'s)',
               m.get('small') == 1 and m.get('shown') == 0, json.dumps({k: m.get(k) for k in ('shown', 'small')}))
+
+
+def hold_check(tag, secs=60):
+    """lead task 12 (owner: tests start with Auto Skill OFF, and the meter must show DPS): after the attack order every
+    squad unit keeps hitting the scarecrow for 60 s; with Auto Skill off no active skill is cast"""
+    n0 = len(hits_dump(0)); time.sleep(secs); ev = [h for h in hits_dump(0)[n0:] if h['kind'] == 0 and h['on_dummy']]
+    un = units_dump(); sq = [i for i, u in un.items() if u['player']]
+    per = {un[i]['name']: sum(1 for h in ev if h['unit'] == i) for i in sq}
+    skills = sorted({h['key'] for h in ev if not h['basic'] and h['key'].startswith('SKILL_')})
+    m = meter(); info.setdefault('hold', {})[tag] = {'per_unit': per, 'skills': skills, 'dps5': m.get('dps5')}
+    log(f'hold {tag}', json.dumps(info['hold'][tag], ensure_ascii=False))
+    noauto = bool(os.environ.get('DPS_NOAUTO'))
+    check(f'(task 12, {tag}) every squad unit keeps hitting the scarecrow for {secs} s (at least 5 hits each), DPS (last 5 s) > 0'
+          + (', no active skill cast (Auto Skill off)' if noauto else ''),
+          per and min(per.values()) >= 5 and (m.get('dps5') or 0) > 0 and (not noauto or not skills), json.dumps(info['hold'][tag], ensure_ascii=False))
+
+
+def run_hold():
+    start_fight()
+    at = select_dummy()
+    check('the scarecrow selected by a click', at is not None)
+    if not at:
+        return
+    n = order_attack(at)
+    check('the squad ordered to attack the scarecrow', n >= 1, n)
+    time.sleep(10)
+    hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on'))
 
 
 info = {}
@@ -964,7 +998,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
-        run_heal() if HEAL else run_paths() if PATH1 else run_solo() if SOLO else run()
+        run_heal() if HEAL else run_hold() if os.environ.get('DPS_HOLD') else run_paths() if PATH1 else run_solo() if SOLO else run()
     except BaseException as e:
         log(traceback.format_exc())
         check('run finished', False, repr(e))
