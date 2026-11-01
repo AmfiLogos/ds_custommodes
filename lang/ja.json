@@ -126,6 +126,7 @@
  "Damage": "ダメージ",
  "Damage Dealt": "与ダメージ",
  "Day %d": "%d日目",
+ "Day Time": "昼",
  "Delete": "削除",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "マイユニットから%d体のユニットを削除しますか？\nチームからも外れます。セーブは変更されません。"
@@ -196,6 +197,7 @@
  "Nature Staff": "自然の杖",
  "New Unit": "新しいユニット",
  "Newest": "新着順",
+ "Night Time": "夜",
  "No kit ticked: the squad walks in with only its gear.": "キットがチェックされていません：部隊は装備だけで入ります。",
  "No link. Copy a team or unit link on the wiki builder first.": "リンクがありません。まずWikiビルダーでチームかユニットのリンクをコピーしてください。",
  "No monster matches.": "一致するモンスターはいません。",
@@ -358,6 +360,7 @@
  "This unit is not one of your clan's units in this save.": "このユニットは、このセーブにあるあなたのクランのユニットではありません。",
  "Tick the units to send in. A team's tick adds or removes all its units.": "入るユニットにチェックを入れます。\nチームのチェックで全員を追加・解除します。",
  "Time": "時間",
+ "Time of Day": "時間帯",
  "Torch": "たいまつ",
  "Traits": "特性",
  "Traits (%d of %d)": "特性（%d / %d）",

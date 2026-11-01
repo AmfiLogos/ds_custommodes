@@ -137,6 +137,7 @@
  "Damage": "Daño",
  "Damage Dealt": "Daño infligido",
  "Day %d": "Día %d",
+ "Day Time": "Día",
  "Delete": "Eliminar",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "¿Eliminar %d unidad de Mis unidades?\nTambién sale de sus equipos. Tus partidas no se cambian.",
@@ -209,6 +210,7 @@
  "Nature Staff": "Bastón de magia de Naturaleza",
  "New Unit": "Nueva unidad",
  "Newest": "Más recientes",
+ "Night Time": "Noche",
  "No kit ticked: the squad walks in with only its gear.": "Ningún kit marcado: la escuadra entra solo con su equipo.",
  "No link. Copy a team or unit link on the wiki builder first.": "No hay enlace. Copia primero un enlace de equipo o de unidad en el creador de la wiki.",
  "No monster matches.": "Ningún monstruo coincide.",
@@ -376,6 +378,7 @@
  "This unit is not one of your clan's units in this save.": "Esta unidad no es una de las unidades de tu clan en esta partida.",
  "Tick the units to send in. A team's tick adds or removes all its units.": "Marca las unidades que entran. La casilla de un equipo añade o quita todas sus unidades.",
  "Time": "Tiempo",
+ "Time of Day": "Hora del día",
  "Torch": "Antorcha",
  "Traits": "Rasgos",
  "Traits (%d of %d)": "Rasgos (%d de %d)",

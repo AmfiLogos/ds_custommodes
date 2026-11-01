@@ -344,7 +344,8 @@ static int ent_of(Obj e) {                               /* the entity table: sq
     if (u->is_dummy) cm_il_hset(&h_dummy_ent, e);         /* for h_cse */
     return nunit++;
 }
-/* Auto Skill on the scarecrow (lead 2026-10-25: a DPS Check must measure the skills). The game's skill pick
+/* Auto Skill on the scarecrow (lead 2026-10-25: a DPS Check must measure the skills; since 2026-11-01 a test starts with
+   Auto Skill OFF, owner: the player turns it on with the game's own toggle, and then this applies). The game's skill pick
    (DecidePlayerCombatBehaviour.DecideSkill) only looks at the skill bar when CombatUtility.GetClosestSingleEnemy finds a
    combatable hostile UNIT (IInMapDataSupplier.GetClosestCombatableHostiles): a building never counts, so a squad on the
    scarecrow alone only ever used its basic attack. In a DPS Check world, for a squad unit, with no hostile unit about, the
@@ -989,6 +990,24 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
                 first = 0;
             }
             for (int i = cm_child_count(t) - 1; i >= 0 && ns < 200; i--) st[ns++] = cm_child(t, i);
+        }
+        snprintf(out + o, cap - o, "]");
+        return 0;
+    }
+    if (!strcmp(s, "options")) {                         /* the bottom panel's behaviour toggles (EntitySummaryOptionUI._btns, in the
+                                                            order of _possibleOptions: BehaviourOption 1 = Auto Skill): option,
+                                                            shown, screen rect. dps_test turns Auto Skill on with a click, as a player */
+        static void *ko; static int32_t f_btn = -1, f_opt = -1;
+        if (!ko) { ko = cm_il_class("Refactor.UI", "EntitySummaryOptionUI"); if (ko) { f_btn = cm_il_field(ko, "_btns"); f_opt = cm_il_field(ko, "_possibleOptions"); } }
+        Obj v = ko ? cm_find(ko, false) : NULL; if (!v || f_btn < 0 || f_opt < 0) return -2;
+        Obj btns = *(Obj *)((char *)v + f_btn), opts = *(Obj *)((char *)v + f_opt);
+        size_t nb = btns ? *(size_t *)((char *)btns + 0x18) : 0, no = opts ? *(size_t *)((char *)opts + 0x18) : 0;
+        o += (size_t)snprintf(out + o, cap - o, "[");
+        for (size_t i = 0; i < nb && i < 16 && o + 120 < cap; i++) {
+            Obj b = ((Obj *)((char *)btns + 0x20))[i]; int opt = i < no ? ((int32_t *)((char *)opts + 0x20))[i] : -1;
+            float r[4] = { 0 }; if (t_rect && cm_alive(b)) t_rect(cm_tr(b), r);
+            o += (size_t)snprintf(out + o, cap - o, "%s{\"opt\":%d,\"on\":%d,\"r\":[%.0f,%.0f,%.0f,%.0f]}", i ? "," : "", opt,
+                                  cm_alive(b) && go_on(b, 1) ? 1 : 0, r[0], r[1], r[2], r[3]);
         }
         snprintf(out + o, cap - o, "]");
         return 0;

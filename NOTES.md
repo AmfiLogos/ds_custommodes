@@ -21,6 +21,21 @@
 - Guard: the loader's test copies log `SCAN-RULE <module> <n>/min` (ds_modloader loader/test/scan_rate_test.py, lane
   fpsscan); custom-modes must stay near 0 in a world.
 
+## RULE: Test Fights keeps every choice; every heading folds (owner 2026-11-01)
+- Owner: "keep ALL test settings, ALWAYS, also after the game restarts". Every Test Fights choice is in ONE list,
+  tf_ui.c `pref_kv` (saved by `prefs_save` at each change, read by `prefs_load` when the wiki files are ready; text through
+  `cm_pref_enc`, a Gallery build through `cm_pref_blob_set`). A new choice = one new line in `pref_kv`, nothing else.
+- Owner: sections "should be able to be kind of collapsed ... they just take a lot of space". Every heading of the window
+  goes through tf_ui.c `sec()` (the kit's `dsl_section`, kept under `custom-modes.fights.<id>`), never `head()` alone.
+- Hover cards open NEXT TO the hovered element (owner 2026-11-01): the kit's card (dsl_ui.c `tip_choose`) and ours
+  (cm_gtip.c `place_frame`) use the same rule: a near free side, else beside the element over another column.
+- Test units start with Auto Skill off (sg_glue.js `autoSkill`); World units keep their save's bit. Time of Day: Day =
+  08:00, Night = 21:00 (sg_glue.js `setClock`).
+- Guard: fights/test/setup_test.py (one hidden copy): every choice kept after a test and after a restart, the kit rows'
+  and the inscription's cards next to them at 4 screen sizes (TS_WIN / TS_UISCALE / TS_HOVER_ONLY=1), Auto Skill off and
+  the clock (the game's own save of the running world), a folded section stays folded. Game tests that open Test Fights
+  call fights/test/tf_fresh.py first (the kept files set aside: every run starts from the defaults).
+
 ## Where this repo comes from (2026-10-16)
 - History = `git subtree split -P custom` of ds_multiplayer main 1c8f1af (40 commits, last 8a7c362). Tag `v13` = 8a7c362:
   its files are the same as ds_multiplayer v13 (29f0fa6) custom/ (tree 1f55b21).

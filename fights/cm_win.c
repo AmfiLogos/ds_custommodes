@@ -366,7 +366,11 @@ static void test_exec(const char *buf, size_t n, char *out, size_t on) {
         Reg *r = name ? reg_find(name) : NULL;
         cm_gtip_test_hover(r ? r->w : NULL);
         if (name && !r) snprintf(out, on, "\"ok\":false,\"error\":\"no control %s\"", name);
-        else { char k[96]; int s = cm_gtip_shown(k, sizeof k); snprintf(out, on, "\"ok\":true,\"card\":%d,\"key\":\"%s\"", s, k); }
+        else {
+            char k[96]; int s = cm_gtip_shown(k, sizeof k); float cr[4] = { 0 }, er[4] = { 0 }; cm_gtip_test_rects(cr, er);
+            snprintf(out, on, "\"ok\":true,\"card\":%d,\"key\":\"%s\",\"rect\":[%.1f,%.1f,%.1f,%.1f],\"el\":[%.1f,%.1f,%.1f,%.1f]", s, k,
+                     cr[0], cr[1], cr[2], cr[3], er[0], er[1], er[2], er[3]);
+        }
     } else if (!strcmp(cmd, "shot")) {
         char *path = jstr_of(c, "path");
         if (path && m_shot && x_str_new) CALL(m_shot, void, Obj)(x_str_new(path), m_shot);

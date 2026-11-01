@@ -205,9 +205,13 @@ def select_dummy():
     return None
 
 
+auto_on = [0]                                                     # squad units whose Auto Skill toggle was clicked on
+
+
 def order_attack(at):
-    """each squad unit: a left click on it (selected: the panel leaves the building), then a right click on the scarecrow
-    (the player's attack order); then the scarecrow is selected again and the mouse stays on it"""
+    """each squad unit: a left click on it (selected: the panel leaves the building), a click on its Auto Skill toggle in the
+    bottom panel (test units start with Auto Skill OFF, owner 2026-11-01; the skill check below needs it on), then a right
+    click on the scarecrow (the player's attack order); then the scarecrow is selected again and the mouse stays on it"""
     us = [b for b in dps('pos').get('b', []) if b.get('u') == 1 and b.get('on')]
     log('units', [(u['go'], u['s']) for u in us])
     n = 0
@@ -215,6 +219,9 @@ def order_attack(at):
         for dx, dy in ((0, 0), (0, 12), (0, 24), (0, 36)):
             req('click_xy', x=u['s'][0] + dx, y=u['s'][1] + dy); time.sleep(1.0)
             if not dps('state').get('bpanel_on'):
+                tg = next((o for o in json.loads(req('call', fn='tf_dps_test', s='options').get('out') or '[]') if o.get('opt') == 1 and o.get('on')), None)
+                if tg:
+                    r = tg['r']; req('click_xy', x=(r[0] + r[2]) / 2, y=(r[1] + r[3]) / 2); time.sleep(0.6); auto_on[0] += 1
                 req('click_xy', x=at[0], y=at[1], button=1); time.sleep(1.0); n += 1
                 break
     req('click_xy', x=at[0], y=at[1]); time.sleep(1.0); req('hover_xy', x=at[0], y=at[1]); time.sleep(0.5)
@@ -350,6 +357,7 @@ def run():
     shot(f'panel_999999_{LANG or "en"}')
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow (right click, as a player)', n >= 1, n)
+    check('Auto Skill turned on for each ordered unit (its toggle in the bottom panel, as a player)', auto_on[0] == n, (auto_on[0], n))
     until(lambda: dps('state').get('hits', 0) > 5, 'the squad hits the scarecrow', 120, 1)
     t_first = time.time(); n30 = [None]                          # events logged in the first 30 s of hits (Auto Skill check below)
     s = dps('state'); check('the scarecrow selected again, the mouse kept on it', s.get('same') and s.get('bpanel_on'), json.dumps(s)[:300])
