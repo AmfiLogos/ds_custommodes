@@ -9,4 +9,5 @@
 enum { CM_GTIP_SKILL = 1, CM_GTIP_AFFECTER = 2, CM_GTIP_ITEM = 3 };   /* Refactor.UI.TooltipType */
 void cm_gtip_add(DSLObj target, int type, const char *key);         /* replaces the target's entry; NULL key = off */
 void cm_gtip_test_hover(DSLObj target);                              /* test: as if the mouse were on target (NULL = off) */
+int  cm_gtip_test_rects(float card[4], float el[4]);   /* test: the shown card and its target (screen px, y up); 1 = shown */
 int  cm_gtip_shown(char *key_out, size_t n);                         /* test: 1 = a card is shown (key_out = its key) */

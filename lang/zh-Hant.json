@@ -57,6 +57,9 @@
   "一支隊伍最多容納 %d 個單位。"
  ],
  "A unit holds one soul stone: picking another replaces it.": "一個單位只能持有一塊靈魂石：選擇另一塊會將其替換。",
+ "A wiki team holds %d unit at most. Tick the units to open.||A wiki team holds %d units at most. Tick the units to open.": [
+  "維基隊伍最多 %d 個單位。請勾選要開啟的單位。"
+ ],
  "Absorbed": "吸收",
  "Acquired Traits": "獲得的特質",
  "Active": "主動",
@@ -100,6 +103,7 @@
  "Builds by %s": "%s 的作品",
  "Can Learn": "可學習",
  "Cancel": "取消",
+ "Checking the wiki...": "正在檢查維基...",
  "Choose Management Difficulty Separately": "分別選擇管理難度",
  "Choose a build, open its Details, then press \"Use This Unit\".": "選擇一個構築，打開詳情，然後點擊「使用此單位」。",
  "Clear": "清除",
@@ -114,7 +118,11 @@
  "Could not add to My Units: %s": "無法新增至「我的單位」：%s",
  "Could not load the gallery. Try again later.": "無法載入作品庫。請稍後再試。",
  "Could not load this team. Try again later.": "無法載入此隊伍。請稍後再試。",
+ "Could not make the wiki link for these units.": "無法為這些單位產生維基連結。",
+ "Could not open your web browser.": "無法開啟網頁瀏覽器。",
+ "Could not reach the wiki: %s": "無法連線至維基：%s",
  "Could not read My Units: %s": "無法讀取「我的單位」：%s",
+ "Could not read a unit of this save: %s": "無法讀取此存檔中的一個單位：%s",
  "Could not save My Units: %s": "無法保存「我的單位」：%s",
  "Could not save the snapshot: %s": "無法保存快照：%s",
  "Custom Fight": "自訂戰鬥",
@@ -126,6 +134,7 @@
  "Damage": "傷害",
  "Damage Dealt": "造成的傷害量",
  "Day %d": "第 %d 日",
+ "Day Time": "白天",
  "Delete": "刪除",
  "Delete %d unit from My Units?\nIt also leaves its teams. Your saves are not changed.||Delete %d units from My Units?\nThey also leave their teams. Your saves are not changed.": [
   "要從「我的單位」刪除 %d 個單位嗎？\n它們也會離開所屬隊伍。你的存檔不會被更改。"
@@ -196,6 +205,7 @@
  "Nature Staff": "自然法杖",
  "New Unit": "新單位",
  "Newest": "最新",
+ "Night Time": "夜晚",
  "No kit ticked: the squad walks in with only its gear.": "未勾選任何套組：小隊只會攜帶其裝備進場。",
  "No link. Copy a team or unit link on the wiki builder first.": "沒有連結。請先在維基構築器複製隊伍或單位連結。",
  "No monster matches.": "沒有符合的怪物。",
@@ -213,10 +223,18 @@
  "One inscription per level: %d by level %d. %d spent on extra skill trees, %d on inscriptions, so %d free.": "每級一個銘文：共 %d 個（至等級 %d）。額外技能樹用掉 %d 個，銘文用掉 %d 個，剩餘 %d 個可用。",
  "One-handed.": "單手武器。",
  "Open a world and tick the units to send in. They fight as they are in that save.": "打開一個世界，勾選要進場的單位。它們會以該存檔中的狀態作戰。",
+ "Open in Wiki Builder": "在維基構築器中開啟",
  "Open the Wiki Build Gallery": "開啟維基作品庫",
+ "Opened %d unit in the wiki builder. It goes to the Build Gallery.||Opened %d units in the wiki builder. They go to the Build Gallery.": [
+  "已在維基構築器中開啟 %d 個單位。它們會進入作品庫。"
+ ],
+ "Opened %d unit in the wiki builder. Private: not in the Build Gallery.||Opened %d units in the wiki builder. Private: not in the Build Gallery.": [
+  "已在維基構築器中開啟 %d 個單位。私人：不進入作品庫。"
+ ],
  "Opening the build...": "正在開啟構築...",
  "Opens": "開啟",
  "Opens the Wiki Build Gallery. The unit you choose there fills this window.": "打開維基作品庫。你在那裡選擇的單位會填入此視窗。",
+ "Opens the ticked units (or all units of the save, up to 8) in the wiki's Character Builder in your browser, as a new team you can edit. Your save is not changed.": "在瀏覽器的維基單位構築器中開啟勾選的單位（未勾選時為存檔中的全部單位，最多 8 個），作為可編輯的新隊伍。不會更動你的存檔。",
  "Or save a gallery build to My Units, then press Edit there.": "或者將作品庫的構築儲存到「我的單位」，然後在那裡按「編輯」。",
  "Page %d / %d": "第 %d / %d 頁",
  "Page %d / %d+": "第 %d / %d+ 頁",
@@ -232,6 +250,7 @@
  "Portrait": "頭像",
  "Potion Buff Kit": "藥水增益套組",
  "Presets": "預設",
+ "Public in the Build Gallery": "在作品庫中公開",
  "Race": "種族",
  "Races": "種族",
  "Randomize": "隨機",
@@ -274,6 +293,7 @@
  "Skill trees: %s": "技能樹：%s",
  "Skills": "技能",
  "Snapshot": "快照",
+ "Some items, traits or skills are no longer on the wiki and were left out.": "部分物品、特質或技能已不在維基上，已略去。",
  "Spear": "矛",
  "Special": "特殊",
  "Squad": "小隊",
@@ -334,6 +354,7 @@
  "The save that was made has no usable name.": "產生的存檔沒有可用的名稱。",
  "The save turns Magic Saturation on and writes the day you pick. Only Abyss monsters get it.": "此存檔會開啟魔力飽和，並寫入你選擇的天數。只有深淵怪物會獲得它。",
  "The test world could not be written into the Saves folder.": "無法將測試世界寫入存檔資料夾。",
+ "The wiki changed how it reads builds. Update Units Laboratory, then try again.": "維基讀取構築的方式已改變。請更新單位實驗室，然後再試一次。",
  "The wiki did not open this short link (error %d). Try again later, or copy the long link on the wiki.": "維基無法開啟此短連結（錯誤 %d）。請稍後再試，或在維基上複製完整連結。",
  "The wiki's Test Fights files are for game build %s, and this game is build %s. Test Fights opens again when both match.": "維基的測試戰鬥檔案適用於遊戲版本 %s，而此遊戲為版本 %s。兩者相符時，測試戰鬥會再次開啟。",
  "The wiki's Unit Builder could not start. Try again later.": "維基的單位構築器無法啟動。請稍後再試。",
@@ -358,6 +379,7 @@
  "This unit is not one of your clan's units in this save.": "此單位不是此存檔中你探險隊的單位。",
  "Tick the units to send in. A team's tick adds or removes all its units.": "勾選要進場的單位。勾選隊伍會一次加入或移除其全部單位。",
  "Time": "時間",
+ "Time of Day": "時段",
  "Torch": "火把",
  "Traits": "特質",
  "Traits (%d of %d)": "特質（%d / %d）",

@@ -16,6 +16,7 @@
 #include "mu_card.h"
 #include "pvp_build.h"
 #include "pvp_wiki_tables.h"
+#include "wk_export.h"
 #include "fe/fe_json.h"
 #include "fe/fe_save.h"
 #include <math.h>
@@ -319,11 +320,100 @@ static void worlds(const char *tmp, const char *real) {
     free(b0); free(b1);
 }
 
+
+/* ---- "Open in Wiki Builder" encoder (wk_export.c): one JSON line per unit {"code": the C team code, "build": the builder
+   JSON build it was made from}; export_check.js (node, the wiki builder itself) then asserts that the builder decodes the
+   C code to exactly what it decodes from its OWN encodeTeam of the same build. export = the units of a real save
+   (mu_save_build_obj: the build the reader gives, and the export's wk_build of it), + one line with the whole team (first 8);
+   enc = builder JSON builds from stdin-like file (random builds the builder made legal: every field the wire carries). */
+static void put_code(const wk_build *b, int n, const char *build_json, const char *what) {
+    char code[8192]; int r = wk_encode(b, n, code, sizeof code);
+    CHECK(!r, "wk_encode %s", what); if (r) return;
+    wk_build back[WK_MAX_UNITS]; char e[300]; int fpm = 0, k = wk_decode(code, back, WK_MAX_UNITS, &fpm, e, sizeof e);
+    CHECK(k == n && !fpm, "C decode of the C code %s: %d units (%s)", what, k, e);
+    /* names: a wk_build name is trimmed then cleaned of '"' / '\\' (spaces), the encoder trims again: compared in node */
+    if (k == n) { wk_build bb[WK_MAX_UNITS]; memcpy(bb, b, sizeof *b * (size_t)n);
+        for (int i = 0; i < n; i++) { bb[i].name[0] = 0; back[i].name[0] = 0; }
+        CHECK(wk_hash(back, n) == wk_hash(bb, n), "C round trip %s: decode(encode(b)) != b", what); }
+    static FILE *xo; if (!xo) { const char *p = getenv("EXPORT_OUT"); xo = p ? fopen(p, "a") : NULL; CHECK(xo != NULL, "EXPORT_OUT file"); if (!xo) return; }
+    fprintf(xo, "{\"what\": \"%s\", \"code\": \"%s\", \"build\": %s}\n", what, code, build_json); fflush(xo);
+}
+static void export_save(const char *save) {
+    mu_save_unit su[64]; char e[400]; int n = mu_save_units(save, su, 64, e, sizeof e);
+    CHECK(n > 0, "export %s: %s", save, e); if (n <= 0) return;
+    wk_build team[WK_MAX_UNITS]; int nt = 0; size_t tl = 2; char *tj = malloc(1 << 20); strcpy(tj, "[");
+    for (int i = 0; i < n; i++) {
+        jv *o = mu_save_build_obj(save, su[i].guid, e, sizeof e); CHECK(o != NULL, "build of %s: %s", su[i].guid, e); if (!o) continue;
+        wk_build b; int r = wk_from_json(o, &b, e, sizeof e); CHECK(!r, "wk_from_json %s: %s", su[i].guid, e);
+        wk_build m; int r2 = mu_save_build(save, su[i].guid, &m, e, sizeof e);
+        if (!r && !r2) CHECK(wk_hash(&b, 1) == wk_hash(&m, 1), "%s: the export's wk_build != the reader's build object", su[i].guid);
+        size_t jl; char *j = jdump(o, 0, &jl); jfree(o);
+        if (!r) {
+            put_code(&b, 1, j, su[i].guid);
+            if (nt < WK_MAX_UNITS && tl + jl + 2 < (1 << 20)) { team[nt++] = b; if (tl > 2) strcat(tj, ","); strcat(tj, j); tl += jl + 1; }
+        }
+        free(j);
+    }
+    strcat(tj, "]");
+    if (nt) put_code(team, nt, tj, "team");
+    free(tj);
+}
+static void enc_builds(const char *file) {
+    FILE *f = fopen(file, "r"); CHECK(f != NULL, "open %s", file); if (!f) return;
+    static char line[1 << 18]; char e[300]; int n = 0;
+    while (fgets(line, sizeof line, f)) {
+        jv *j = jparse(line, strlen(line), e, sizeof e); if (!j) continue;
+        wk_build b; if (wk_from_json(j, &b, e, sizeof e)) { jfree(j); continue; }   /* the rt mode counts those */
+        size_t jl; char *d = jdump(j, 0, &jl); char w[32]; snprintf(w, sizeof w, "gen%d", n++);
+        put_code(&b, 1, d, w); free(d); jfree(j);
+    }
+    fclose(f);
+    CHECK(n > 0, "enc %s: 0 builds", file);
+}
+static void codec_check(const char *file, int want_ok) {
+    size_t n; unsigned char *b = bytes(file, &n); CHECK(b != NULL, "read %s", file); if (!b) return;
+    char *t = realloc(b, n + 1); t[n] = 0; char e[400];
+    int r = wkx_codec_check(t, n, e, sizeof e);
+    if (want_ok) CHECK(!r, "the wiki's builder tables (%s) != pvp_wiki_tables.h: %s (regenerate: make -C units/test tables)", file, e);
+    else CHECK(r, "a changed table (%s) passed the live-data check", file);
+    printf("== live-data check %s: %s%s\n", file, r ? "different: " : "same", r ? e : "");
+    free(t);
+}
+/* ---- the export after a wiki data update (lead task 9): the units of real saves written against a CHANGED wiki codec
+   (wkx_live_load + wkx_encode_live: re-mapped by key). One line per unit + one per team: {"what", "code": against the
+   changed tables, "code0": against ours, "dropped"}; live_check.js decodes code with the CHANGED codec and code0 with
+   the real one, and both must be the same units (key for key, minus what the change removed). */
+static void live_save(wkx_live *x, const char *save) {
+    mu_save_unit su[64]; char e[400]; int n = mu_save_units(save, su, 64, e, sizeof e);
+    CHECK(n > 0, "live %s: %s", save, e); if (n <= 0) return;
+    static FILE *xo; if (!xo) { const char *p = getenv("EXPORT_OUT"); xo = p ? fopen(p, "a") : NULL; CHECK(xo != NULL, "EXPORT_OUT file"); if (!xo) return; }
+    wk_build team[WK_MAX_UNITS]; int nt = 0;
+    for (int i = 0; i <= n; i++) {
+        wk_build *b, one; int k = 1; char what[96];
+        if (i < n) { if (mu_save_build(save, su[i].guid, &one, e, sizeof e)) continue; b = &one; snprintf(what, sizeof what, "%s", su[i].guid); if (nt < WK_MAX_UNITS) team[nt++] = one; }
+        else { if (!nt) break; b = team; k = nt; snprintf(what, sizeof what, "team"); }
+        static char c1[8192], c0[8192]; int dr = -1;
+        int r1 = wkx_encode_live(x, b, k, NULL, c1, sizeof c1, &dr), r0 = wk_encode(b, k, c0, sizeof c0);
+        CHECK(!r1 && !r0, "live encode %s: %d %d", what, r1, r0); if (r1 || r0) continue;
+        fprintf(xo, "{\"what\": \"%s\", \"code\": \"%s\", \"code0\": \"%s\", \"dropped\": %d}\n", what, c1, c0, dr); fflush(xo);
+    }
+}
+static wkx_live *live_open(const char *file) {
+    size_t n; unsigned char *b = bytes(file, &n); CHECK(b != NULL, "read %s", file); if (!b) return NULL;
+    char *t = realloc(b, n + 1); t[n] = 0; char e[400];
+    wkx_live *x = wkx_live_load(t, n, e, sizeof e); free(t);
+    CHECK(x != NULL, "wkx_live_load %s: %s", file, e);
+    return x;
+}
 int main(int argc, char **argv) {
     if (argc >= 3 && !strcmp(argv[1], "list")) for (int i = 2; i < argc; i++) list_save(argv[i]);
     else if (argc >= 4 && !strcmp(argv[1], "rt")) round_trip(argv[2], argv[3]);
     else if (argc >= 4 && !strcmp(argv[1], "ref")) ref_save(argv[2], argv[3]);
     else if (argc >= 4 && !strcmp(argv[1], "worlds")) worlds(argv[2], argv[3]);
+    else if (argc >= 3 && !strcmp(argv[1], "export")) for (int i = 2; i < argc; i++) export_save(argv[i]);
+    else if (argc >= 4 && !strcmp(argv[1], "codec")) codec_check(argv[2], atoi(argv[3]));
+    else if (argc >= 4 && !strcmp(argv[1], "live")) { wkx_live *x = live_open(argv[2]); if (x) for (int i = 3; i < argc; i++) live_save(x, argv[i]); wkx_live_free(x); }
+    else if (argc >= 3 && !strcmp(argv[1], "enc")) for (int i = 2; i < argc; i++) enc_builds(argv[i]);
     else { fprintf(stderr, "usage: save_test list SAVE... | save_test rt BUILDS.jsonl TMPDIR\n"); return 2; }
     mu_save_cache_clear();
     printf("%d passed, %d failed\n", pass, failc);

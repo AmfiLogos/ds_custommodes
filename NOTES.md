@@ -21,6 +21,21 @@
 - Guard: the loader's test copies log `SCAN-RULE <module> <n>/min` (ds_modloader loader/test/scan_rate_test.py, lane
   fpsscan); custom-modes must stay near 0 in a world.
 
+## RULE: Test Fights keeps every choice; every heading folds (owner 2026-11-01)
+- Owner: "keep ALL test settings, ALWAYS, also after the game restarts". Every Test Fights choice is in ONE list,
+  tf_ui.c `pref_kv` (saved by `prefs_save` at each change, read by `prefs_load` when the wiki files are ready; text through
+  `cm_pref_enc`, a Gallery build through `cm_pref_blob_set`). A new choice = one new line in `pref_kv`, nothing else.
+- Owner: sections "should be able to be kind of collapsed ... they just take a lot of space". Every heading of the window
+  goes through tf_ui.c `sec()` (the kit's `dsl_section`, kept under `custom-modes.fights.<id>`), never `head()` alone.
+- Hover cards open NEXT TO the hovered element (owner 2026-11-01): the kit's card (dsl_ui.c `tip_choose`) and ours
+  (cm_gtip.c `place_frame`) use the same rule: a near free side, else beside the element over another column.
+- Test units start with Auto Skill off (sg_glue.js `autoSkill`); World units keep their save's bit. Time of Day: Day =
+  08:00, Night = 21:00 (sg_glue.js `setClock`).
+- Guard: fights/test/setup_test.py (one hidden copy): every choice kept after a test and after a restart, the kit rows'
+  and the inscription's cards next to them at 4 screen sizes (TS_WIN / TS_UISCALE / TS_HOVER_ONLY=1), Auto Skill off and
+  the clock (the game's own save of the running world), a folded section stays folded. Game tests that open Test Fights
+  call fights/test/tf_fresh.py first (the kept files set aside: every run starts from the defaults).
+
 ## Where this repo comes from (2026-10-16)
 - History = `git subtree split -P custom` of ds_multiplayer main 1c8f1af (40 commits, last 8a7c362). Tag `v13` = 8a7c362:
   its files are the same as ds_multiplayer v13 (29f0fa6) custom/ (tree 1f55b21).
@@ -563,3 +578,33 @@
   MainFlow 0 (the kit searches it once at the title, then holds it; at boot, scene 0, it is not searched: the title check
   says 0 there anyway); EntityInspectionView DSL_VIEW_WORLD | INACTIVE. mp_pin = ds_multiplayer 1c369a0 (its
   sdk/dsl_sdk.h = ds_modloader 6fc71e6); build.sh stops on an SDK copy without dsl_view_find.
+
+## Open in Wiki Builder (export a team to the wiki, 0.1.48; owner 2026-11-01, PLAN_v013 item 16)
+- My Units > World Units > "Open in Wiki Builder": the ticked units of the world's newest save (none ticked and <= 8 in
+  the save = all) open in the player's browser at `dungeonsettlers.wiki[/<lang>]/builder?team=<code>&from=game&pub=1|0&tn=<world>&gx=<16 hex>`.
+  The wiki builder (dungeonsettlersdb, boot `from=game`) imports them as one new team of the reader's roster and publishes
+  it to the Build Gallery at once unless pub=0; the same gx (same units) only opens that team and applies pub. The
+  "Public in the Build Gallery" switch is kept in `wiki_export.txt` next to the library file.
+- RULE: a wiki link the mod MAKES is written by `units/wk_export.c` only (`wk_encode` = the inverse of pvp_wiki.c
+  `wk_decode`, v1 raw blob: the Windows module has no deflate). The wiki language prefix comes from `units/wk_lang.h`
+  only (the gallery words use it too).
+- RULE: the link carries table INDEXES and the wiki's fingerprint only counts table sizes. The tables built into the mod
+  (`pvp_wiki_tables.h`) go stale at every wiki data update, so the export NEVER writes against them: at each click
+  `units/mu_export.c` (worker thread, 8 s) reads the live wiki's tables (`/dbdata/gallery_codec.js`, the builder's own
+  dsbIdx lists, portraits, item bonuses) and `wkx_export_url` re-maps every index BY KEY to them (bonuses by stat key,
+  portraits by name, majors / tiers / slots by name), writes the wiki's fingerprint and bonus ranges, and leaves out
+  what the wiki no longer has (the window says so). The button keeps working across wiki updates (lead task 9). Refused
+  ("Update Units Laboratory", nothing opened) only when the link FORMAT changed (not 6 major stats, > 5 talent tiers,
+  > 16 slots) or a unit's race is gone. Not re-mapped: the hunger / exhaustion groups (not in that file).
+  Limits: the export reads the gallery codec, the builder page reads its own data.js (one wiki build makes both); a
+  unit with all its saved traits gone falls back to its picker traits (the wire has no empty saved list); a game item
+  newer than this mod's tables is not in the unit at all (the mod reads saves through its own tables).
+- RELEASE GUARD: `wkx_codec_check` (live tables == ours key for key) is the run.sh "codec" step: it fails after a wiki
+  data update until the tables are regenerated (`node units/tools/gen_wiki_tables.js > units/pvp_wiki_tables.h`).
+- GUARDS: `units/test/save/run.sh` (export_check.js: the builder itself decodes every C code of the real saves and of
+  the random builds exactly as its own encodeTeam; live_check.js: on a changed copy of the wiki's tables (new keys in
+  front of every list, slots / majors / tiers / bonuses / portraits re-ordered) the real saves' units come back
+  identical with the wiki's fingerprint, a removed item / trait is left out and counted, and codes written against our
+  tables are wrong there = the negative control) and `units/test/export_test.py` (in game: the opened link loads exactly
+  the ticked units per the builder's own save import + computeBuild; pub switch kept; after a wiki data update the
+  button still opens and the wiki reads the same unit; a new link format = refused, no open).

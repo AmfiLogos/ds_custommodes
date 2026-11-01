@@ -115,19 +115,36 @@ static int visible_at(Obj t, float mx, float my) {
     }
     return 1;
 }
-/* placement as the loader kit's tooltips (owner 2026-10-16 #3): outside the panel the target sits in (the widest
-   parent narrower than 3/4 of the screen: the window), at its right edge, top level with the target's top; no room on
-   the right -> outside its left edge. Never over the window. The card's size is known a few frames after Show. */
-static float tp_panel[4], tp_top; static int tp_check, tp_side, tp_i;
+/* placement as the loader kit's tooltips (owner 2026-10-16 #3, 2026-11-01): outside the panel the target sits in (the
+   widest parent narrower than 3/4 of the screen: the window), at its right edge, top level with the target's top; no room
+   on the right -> outside its left edge; a side only when the card is next to the target (place_frame). The card's size is
+   known a few frames after Show. */
+static float tp_panel[4], tp_el[4], tp_top, tp_x; static int tp_check, tp_side, tp_i;   /* tp_x: the chosen spot, held while tp_check lasts */
 static float screen_w(void) { return m_scr_w.fn ? (float)CM_CALL(m_scr_w, int, const void *)(m_scr_w.mi) : 1920.f; }
+static uintptr_t h_card; static void h_card_set(Obj c) { if (cm_il_hget(h_card) != c) cm_il_hset(&h_card, c); }
+static float tp_keep[16][4]; static int tp_nkeep;                   /* the groups around the target (the kit's tip_keep) */
 static void panel_of(Obj target, const float el[4], float out[4]) {
-    memcpy(out, el, 4 * sizeof *out);
+    memcpy(out, el, 4 * sizeof *out); tp_nkeep = 0;
     float sw = screen_w(); Obj t = target;
     for (int d = 0; d < 16 && t; d++) {
         t = cm_parent(t); float r[4];
         if (!t || !rect_screen(t, r) || r[2] - r[0] >= sw * 0.75f) break;
+        if (r[2] - r[0] >= 1 && r[3] - r[1] >= 1 && tp_nkeep < 16) memcpy(tp_keep[tp_nkeep++], r, sizeof r);
         if (r[0] <= el[0] + 1 && r[2] >= el[2] - 1 && r[2] - r[0] >= out[2] - out[0]) memcpy(out, r, sizeof r);
     }
+}
+/* beside the element: only over ANOTHER column of the window (the kit's dsl_ui.c tip_choose rule): the card cuts across no
+   group around the element and stays off one of them (the element's own column) */
+static int other_column(const float c[4], const float E[4]) {
+    int cuts = 0, col = 0;
+    for (int k = 0; k < tp_nkeep; k++) {
+        const float *q = tp_keep[k];
+        int ov = (c[2] < q[2] ? c[2] : q[2]) - (c[0] > q[0] ? c[0] : q[0]) > 0.5f && (c[3] < q[3] ? c[3] : q[3]) - (c[1] > q[1] ? c[1] : q[1]) > 0.5f;
+        int holds = c[0] >= q[0] - 0.5f && c[2] <= q[2] + 0.5f;   /* across: a column is cut sideways only */
+        if (ov && !holds) cuts = 1;
+        if (!ov && q[0] <= E[0] + 1 && q[2] >= E[2] - 1 && q[1] <= E[1] + 1 && q[3] >= E[3] - 1) col = 1;
+    }
+    return !cuts && col;
 }
 static int card_rect(float r[4]) {                                    /* the shown card: the Tooltip_Base with our id */
     if (!k_tbase || !m_finds.fn || !m_tb_id.fn) return 0;
@@ -136,23 +153,51 @@ static int card_rect(float r[4]) {                                    /* the sho
     for (int i = 0; i < n; i++) {
         Obj c = *(Obj *)((char *)arr + 0x20 + (size_t)i * 8);
         Guid g = CM_CALL(m_tb_id, Guid, Obj, const void *)(c, m_tb_id.mi);
-        if (g.lo == TIP_ID.lo && g.hi == TIP_ID.hi) return rect_screen(cm_tr(c), r);
+        if (g.lo == TIP_ID.lo && g.hi == TIP_ID.hi) { h_card_set(c); return rect_screen(cm_tr(c), r); }
     }
     return 0;
+}
+/* the shown card moved by (dx, dy) screen pixels: its Transform position, scaled by its world size per screen pixel (the
+   kit's rt_move_screen; a second Show with our id keeps the first spot) */
+static int move_screen(float dx, float dy) {
+    static cm_m gp, sp; if (!gp.fn) { gp = cm_il_method("UnityEngine", "Transform", "get_position", 0, NULL); sp = cm_il_method("UnityEngine", "Transform", "set_position", 1, NULL); }
+    Obj c = cm_il_hget(h_card); if (!cm_alive(c) || !gp.fn || !sp.fn || !m_corners.fn) return 0;
+    Obj t = cm_tr(c), arr = cm_il_hget(h_arr); if (!arr) return 0;
+    CM_CALL(m_corners, void, Obj, Obj, const void *)(t, arr, m_corners.mi);
+    V3 w0 = ((V3 *)((char *)arr + 0x20))[0], w2 = ((V3 *)((char *)arr + 0x20))[2];
+    float r[4]; if (!rect_screen(t, r) || r[2] - r[0] < 1 || r[3] - r[1] < 1) return 0;
+    V3 p = CM_CALL(gp, V3, Obj, const void *)(t, gp.mi);
+    p.x += dx * (w2.x - w0.x) / (r[2] - r[0]); p.y += dy * (w2.y - w0.y) / (r[3] - r[1]);
+    CM_CALL(sp, void, Obj, V3, const void *)(t, p, sp.mi);
+    return 1;
 }
 static void show_at(int i, V2 pos) {
     Obj v = view(); if (!v) return;
     struct { uint8_t b[0xC0]; } ctx; memset(&ctx, 0, sizeof ctx); ctx.b[f_hidehold] = 1;   /* no "hold for more" part */
     CM_CALL(m_show, void, Obj, Guid, int, Obj, V2, int, __typeof__(ctx), const void *)(v, TIP_ID, T[i].type, cm_il_str(T[i].key), pos, 0, ctx, m_show.mi);
 }
+/* the side, once the card's width is known: right of the window, else left of it, each only inside the screen and NEXT TO
+   the element (loader kit dsl_ui.c tip_choose, owner 2026-11-01: a card at the window's far side is "kind of off"; near_px =
+   12 % of the screen width, at least 64 px); else beside the element itself, right, else left, when that is over another
+   column of the window (other_column); else the window's left. */
 static void place_frame(void) {
     if (!shown || tp_check <= 0) return;
     tp_check--;
-    float c[4]; if (!card_rect(c) || c[2] - c[0] <= 1 || tp_side) return;
-    if (c[0] < tp_panel[2] - 1 || c[2] > screen_w() + 1) {           /* off the screen, or the stock clamp put it over the window */
-        float x = tp_panel[0] - 8 - (c[2] - c[0]); if (x < 0) x = 0;
-        tp_side = 1; tp_check = 0; show_at(tp_i, (V2){ x, tp_top });
+    float c[4], sw = screen_w(); if (!card_rect(c) || c[2] - c[0] <= 1 || c[2] <= 0 || c[0] >= sw) return;   /* not laid out on the screen yet */
+    if (tp_side) { if (c[0] < tp_x - 1 || c[0] > tp_x + 1) move_screen(tp_x - c[0], 0); return; }   /* held: the game's layout may move it again */
+    float w = c[2] - c[0], near_px = sw * 0.12f > 64.f ? sw * 0.12f : 64.f;
+    const float X[4] = { tp_panel[2] + 8, tp_panel[0] - 8 - w, tp_el[2] + 8, tp_el[0] - 8 - w };
+    float x = -1;
+    for (int i = 0; i < 4 && x < 0; i++) {
+        if (X[i] < 0 || X[i] + w > sw) continue;
+        if (i == 0 && X[i] - tp_el[2] > near_px) continue;
+        if (i == 1 && tp_el[0] - (X[i] + w) > near_px) continue;
+        if (i >= 2) { float h = c[3] - c[1], cc[4] = { X[i], tp_top - h, X[i] + w, tp_top }; if (!other_column(cc, tp_el)) continue; }
+        x = X[i];
     }
+    if (x < 0) { x = tp_panel[0] - 8 - w; if (x < 0) x = 0; }
+    tp_side = 1; tp_x = x;
+    if (x < c[0] - 1 || x > c[0] + 1) move_screen(x - c[0], 0);
 }
 static void hide(void) {
     if (!shown) return;
@@ -164,9 +209,9 @@ static void show(int i, Obj target) {
     if (!v || !rect_screen(target, r)) return;
     if (shown) hide();
     raise_view(v);
-    panel_of(target, r, tp_panel); tp_top = r[3]; tp_side = 0; tp_i = i;
+    panel_of(target, r, tp_panel); memcpy(tp_el, r, sizeof tp_el); tp_top = r[3]; tp_side = 0; tp_i = i;
     show_at(i, (V2){ tp_panel[2] + 8, r[3] });                        /* the card's top-left: right of the window, level with the icon */
-    tp_check = 4;
+    tp_check = 30;                                                      /* frames to wait for the card's size (it lays out a few frames late) */
     shown = 1; cm_il_hset(&h_shown, target); snprintf(shown_key, sizeof shown_key, "%s", T[i].key);
 }
 static int on_tree(Obj rt) {
@@ -202,5 +247,6 @@ void cm_gtip_add(DSLObj target, int type, const char *key) {
     if (!key || nt >= NT) return;
     T[nt].h = cm_il_hnew((Obj)target); T[nt].type = type; snprintf(T[nt].key, sizeof T[nt].key, "%s", key); nt++;
 }
+int cm_gtip_test_rects(float card[4], float el[4]) { memcpy(el, tp_el, sizeof tp_el); return shown && card_rect(card); }
 void cm_gtip_test_hover(DSLObj target) { init(); cm_il_hset(&h_test, (Obj)target); if (!target) hide(); }
 int cm_gtip_shown(char *key_out, size_t n) { if (key_out && n) snprintf(key_out, n, "%s", shown ? shown_key : ""); return shown; }

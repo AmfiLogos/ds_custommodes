@@ -6,7 +6,29 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ### Unreleased (0.1.48)
 
-Fixes:
+Test Fights:
+- Every Test Fights choice is kept: the test, the room or boss, Magic Saturation, the monsters, the difficulty, the kits,
+  the inscription, the time of day and the squad (My Units, World Units or a Wiki Build Gallery build). They stay the
+  same for the next test and after the game restarts. <!-- roadmap: test-settings-kept -->
+- The hover card of a battle kit opens next to the kit you point at, no longer at the far side of the Test Fights
+  window. The inscription's card does the same. <!-- roadmap: test-kit-hover-card -->
+- Test units start with Auto Skill off. Turn it on with the unit's own Auto Skill button as usual. Units brought from
+  your own world keep the Auto Skill choice they have in that save. <!-- roadmap: test-autoskill-off -->
+- New "Time of Day" choice: Day Time (default, the test starts at 8:00) or Night Time (21:00).
+  <!-- roadmap: test-time-of-day -->
+- Every section of the Test Fights window (Squad, What to Test, Which Room, Difficulty, Battle Kits) folds with a
+  click on its title, and stays folded the next time, also after a restart. <!-- roadmap: test-sections-fold -->
+
+My Units:
+- New "Open in Wiki Builder" button in World Units: the units you tick in one of your worlds (or all of them, up to 8)
+  open in the wiki's Character Builder in your web browser, as a new team you can edit there. The team goes to the Build
+  Gallery at once, like the builds you save on the wiki; the "Public in the Build Gallery" switch next to the button
+  keeps them private instead (the switch is remembered). Your save is not changed. The button keeps working when the
+  wiki updates its game data: your units arrive with the same items and skills, and anything the wiki no longer has is
+  left out (the window tells you).
+  <!-- roadmap: export-team-wiki -->
+
+DPS meter:
 - The DPS meter shows a row for every unit in the fight. Before, it showed only 2 rows and hid the other units in a
   list you had to scroll. The meter now grows with its rows (a bit smaller when the screen has no more room); only
   when the screen is full does the list scroll. <!-- roadmap: dps-all-units -->

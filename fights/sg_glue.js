@@ -108,16 +108,15 @@ var CMF = (function () {
     });
   }
 
-  // Auto Skill on for every clan unit (lead 2026-10-25: test-fight units must cast their skills as in a normal fight). The
-  // game's BehaviourOption AutoAttack (1) is its "Auto Skill" (TEXTKEY_SummaryOptionUI_AutoAttack_NAME): without it
-  // DecidePlayerCombatBehaviour.DecideSkill returns the basic attack only, whatever the bar and its AutoUse flags say. The
-  // wiki's generator writes Option 0 | Hold Position (2), so no squad unit ever cast a skill (6 runs, lane dsdps). OR-ed in
-  // like the generator's own Hold Position bit; a unit's per-skill AutoUse (the generator's: every active on) still decides
-  // which skills.
+  // Auto Skill OFF at the start of a test fight (owner 2026-11-01: "the test fight starts with Auto Skill ON; it must start
+  // OFF"; the player turns it on with the game's own toggle). The game's BehaviourOption AutoAttack (1) is its "Auto Skill"
+  // (TEXTKEY_SummaryOptionUI_AutoAttack_NAME); the wiki's generator writes Option 0 | Hold Position (2), and 0.1.36-0.1.47
+  // OR-ed Auto Skill in (lead 2026-10-25), which the owner overrides. Cleared here for every generated unit; the
+  // generator's Hold Position bit and per-skill AutoUse stay. With Auto Skill turned on, a DPS Check squad still casts on
+  // the scarecrow (fights/tf_dps.c h_cse).
   // Except a unit taken straight from a save (World units, `_cm.opt`): it keeps the save's Auto Skill bit and the save's
-  // per-skill AutoUse (owner 2026-10-25: "Auto skill was also activated on my units despite not turning it on"; the game
-  // itself starts a unit with 0 and loads the saved Option as is). The generator's Hold Position bit stays; a skill the
-  // save has no AutoUse entry for keeps the generator's. Found by its place and name, as carry() finds it.
+  // per-skill AutoUse (owner 2026-10-25: "Auto skill was also activated on my units despite not turning it on": his own
+  // setting on that unit). Found by its place and name, as carry() finds it.
   function autoSkill(save, builds) {
     var ec = save.EntityComponentSaveData.EntityComponents, units = clanUnits(save);
     units.forEach(function (u, i) {
@@ -125,13 +124,28 @@ var CMF = (function () {
       var cm = b && b._cm, prof = comp(comps, 10);
       if (!info) return;
       if (!cm || typeof cm.opt !== 'number' || (b.name && (!prof || prof.UnitNameTextKey !== b.name))) {
-        info.Option = (info.Option || 0) | 1;
+        info.Option = (info.Option || 0) & ~1;
         return;
       }
       info.Option = ((info.Option || 0) & ~1) | (cm.opt & 1);
       var sk = comp(comps, 8), au = cm.autouse || {};
       if (sk && sk.AutoUse) Object.keys(sk.AutoUse).forEach(function (k) { if (typeof au[k] === 'boolean') sk.AutoUse[k] = au[k]; });
     });
+  }
+
+  // Time of day (owner 2026-11-01: "always day, 8 AM, by default; a setting picks day or night"): 08:00 or 21:00 of the
+  // template's own day. The save's one clock, TimeSaveData (read from the wiki's template saves): Tick = ticks since day
+  // 0's midnight, 45 a minute (GameSystemTable GAMESYSTEM_Campaign_TickPerMin); Hour = hours since that midnight; Day =
+  // Hour / 24; Min = minutes since the campaign's start (Tick / 45 minus 480 in every template). The game takes day or
+  // night from the hour (TimeData.CheckIsDayTime: DayTimes 06:00 to 20:00 = day). The Day stays (Magic Saturation reads
+  // its own stamp, not the clock); the clock moves inside that day (the base template 08:12 -> 08:00, a boss template's
+  // 23:43 -> 08:00 or 21:00).
+  function setClock(save, tod) {
+    var t = save.TimeSaveData, TPM = 45;
+    if (!t || typeof t.Tick !== 'number') return;
+    var tm = Math.floor(t.Tick / TPM), nm = Math.floor(tm / 1440) * 1440 + (tod === 'night' ? 21 : 8) * 60, d = nm - tm;
+    if ((t.Min || 0) + d < 0) { nm += 1440; d += 1440; }          // before the campaign's start (never in the templates)
+    t.Tick = nm * TPM; t.Min = (t.Min || 0) + d; t.Hour = Math.floor(nm / 60); t.Day = Math.floor(t.Hour / 24);
   }
 
   // World units (owner 2026-10-25: "when loading units from save directly bring over the items they carry", "Give the
@@ -235,7 +249,7 @@ var CMF = (function () {
   }
 
   // opts = the tab's choices: { mode, boss, builds:[stored builds], combat, mgmt, monsters:[{k,n}],
-  //   supplies:{key:amount} | [{k,amount}], kits:{id:true} | [id], kitInsc, msat, team }
+  //   supplies:{key:amount} | [{k,amount}], kits:{id:true} | [id], kitInsc, msat, team, tod: 'day' (default) | 'night' }
   // Builds go in as stored (the builder's own build objects, as the wiki's roster keeps them).
   // -> the wiki's generate() result with the save as the text its download writes (JSON.stringify(save, null, 2))
   function generate(o) {
@@ -262,6 +276,7 @@ var CMF = (function () {
       if (cp.length) r.problems = (r.problems || []).concat(cp);
       nameKeys(r.save);
       autoSkill(r.save, builds);
+      setClock(r.save, o.tod);
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
         clan: r.clan };
