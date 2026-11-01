@@ -141,15 +141,33 @@ def run(save_copy):
         bad = builder_check(url3, save_copy, wunits) if url3 else ['no link']
         check(f'none ticked: all {len(wunits)} units of the save, exactly', not bad, bad[:3])
 
-    # 4. the wiki's tables changed (one renamed item key): no link goes out
-    good = open(os.path.join(WIKI, 'dbdata', 'gallery_codec.js')).read()
-    open(os.path.join(WIKI, 'dbdata', 'gallery_codec.js'), 'w').write(good.replace('"ITEM_WoodClub"', '"ITEM_WoodClubX"', 1))
+    # 4. a wiki data update (lead task 9): new keys in front of every list, slots / majors / tiers / bonuses / portraits
+    #    re-ordered (save/live_check.js make). The button still opens, with a link written against the NEW tables that the
+    #    wiki reads as the same unit (live_check.js "shift": key for key, the wiki's fingerprint, nothing left out)
+    cf = os.path.join(WIKI, 'dbdata', 'gallery_codec.js'); good = open(cf).read()
     W.click('mu:tick0')
-    a = len(dsload()); url4, opens4, end4 = export('export outdated', a)
+    a = len(dsload()); url0, _, _ = export('export before the wiki update', a)
+    tmpd = os.path.join(os.path.dirname(W.LIB), 'live'); os.makedirs(tmpd, exist_ok=True)
+    subprocess.run(['node', os.path.join(HERE, 'save', 'live_check.js'), 'make', cf, tmpd], check=True, timeout=60,
+                   env=dict(os.environ, DROP_ITEM='ITEM_none', DROP_IND='AFFECTER_none'))
+    shutil.copy2(os.path.join(tmpd, 'codec_shift.js'), cf)
+    a = len(dsload()); url4, opens4, end4 = export('export after a wiki update', a)
     s = W.mu()
-    check('the wiki\'s tables differ: REFUSED, no browser open tried, the window says to update', 'REFUSED' in end4 and not opens4 and 'Update' in (s.get('msg') or ''),
-          (end4, len(opens4), s.get('msg')))
-    open(os.path.join(WIKI, 'dbdata', 'gallery_codec.js'), 'w').write(good)
+    code = lambda u: (urllib.parse.parse_qs(urllib.parse.urlparse(u).query).get('team') or [''])[0]
+    lf = os.path.join(tmpd, 'live.jsonl')
+    with open(lf, 'w') as f: f.write(json.dumps({'what': 'tick0', 'code': code(url4), 'code0': code(url0), 'dropped': 0}) + '\n')
+    r = subprocess.run(['node', os.path.join(HERE, 'save', 'live_check.js'), 'check', CODEC, cf, lf, 'shift'], capture_output=True, text=True, timeout=60)
+    check('after a wiki data update the button still opens the builder (the open is tried with the new link), and the wiki reads the SAME unit from the new tables',
+          'REFUSED' not in end4 and opens4 and opens4[-1] == url4 and r.returncode == 0,
+          (end4, len(opens4), r.stdout.strip()[-300:], s.get('msg')))
+
+    # 5. the link format itself changed (a 7th major stat): only then nothing opens, and the window says to update
+    open(cf, 'w').write(good.replace('"majors":[', '"majors":["Luck",', 1))
+    a = len(dsload()); url5, opens5, end5 = export('export new link format', a)
+    s = W.mu()
+    check('a new link format: REFUSED, no browser open tried, the window says to update Units Laboratory', 'REFUSED' in end5 and not opens5 and 'Update' in (s.get('msg') or ''),
+          (end5, len(opens5), s.get('msg')))
+    open(cf, 'w').write(good)
 
 
 def main():

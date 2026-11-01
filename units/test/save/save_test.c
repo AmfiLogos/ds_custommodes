@@ -379,6 +379,32 @@ static void codec_check(const char *file, int want_ok) {
     printf("== live-data check %s: %s%s\n", file, r ? "different: " : "same", r ? e : "");
     free(t);
 }
+/* ---- the export after a wiki data update (lead task 9): the units of real saves written against a CHANGED wiki codec
+   (wkx_live_load + wkx_encode_live: re-mapped by key). One line per unit + one per team: {"what", "code": against the
+   changed tables, "code0": against ours, "dropped"}; live_check.js decodes code with the CHANGED codec and code0 with
+   the real one, and both must be the same units (key for key, minus what the change removed). */
+static void live_save(wkx_live *x, const char *save) {
+    mu_save_unit su[64]; char e[400]; int n = mu_save_units(save, su, 64, e, sizeof e);
+    CHECK(n > 0, "live %s: %s", save, e); if (n <= 0) return;
+    static FILE *xo; if (!xo) { const char *p = getenv("EXPORT_OUT"); xo = p ? fopen(p, "a") : NULL; CHECK(xo != NULL, "EXPORT_OUT file"); if (!xo) return; }
+    wk_build team[WK_MAX_UNITS]; int nt = 0;
+    for (int i = 0; i <= n; i++) {
+        wk_build *b, one; int k = 1; char what[96];
+        if (i < n) { if (mu_save_build(save, su[i].guid, &one, e, sizeof e)) continue; b = &one; snprintf(what, sizeof what, "%s", su[i].guid); if (nt < WK_MAX_UNITS) team[nt++] = one; }
+        else { if (!nt) break; b = team; k = nt; snprintf(what, sizeof what, "team"); }
+        static char c1[8192], c0[8192]; int dr = -1;
+        int r1 = wkx_encode_live(x, b, k, NULL, c1, sizeof c1, &dr), r0 = wk_encode(b, k, c0, sizeof c0);
+        CHECK(!r1 && !r0, "live encode %s: %d %d", what, r1, r0); if (r1 || r0) continue;
+        fprintf(xo, "{\"what\": \"%s\", \"code\": \"%s\", \"code0\": \"%s\", \"dropped\": %d}\n", what, c1, c0, dr); fflush(xo);
+    }
+}
+static wkx_live *live_open(const char *file) {
+    size_t n; unsigned char *b = bytes(file, &n); CHECK(b != NULL, "read %s", file); if (!b) return NULL;
+    char *t = realloc(b, n + 1); t[n] = 0; char e[400];
+    wkx_live *x = wkx_live_load(t, n, e, sizeof e); free(t);
+    CHECK(x != NULL, "wkx_live_load %s: %s", file, e);
+    return x;
+}
 int main(int argc, char **argv) {
     if (argc >= 3 && !strcmp(argv[1], "list")) for (int i = 2; i < argc; i++) list_save(argv[i]);
     else if (argc >= 4 && !strcmp(argv[1], "rt")) round_trip(argv[2], argv[3]);
@@ -386,6 +412,7 @@ int main(int argc, char **argv) {
     else if (argc >= 4 && !strcmp(argv[1], "worlds")) worlds(argv[2], argv[3]);
     else if (argc >= 3 && !strcmp(argv[1], "export")) for (int i = 2; i < argc; i++) export_save(argv[i]);
     else if (argc >= 4 && !strcmp(argv[1], "codec")) codec_check(argv[2], atoi(argv[3]));
+    else if (argc >= 4 && !strcmp(argv[1], "live")) { wkx_live *x = live_open(argv[2]); if (x) for (int i = 3; i < argc; i++) live_save(x, argv[i]); wkx_live_free(x); }
     else if (argc >= 3 && !strcmp(argv[1], "enc")) for (int i = 2; i < argc; i++) enc_builds(argv[i]);
     else { fprintf(stderr, "usage: save_test list SAVE... | save_test rt BUILDS.jsonl TMPDIR\n"); return 2; }
     mu_save_cache_clear();

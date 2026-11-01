@@ -322,14 +322,10 @@ static void on_export(void *ud, DSLObj w) {
         else snprintf(names[i], sizeof names[i], "%s", b[i].name);
     }
     int pub = W.t_pub ? U->toggle_get(W.t_pub) : export_pub_get();
-    static char url[16384];
-    if (wk_export_url(b, n, np, wd->name, pub, wk_wiki_lang(dsi_code()), url, sizeof url)) {
-        free(b); set_msg(TR("Could not make the wiki link for these units."), MU_C_BAD); mu_log("my units: export link failed"); return;
-    }
+    mu_log("my units: export of %d units from %s (%s): reading the wiki's data", n, wd->save, pub ? "public" : "private");
+    int st = mux_start(b, n, np, wd->name, pub, wk_wiki_lang(dsi_code()));
     free(b);
-    mu_log("my units: export url %s", url);
-    mu_log("my units: export of %d units from %s (%s): checking the wiki's data", n, wd->save, pub ? "public" : "private");
-    if (mux_start(url) != MUX_BUSY) return;
+    if (st != MUX_BUSY) return;
     W.x_n = n; W.x_pub = pub; W.x_busy = 1;
     set_msg(TR("Checking the wiki..."), MU_C_SUB);
     if (W.b_export) U->set_enabled(W.b_export, 0);
@@ -340,15 +336,22 @@ static void export_poll(void) {
     if (st == MUX_IDLE || st == MUX_BUSY) return;
     W.x_busy = 0;
     char m[600]; int n = W.x_n;
+    int dr = mux_dropped();
+    if (mux_url()[0]) mu_log("my units: export url %s", mux_url());
     if (st == MUX_OPENED) {
         if (W.x_pub) snprintf(m, sizeof m, TRN("Opened %d unit in the wiki builder. It goes to the Build Gallery.", "Opened %d units in the wiki builder. They go to the Build Gallery.", n), n);
         else snprintf(m, sizeof m, TRN("Opened %d unit in the wiki builder. Private: not in the Build Gallery.", "Opened %d units in the wiki builder. Private: not in the Build Gallery.", n), n);
-    } else if (st == MUX_OUTDATED) snprintf(m, sizeof m, "%s", TR("The wiki's game data changed since this version of Units Laboratory. Update Units Laboratory, then try again."));
+        if (dr > 0) {                                  /* the wiki no longer has some of it (a wiki data update) */
+            size_t k = strlen(m);
+            snprintf(m + k, sizeof m - k, " %s", TR("Some items, traits or skills are no longer on the wiki and were left out."));
+        }
+    } else if (st == MUX_OUTDATED) snprintf(m, sizeof m, "%s", TR("The wiki changed how it reads builds. Update Units Laboratory, then try again."));
     else if (st == MUX_OFFLINE) snprintf(m, sizeof m, TR("Could not reach the wiki: %s"), d);
+    else if (st == MUX_NO_LINK) snprintf(m, sizeof m, "%s", TR("Could not make the wiki link for these units."));
     else snprintf(m, sizeof m, "%s", TR("Could not open your web browser."));
     set_msg(m, st == MUX_OPENED ? MU_C_GOLD : MU_C_BAD);
-    mu_log("my units: export %s%s%s", st == MUX_OPENED ? "browser opened" : st == MUX_OUTDATED ? "REFUSED: the wiki's tables differ" : st == MUX_OFFLINE ? "failed: wiki not reached" : "failed: browser not opened",
-           d[0] ? ": " : "", d);
+    mu_log("my units: export %s%s%s (wiki data %d, %d part(s) left out)", st == MUX_OPENED ? "browser opened" : st == MUX_OUTDATED ? "REFUSED" : st == MUX_OFFLINE ? "failed: wiki not reached" : st == MUX_NO_LINK ? "failed: link not made" : "failed: browser not opened",
+           d[0] ? ": " : "", d, mux_fp(), dr);
     refresh();
 }
 static void on_save_team(void *ud, DSLObj w) {

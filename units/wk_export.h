@@ -25,10 +25,22 @@ int wk_encode_named(const wk_build *b, int n, const char *const *names, char *ou
 /* the export link (contract above). lang = the wiki prefix ("fr", "ko"...; NULL / "" / "en" = the English root);
    names as wk_encode_named; team_name NULL / "" = none. 0 ok, -1 no room / bad builds */
 int wk_export_url(const wk_build *b, int n, const char *const *names, const char *team_name, int pub, const char *lang, char *out, size_t outn);
-/* the builder's own tables as the wiki serves them now (WKX_CODEC_PATH: the "var D = {...}" lists builder.js dsbIdx
-   indexes) compared with ours, key for key (+ portraits per race, item bonus ranges). 0 = the same: a link made here loads
-   exactly these units on the wiki; -1 + err (the first difference) = the wiki's data changed since this version was built */
+/* the builder's own tables as the wiki serves them now: WKX_CODEC_PATH, the "var D = {...}" lists builder.js dsbIdx
+   indexes. The link carries indexes, so the export writes them against THESE lists (lead task 9: the button must keep
+   working after each wiki data update, without a new Units Laboratory):
+   wkx_live_load parses them (NULL + err = not readable, or the link format itself changed: 6 major stats, <= 5 tiers);
+   wkx_export_url / wkx_encode_live re-map every index of our builds BY KEY to them, write the wiki's fingerprint and bonus
+   ranges, and leave out what the wiki no longer has (*dropped = how many parts). x NULL = our own tables.
+   Returns 0 ok, -1 no room / bad builds, -2 a unit's race is no longer on the wiki.
+   wkx_codec_check: 0 = the live lists are OUR lists key for key (+ portraits, bonus ranges); -1 + err = the first
+   difference. It is the release guard (the tables were regenerated: run.sh "codec"), not a gate on the button. */
 #define WKX_CODEC_PATH "/dbdata/gallery_codec.js"
+typedef struct wkx_live wkx_live;
+wkx_live *wkx_live_load(const char *text, size_t n, char *err, size_t errn);
+void wkx_live_free(wkx_live *x);
+int wkx_live_fp(const wkx_live *x);
+int wkx_encode_live(const wkx_live *x, const wk_build *b, int n, const char *const *names, char *out, size_t outn, int *dropped);
+int wkx_export_url(const wkx_live *x, const wk_build *b, int n, const char *const *names, const char *team_name, int pub, const char *lang, char *out, size_t outn, int *dropped);
 int wkx_codec_check(const char *text, size_t n, char *err, size_t errn);
 /* opens url in the system browser (Mac /usr/bin/open, Windows ShellExecuteW; never waits on the browser). Only https
    links of dungeonsettlers.wiki are opened. 0 started, -1 not */

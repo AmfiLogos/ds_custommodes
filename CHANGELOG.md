@@ -10,8 +10,9 @@ My Units:
 - New "Open in Wiki Builder" button in World Units: the units you tick in one of your worlds (or all of them, up to 8)
   open in the wiki's Character Builder in your web browser, as a new team you can edit there. The team goes to the Build
   Gallery at once, like the builds you save on the wiki; the "Public in the Build Gallery" switch next to the button
-  keeps them private instead (the switch is remembered). Your save is not changed. When the wiki's game data is newer
-  than your Units Laboratory, the button says so and opens nothing, so a unit never arrives with other items or skills.
+  keeps them private instead (the switch is remembered). Your save is not changed. The button keeps working when the
+  wiki updates its game data: your units arrive with the same items and skills, and anything the wiki no longer has is
+  left out (the window tells you).
   <!-- roadmap: export-team-wiki -->
 
 ### 0.1.47 (2026-10-26)

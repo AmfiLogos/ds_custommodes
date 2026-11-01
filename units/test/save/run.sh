@@ -49,5 +49,24 @@ python3 -I -c 'import sys; s=open(sys.argv[1]).read(); open(sys.argv[2],"w").wri
 python3 -I -c 'import sys,re; s=open(sys.argv[1]).read(); i=s.index("ITEM_SilverRing"); j=s.index("5.0,10.0",i); open(sys.argv[2],"w").write(s[:j]+"5.0,11.0"+s[j+8:])' $CODEC $T/run/codec_range.js
 $T/save_test codec $T/run/codec_key.js 0 > $T/run/codec_key.txt || st=1
 $T/save_test codec $T/run/codec_range.js 0 > $T/run/codec_range.txt || st=1
+# after a wiki data update (lead task 9): the export re-maps by key to the tables the wiki serves NOW, so the button keeps
+# working: shifted / re-ordered tables give the same units, a removed item / trait is left out (and counted), and the
+# negative control (codes written against our tables, read with the shifted ones) must come out wrong
+read DROP_ITEM DROP_IND < <(python3 -I -c '
+import json,sys,collections
+it=collections.Counter(); ind=collections.Counter()
+for l in open(sys.argv[1]):
+    x=json.loads(l)
+    if x["what"].startswith("gen"): continue
+    for b in (x["build"] if isinstance(x["build"],list) else [x["build"]]):
+        it.update((b.get("eq") or {}).values()); ind.update(b.get("inds") or [])
+print(it.most_common(1)[0][0], ind.most_common(1)[0][0])' $T/run/export.jsonl)
+export DROP_ITEM DROP_IND
+node $H/live_check.js make $CODEC $T/run
+for m in shift drop; do
+  EXPORT_OUT=$T/run/live_$m.jsonl $T/save_test live $T/run/codec_$m.js $SAVES > $T/run/live_enc_$m.txt || st=1
+  node $H/live_check.js check $CODEC $T/run/codec_$m.js $T/run/live_$m.jsonl $m > $T/run/live_$m.txt || st=1
+done
+node $H/live_check.js check $CODEC $T/run/codec_shift.js $T/run/live_shift.jsonl old > $T/run/live_old.txt || st=1
 grep -h "^==\|passed\|FAIL\|ERROR\|Sanitizer\|runtime error" $T/run/*.txt | head -60
 exit $st

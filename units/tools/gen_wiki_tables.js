@@ -14,6 +14,9 @@ out += `static const unsigned char WK_ITEM_NTAGS[${X.ITEM.length}] = { ${tags.ma
 const flat = []; const at = []; tags.forEach(t => { at.push(flat.length / 2); t.forEach(p => flat.push(p[0], p[1])); });
 out += `static const unsigned short WK_ITEM_TAG_AT[${X.ITEM.length}] = { ${at.join(', ')} };\n`;
 out += `static const double WK_TAG_RANGE[${Math.max(flat.length, 2)}] = { ${flat.length ? flat.map(v => String(+v)).join(', ') : '0'} };\n`;
+// each bonus's stat key (same flat order as WK_TAG_RANGE / 2): wk_export.c re-maps a bonus by key when the wiki's lists change
+const tkeys = []; X.ITEM.forEach(k => (D.items[k].tags || []).forEach(t => tkeys.push(t[0])));
+out += `static const char *const WK_TAG_KEY[${Math.max(tkeys.length, 1)}] = { ${tkeys.length ? tkeys.map(q).join(', ') : '0'} };\n`;
 // portraits per race (index into the race's pool)
 const P = D.portraits || {};
 out += `static const char *const *const WK_PORTRAITS[${X.RACE.length}] = { ${X.RACE.map((r, i) => P[r] ? `WK_PORT_${i}` : '0').join(', ')} };\n`.replace(/^/, X.RACE.map((r, i) => P[r] ? arr(`WK_PORT_${i}`, P[r]) : '').join(''));

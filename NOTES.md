@@ -567,11 +567,23 @@
 - RULE: a wiki link the mod MAKES is written by `units/wk_export.c` only (`wk_encode` = the inverse of pvp_wiki.c
   `wk_decode`, v1 raw blob: the Windows module has no deflate). The wiki language prefix comes from `units/wk_lang.h`
   only (the gallery words use it too).
-- RULE: the link carries table INDEXES and the wiki's fingerprint only counts table sizes, so no link goes out before
-  `wkx_codec_check` proved the live wiki's tables (`/dbdata/gallery_codec.js`, the builder's own dsbIdx lists, portraits,
-  item bonus ranges) equal ours key for key (`units/mu_export.c`, worker thread, 8 s). Different = "Update Units
-  Laboratory", nothing opened. Not checked: the hunger / exhaustion groups (not in that file).
+- RULE: the link carries table INDEXES and the wiki's fingerprint only counts table sizes. The tables built into the mod
+  (`pvp_wiki_tables.h`) go stale at every wiki data update, so the export NEVER writes against them: at each click
+  `units/mu_export.c` (worker thread, 8 s) reads the live wiki's tables (`/dbdata/gallery_codec.js`, the builder's own
+  dsbIdx lists, portraits, item bonuses) and `wkx_export_url` re-maps every index BY KEY to them (bonuses by stat key,
+  portraits by name, majors / tiers / slots by name), writes the wiki's fingerprint and bonus ranges, and leaves out
+  what the wiki no longer has (the window says so). The button keeps working across wiki updates (lead task 9). Refused
+  ("Update Units Laboratory", nothing opened) only when the link FORMAT changed (not 6 major stats, > 5 talent tiers,
+  > 16 slots) or a unit's race is gone. Not re-mapped: the hunger / exhaustion groups (not in that file).
+  Limits: the export reads the gallery codec, the builder page reads its own data.js (one wiki build makes both); a
+  unit with all its saved traits gone falls back to its picker traits (the wire has no empty saved list); a game item
+  newer than this mod's tables is not in the unit at all (the mod reads saves through its own tables).
+- RELEASE GUARD: `wkx_codec_check` (live tables == ours key for key) is the run.sh "codec" step: it fails after a wiki
+  data update until the tables are regenerated (`node units/tools/gen_wiki_tables.js > units/pvp_wiki_tables.h`).
 - GUARDS: `units/test/save/run.sh` (export_check.js: the builder itself decodes every C code of the real saves and of
-  the random builds exactly as its own encodeTeam; the live-data check passes on the wiki's file and refuses a renamed
-  key and a changed bonus range) and `units/test/export_test.py` (in game: the opened link loads exactly the ticked
-  units per the builder's own save import + computeBuild; pub switch kept; outdated wiki data = refused, no open).
+  the random builds exactly as its own encodeTeam; live_check.js: on a changed copy of the wiki's tables (new keys in
+  front of every list, slots / majors / tiers / bonuses / portraits re-ordered) the real saves' units come back
+  identical with the wiki's fingerprint, a removed item / trait is left out and counted, and codes written against our
+  tables are wrong there = the negative control) and `units/test/export_test.py` (in game: the opened link loads exactly
+  the ticked units per the builder's own save import + computeBuild; pub switch kept; after a wiki data update the
+  button still opens and the wiki reads the same unit; a new link format = refused, no open).
