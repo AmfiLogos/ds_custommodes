@@ -4,7 +4,7 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.48)
+### 0.1.48 (2026-11-02)
 
 Test Fights:
 - Every Test Fights choice is kept: the test, the room or boss, Magic Saturation, the monsters, the difficulty, the kits,

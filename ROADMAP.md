@@ -2,7 +2,7 @@
 
 What we are working on, what comes next, and where you can help.
 
-Updated: 2026-11-01
+Updated: 2026-11-02
 
 Dungeon Settlers Modded is made of three repos. Each item below is listed once, in the repo that does the work:
 
@@ -12,22 +12,15 @@ Dungeon Settlers Modded is made of three repos. Each item below is listed once, 
 
 ## Now
 
-These are being built for the next version.
-
-- **Test Fights keep your settings.** The settings of your last test stay when you start a new test, also after you restart the game. <!-- id: test-settings-kept -->
-- **The hover card of the kits in a test shows next to the item.** Today it shows at the far left of the test window. <!-- id: test-kit-hover-card -->
-- **The DPS meter shows every unit in the fight.** Today it shows at most two rows. It will show one row per unit, also when the fight has only one unit. The list grows with the units, or scrolls when the window cannot grow. <!-- id: dps-all-units -->
-- **"Waiting for the first hit" sits in the right place.** Since the "-" and "+" buttons came, this text is out of place. It will stay centred in the empty list, clear of the buttons, at every panel size. <!-- id: dps-waiting-text -->
-- **Fold the sections of the test window.** Click the title of Settings, Scarecrows, Pitch and the other sections to fold or unfold them. They stay folded when you open the window again. <!-- id: test-sections-fold -->
-- **Test fights start with Auto Skill off.** <!-- id: test-autoskill-off -->
-- **Test fights take place in the day.** A test fight starts at 8 AM by default, and a setting picks day or night. <!-- id: test-time-of-day -->
+- Nothing is being built right now. New items come here when work starts.
 
 ## Next
 
-- Nothing else is planned for the next version. The Now list comes first.
+- Nothing is planned yet.
 
 ## Done
 
+- **0.1.48 (2026-11-02, kit v0.1.30).** Test Fights keep all your choices, also after a restart, and every section folds. A new Advanced section: Time of Day (day by default), Weather (clear by default) and a DPS Meter switch for Custom and Boss fights. Test units start with Auto Skill off. "Open in Wiki Builder" sends your world's units to the wiki's Character Builder. The DPS meter shows every unit, keeps its size when you fold it, and in a DPS Check every unit first walks next to the scarecrow.
 - **0.1.47 (2026-10-26, kit v0.1.29).** Less stutter while you play. Test Fights World Units shows four unit cards at once. Units picked from a save keep that save's Auto Skill choices. Test worlds stay out of the Load list and the Steam Cloud backup for good. "DPS Log in Chat" acts at once, and the DPS meter and the DPS log have "-" and "+" size buttons.
 - **0.1.43 (2026-10-25, kit v0.1.28).** One window style for all Units Laboratory windows, closed with the game's red X or Escape. The DPS Check: a DPS meter, a hit log in the chat and Restart Test. Units from your saves in Test Fights. Rename Team.
 - **0.1.16 (2026-10-25).** Delete Team asks "Team and units" or "Team only". World units: the units of your worlds as read-only cards. Save snapshot.
