@@ -28,6 +28,8 @@ if '--lang' in sys.argv: del sys.argv[sys.argv.index('--lang'):sys.argv.index('-
 if not [a for a in sys.argv[1:] if not a.startswith('--')]: sys.argv.insert(1, os.path.join(REPO, 'build', 'ux_test_' + LANG))
 sys.path.insert(0, HERE)
 import esc_test as E  # noqa: E402  (its globals follow sys.argv / env: OUT, X, LIB, DRV)
+sys.path.insert(0, os.path.join(REPO, 'fights', 'test'))
+import tf_fresh  # noqa: E402
 from esc_test import check, st, cm, click, until, wait_for, home_on, mu_on, bld_on, wins, log  # noqa: E402
 LANGTYPE = {'en': 0, 'de': 3, 'ru': 4}
 # the title column shows the translated label ("Einheitenlabor"); the home page's buttons are found by their English key
@@ -182,7 +184,11 @@ def cases():
     E.open_mu()
     req('call', fn='cmf_test', s='{"cmd":"open","win":"fights"}'); s = until(lambda s: 'fights' in wins(s))
     wait_for(lambda: (lambda s: s if tf(s).get('engine') in (2, 3) else None)(st()), 60)
-    click('fights:l.team0', 1.5); click('fights:start', 1.0)
+    # the squad is kept after a restart (fights.ids in the copy's settings): a run after another run in the same copy
+    # starts with the team ticked, and a blind click on the team unticked it (Start: "pick at least one unit", no world)
+    if not tf(st()).get('squad'): click('fights:l.team0', 1.5)
+    check('U1 setup: a squad is picked before Start', tf(st()).get('squad', 0) > 0, tf(st()).get('status'))
+    click('fights:start', 1.0)
     gone = wait_for(lambda: (req('title').get('title') or {}).get('menu') == 0, 240, 2)
     check('a world loads (the title screen went away)', bool(gone), req('title').get('title'))
     s = wait_for(lambda: (lambda s: s if not mu_on(s) else None)(st()), 8) or st()
@@ -200,6 +206,8 @@ def main():
     E.install(); E.make_library(); owner0 = E.fstate(E.OWNER_LIB)
     g = threading.Thread(target=E.guard, daemon=True); g.start()
     try:
+        pd = os.path.join(E.I, 'home', 'Library', 'Application Support', f'com.CanOpener.Dungeon-Settlers.mp{E.X}')   # esc_test.start's data
+        tf_fresh.fresh_settings(pd, E.OUT)        # Test Fights keeps its choices (tf_ui.c pref_kv): start from the defaults
         E.start()
         s = wait_for(lambda: (lambda s: s if s.get('kit') == 1 and req('rect', target=TITLE, timeout=5).get('rc', -1) > 0 else None)(st()), 240, 1)
         check('title reached, Units Laboratory button and the test driver up', bool(s), s and s.get('title_column'))
