@@ -9,11 +9,12 @@ Fails when (the breaks this catches):
     all of its units while it is folded; its arrow does not open / close it;
   - the World units tab does not list the save copy's world, a world is open when the window opens, or opening it does not
     show that save's units as cards; ticking two units does not put exactly those two in the squad;
-  - fight 1 (effects switch off, its default; Custom fight, one Weak Grey Rat, no battle kits): the test world does not
+  - the effects switch ("Bring Buffs and Effects from the Save") does not start ON (owner 2026-11-02, item 29);
+  - fight 1 (effects switch turned off by a click; Custom fight, one Weak Grey Rat, no battle kits): the test world does not
     load, the squad is not the two picked units (names) at their save levels, a unit's bag in the running game is not its
     bag in the save (slot, key, amount), an affecter of the save that the build does not write shows up, the fight does not
     start (HP changes) or end (the rat killed) within 4 minutes, or the test world's saves stay after the title;
-  - fight 2 (window opened again, effects switch on, two units that carry items): a bag differs, or an affecter of the save
+  - fight 2 (window opened again, the switch kept off, a click turns it on; two units that carry items): a bag differs, or an affecter of the save
     is missing in the running game or has another stack / initial time / remaining time (more than 1 s off), or a
     difficulty holder is not the fight's own (Normal);
   - the save copy, the source save or the owner's library change, or a window shows on a display. (The copy never sees the
@@ -42,7 +43,7 @@ import tf_fresh  # noqa: E402
 import hostmods_pair as HP  # noqa: E402  (copies, kits, start/stop, owner screen guard)
 from hostmods_pair import lrig, log, check  # noqa: E402
 
-X = 'TFS'; HP.H = HP.G = X
+X = os.environ.get('ST_COPY', 'TFS'); HP.H = HP.G = X   # ST_COPY: another copy name (lanes side by side)
 OUT = os.environ.get('ST_OUT') or os.path.join(os.path.dirname(HP.BUILD), 'test_env', 'saveunits', time.strftime('%Y%m%d-%H%M%S'))
 os.makedirs(OUT, exist_ok=True)
 DRV = os.path.join(OUT, 'drv'); os.makedirs(os.path.join(DRV, 'cap'), exist_ok=True)
@@ -317,7 +318,7 @@ def run():
     if len(us) < 2:
         return
     list_view_part(len(us))
-    check('"Bring buffs and effects from the save" starts off', tf().get('waff') == 0 and req('rect', target='fights:l.waff').get('rc', -1) > 0, tf().get('waff'))
+    check('"Bring buffs and effects from the save" starts on (owner 2026-11-02)', tf().get('waff') == 1 and req('rect', target='fights:l.waff').get('rc', -1) > 0, tf().get('waff'))
     # CARD RULE: a click anywhere on a unit's card (its middle, not the box) ticks it, a second click unticks it
     click('fights:l.wcard1', 1.5); on = [p.split('/')[1] for p in (tf().get('spicks') or '').split(',') if '/' in p]
     click('fights:l.wcard1', 1.5); off = [p.split('/')[1] for p in (tf().get('spicks') or '').split(',') if '/' in p]
@@ -335,7 +336,9 @@ def run():
     if LANG:                                                  # text fit shots only
         return
     src = units_carry(os.path.join(GAME_SAVES, os.path.basename(SAVE)))
-    # ---- fight 1: effects off; Custom fight, one Weak Grey Rat, in the boss room, no battle kits
+    # ---- fight 1: effects off (the player's click); Custom fight, one Weak Grey Rat, in the boss room, no battle kits
+    click('fights:l.waff', 1.5)
+    check('a click turns "Bring buffs and effects from the save" off', tf().get('waff') == 0, tf().get('waff'))
     hit = pick_rat(); s = tf()
     check('Custom fight with one Weak Grey Rat chosen', s.get('mode') == 'arena' and hit is not None, (s.get('mode'), hit, s.get('status')))
     shot('before_start_en')

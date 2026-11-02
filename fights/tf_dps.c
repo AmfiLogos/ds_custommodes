@@ -221,8 +221,41 @@ double tf_dps_clock(void) {
 
 /* ---------------------------------------------------------------- the events (ONE source: chat log + DPS meter) */
 static tf_hit *hitv; static size_t nhit, caphit;
-#define MAXU 64
-static tf_unit unitv[MAXU]; static int nunit;
+/* the entity table (owner 2026-11-02, item 25: "increase it so that there is no limit or very high limit"): one entry per
+   Guid, grown as entities take part (it held 64 and every later entity shared entry 63: a big Custom fight's or a
+   respawning summoner's damage went to the wrong row or was lost). A Guid -> index hash (open addressing, at most half
+   full) keeps each event's lookup O(1) whatever the fight's size. Callers keep indexes, never pointers (realloc). */
+static tf_unit *unitv; static int nunit, capunit;
+static int32_t *uhash; static size_t uhcap;             /* power of 2; -1 = empty */
+static size_t g_hash(const uint8_t g[16]) {
+    uint64_t a, b; memcpy(&a, g, 8); memcpy(&b, g + 8, 8);
+    uint64_t h = a ^ (b * 0x9E3779B97F4A7C15ull); h ^= h >> 31; h *= 0xBF58476D1CE4E5B9ull; h ^= h >> 29;
+    return (size_t)h;
+}
+static int u_find(const uint8_t g[16]) {
+    if (!uhcap) return -1;
+    for (size_t i = g_hash(g) & (uhcap - 1);; i = (i + 1) & (uhcap - 1)) {
+        int32_t k = uhash[i];
+        if (k < 0) return -1;
+        if (!memcmp(unitv[k].guid, g, 16)) return k;
+    }
+}
+static int u_rehash(size_t cap) {
+    int32_t *h = malloc(cap * sizeof *h); if (!h) return -1;
+    for (size_t i = 0; i < cap; i++) h[i] = -1;
+    for (int k = 0; k < nunit; k++) { size_t i = g_hash(unitv[k].guid) & (cap - 1); while (h[i] >= 0) i = (i + 1) & (cap - 1); h[i] = k; }
+    free(uhash); uhash = h; uhcap = cap;
+    return 0;
+}
+static int u_add(const uint8_t g[16]) {                  /* a new zeroed entry with this Guid; -1 = no memory */
+    if (nunit == capunit) { int nc = capunit ? capunit * 2 : 64; tf_unit *p = realloc(unitv, (size_t)nc * sizeof *p); if (!p) return -1; unitv = p; capunit = nc; }
+    if ((size_t)(nunit + 1) * 2 > uhcap && u_rehash(uhcap ? uhcap * 2 : 128)) return -1;
+    int k = nunit++; memset(&unitv[k], 0, sizeof unitv[k]); memcpy(unitv[k].guid, g, 16);
+    size_t i = g_hash(g) & (uhcap - 1); while (uhash[i] >= 0) i = (i + 1) & (uhcap - 1);
+    uhash[i] = k;
+    return k;
+}
+static void u_clear(void) { nunit = 0; for (size_t i = 0; i < uhcap; i++) uhash[i] = -1; }
 static double repaired;
 static int restarting;                                   /* tf_restart: the next DPS world starts with a "--- restart ---" line */
 static int restart_line;                                 /* frames the world must show without the title before that line */
@@ -268,7 +301,7 @@ static void log_clear(void) {
     for (int v = 0; v < 2; v++) { for (size_t i = 0; i < lv[v].n; i++) free(lv[v].l[i]); lv[v].n = 0; lv[v].last_unit = -1; clear_at[v] = 0; }
     sent = 0; hits = n_crit = n_miss = n_ev_done = 0; dmg_sum = 0; fb_use = 0; nheads = 0;
     n_dmg_ev = n_heal_ev = n_abs_ev = n_eff_ev = n_eff_seen = n_eff_capped = 0;
-    nhit = 0; nunit = 0; repaired = 0; ngrp = 0;
+    nhit = 0; u_clear(); repaired = 0; ngrp = 0;
     if (mp_ok()) api->chat_local(MOD_NAME, NULL, MP_CHATL_CLEAR);
 }
 static void add_line(int v, const char *s) {
@@ -325,9 +358,10 @@ static int ent_of(Obj e) {                               /* the entity table: sq
     int is_unit = kc && k_ue && (kc == k_ue || (x_subclass && x_subclass(kc, k_ue, false)));
     int is_b = kc && k_bld && (kc == k_bld || (x_subclass && x_subclass(kc, k_bld, false)));
     if (is_unit && f_ug >= 0) memcpy(g, (char *)e + f_ug, 16); else if (is_b && f_bg >= 0) memcpy(g, (char *)e + f_bg, 16);
-    for (int i = 0; i < nunit; i++) if (!memcmp(unitv[i].guid, g, 16)) return i;
-    if (nunit == MAXU) return MAXU - 1;
-    tf_unit *u = &unitv[nunit]; memset(u, 0, sizeof *u); memcpy(u->guid, g, 16);
+    int ki = u_find(g);
+    if (ki >= 0) return ki;
+    if ((ki = u_add(g)) < 0) { static int said; if (!said++) cmw_log("tf: DPS Check: no memory for the entity table (%d entries): events left out", nunit); return -1; }
+    tf_unit *u = &unitv[ki];
     if (e && m_name.fn) cm_il_utf8(CM_CALL(m_name, Obj, Obj, const void *)(e, m_name.mi), u->name, sizeof u->name);   /* as the stock unit panel */
     if (e && (!u->name[0] || !strcmp(u->name, "NULL") || !strncmp(u->name, "TEXTKEY_", 8))) {   /* an item (a torch): the game's name of its key */
         int32_t fk = cm_il_field(kc, "<Key>k__BackingField"); char key[96] = "";
@@ -336,7 +370,7 @@ static int ent_of(Obj e) {                               /* the entity table: sq
     }
     if (!u->name[0]) snprintf(u->name, sizeof u->name, "?");
     snprintf(u->base, sizeof u->base, "%s", u->name);
-    int same = 1; for (int i = 0; i < nunit; i++) if (!strncmp(unitv[i].name, u->name, strlen(u->name)) && (unitv[i].name[strlen(u->name)] == 0 || unitv[i].name[strlen(u->name)] == ' ')) same++;
+    int same = 1; for (int i = 0; i < ki; i++) if (!strncmp(unitv[i].name, u->name, strlen(u->name)) && (unitv[i].name[strlen(u->name)] == 0 || unitv[i].name[strlen(u->name)] == ' ')) same++;
     if (same > 1) { size_t l = strlen(u->name); snprintf(u->name + l, sizeof u->name - l, " %d", same); }   /* "Rat", "Rat 2", ... */
     if (is_unit && m_port.fn) cm_il_utf8(CM_CALL(m_port, Obj, Obj, const void *)(e, m_port.mi), u->portrait, sizeof u->portrait);
     u->is_player = e && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(e, m_isplayer.mi);
@@ -344,7 +378,7 @@ static int ent_of(Obj e) {                               /* the entity table: sq
     int32_t fs = is_unit ? f_us : is_b ? f_bs : -1;          /* Nullable<Guid> Summoner: hasValue, then the Guid at +4 */
     if (fs >= 0 && *((uint8_t *)e + fs)) { u->has_summoner = 1; memcpy(u->summoner, (uint8_t *)e + fs + 4, 16); }
     if (u->is_dummy) cm_il_hset(&h_dummy_ent, e);         /* for h_cse */
-    return nunit++;
+    return ki;
 }
 /* Auto Skill on the scarecrow (lead 2026-10-25: a DPS Check must measure the skills; since 2026-11-01 a test starts with
    Auto Skill OFF, owner: the player turns it on with the game's own toggle, and then this applies). The game's skill pick
@@ -361,13 +395,23 @@ static Obj h_cse(Obj user, Obj inmap, const void *mi) {
     Obj d = cm_il_hget(h_dummy_ent);
     return d && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi) ? d : r;
 }
-/* Start move (lead task 20, 2026-11-01). Owner: a unit with a staff hit the scarecrow once and then stood; after he
-   moved it ("now it works properly") it kept hitting. Measured (dps_test DPS_PREMOVE): any player move order before the
-   attack order makes it keep hitting (Mariela 1 -> 22 hits a minute, even after a move 19 tiles away); a unit the save
-   puts next to the scarecrow with no move order still hits once. So at the start of a DPS Check every alive squad unit
-   gets the game's own move order (MoveOrder.Near, as a right click on the ground) to the scarecrow: each ends on a free
-   tile next to it, inside every unit's attack range. Once per DPS Check world, before any hit; the player's own orders
-   after it are never touched. No stat, gear or option change. */
+/* Start of a DPS Check (lead task 20, 2026-11-01; owner 2026-11-02, item 28). Owner: a unit with a staff hit the scarecrow
+   once and then stood; after he moved it ("now it works properly") it kept hitting. Measured (dps_test DPS_PREMOVE): any
+   player move order before the attack order makes it keep hitting (Mariela 1 -> 22 hits a minute, even after a move 19
+   tiles away); a unit the save puts next to the scarecrow with no move order still hits once. So at the start of a DPS
+   Check every alive squad unit gets the game's own move order: a MoveTask to one tile, sent as DirectOrderRequested
+   through the map's tick handler (MoveOrder.SameTarget does exactly this for a right click on the ground):
+     - Test Fights > Advanced "Start Next to the Scarecrow" OFF (owner 2026-11-02: the default): to the tile the unit
+       stands on (the player sees no move), so the squad starts where the test save puts it. Measured 2026-11-02: this
+       does NOT keep a ranged unit hitting when the player's attack order makes it walk: the game's attack walk stops at
+       its range (5 tiles), and from a tile where the scarecrow is out of the unit's sight it hits once and stands (a step
+       out and back, or a long walk out and back, before the order changed nothing). See NOTES.md (item 28);
+     - ON: to a free tile next to the scarecrow, one per unit, the nearest free one to it (inside every unit's attack
+       range).
+   0.1.48 sent MoveOrder.Near: a MoveNearByTask, whose InteractionRange is 2 (game code), so a unit stopped as soon as it
+   was within 2 tiles of the scarecrow's tile and "walks next to the scarecrow" was not true (owner 2026-11-02). Near is
+   kept only as the fallback when the MoveTask path cannot be found. Once per DPS Check world (and each Restart), before
+   any hit; the player's own orders after it are never touched. No stat, gear or option change. */
 typedef void (*csm_fn)(Obj, int32_t, const void *); static csm_fn o_csm;
 static int32_t f_cmp_proc = -1; static void *k_dmode;
 static uintptr_t h_move, h_map;                          /* the map's MoveOrder and InMapDataInterface, from the game's DefaultMode */
@@ -388,10 +432,17 @@ static void h_csm(Obj self, int32_t mode, const void *mi) {
     Obj p = self && f_cmp_proc >= 0 ? FLD(self, f_cmp_proc, Obj) : NULL;
     if (p && k_dmode && x_obj_class(p) == k_dmode) dm_take(p);
 }
-static cm_m m_allpu;
-static cm_m m_near;
+typedef struct { int32_t x, y; } V2I;                    /* Vector2Int (8 bytes, by value / returned as the struct) */
+typedef struct { uint8_t b[16]; } GuidV;                 /* System.Guid by value */
+static cm_m m_allpu, m_near, m_logpos, m_occpos, m_movable, m_occupied, m_cbld, m_mt_ctor, m_dor_ctor;
+static void *k_mtask, *k_dor; static const void *mi_enq; static int32_t f_mo_tick = -1, f_ue_guid = -1, f_be_guid = -1;
+static Obj (*x_new)(void *klass);
 static int sm_state, sm_frames;                          /* 0 waiting, 1 done (this world); frames the world was ready */
-static unsigned long sm_sent;
+static unsigned long sm_sent, sm_worlds;                 /* orders sent; DPS Check worlds where they were sent */
+static int sm_legacy;                                    /* TEST: the 0.1.48 order (MoveOrder.Near) */
+#define SM_MAX 8
+static struct { GuidV g; V2I from, to; } sm_u[SM_MAX]; static int sm_n, sm_near, sm_how;   /* the last start (test, log) */
+static V2I sm_dt[16]; static int sm_ndt;                 /* the scarecrow's tiles */
 static Obj find_all(void *k, int32_t *n);
 static int dummy_tile(int *tx, int *ty) {                /* the scarecrow's tile: its BuildingObject's position, floored */
     static cm_m pos; static void *kb; static int32_t f_pk = -1;
@@ -401,43 +452,128 @@ static int dummy_tile(int *tx, int *ty) {                /* the scarecrow's tile
     for (int32_t i = 0; a && i < n; i++) {
         Obj b = FLD(a, 0x20 + 8 * i, Obj); if (!cm_alive(b)) continue;
         char pk[96] = ""; cm_il_utf8(FLD(b, f_pk, Obj), pk, sizeof pk);
-        if (strcmp(pk, "BUILDING_DungeonScareCrow")) continue;
+        if (strcmp(pk, DUMMY_KEY)) continue;
         V3 w = CM_CALL(pos, V3, Obj, const void *)(cm_tr(b), pos.mi);
         *tx = (int)floorf(w.x); *ty = (int)floorf(w.y); return 1;
     }
     return 0;
 }
+static V2I tile_of(Obj mp, GuidV g) { return m_logpos.fn ? CM_CALL(m_logpos, V2I, Obj, GuidV, const void *)(mp, g, m_logpos.mi) : (V2I){ 0, 0 }; }
+/* the scarecrow's tiles from the map (its entity among the combatable buildings: occupied tiles, else its tile); the view's
+   floored position when the map does not answer */
+static int dummy_tiles(Obj mp) {
+    sm_ndt = 0;
+    Obj l = mp && m_cbld.fn ? CM_CALL(m_cbld, Obj, Obj, const void *)(mp, m_cbld.mi) : NULL;
+    int32_t n = l ? FLD(l, 0x18, int32_t) : 0; Obj it = l ? FLD(l, 0x10, Obj) : NULL;
+    for (int32_t i = 0; it && i < n && !sm_ndt; i++) {
+        Obj b = FLD(it, 0x20 + 8 * (size_t)i, Obj); if (!b || f_b_key < 0 || f_be_guid < 0) continue;
+        char key[64]; cm_il_utf8(FLD(b, f_b_key, Obj), key, sizeof key);
+        if (strcmp(key, DUMMY_KEY)) continue;
+        GuidV g; memcpy(g.b, (char *)b + f_be_guid, 16);
+        Obj occ = NULL;
+        if (m_occpos.fn && CM_CALL(m_occpos, bool, Obj, GuidV, Obj *, const void *)(mp, g, &occ, m_occpos.mi) && occ) {
+            int32_t k = FLD(occ, 0x18, int32_t); Obj oi = FLD(occ, 0x10, Obj);       /* List<Vector2Int> _items, _size */
+            for (int32_t j = 0; oi && j < k && sm_ndt < 16; j++) sm_dt[sm_ndt++] = *(V2I *)((char *)oi + 0x20 + 8 * (size_t)j);
+        }
+        if (!sm_ndt && m_logpos.fn) sm_dt[sm_ndt++] = tile_of(mp, g);
+    }
+    int tx, ty;
+    if (!sm_ndt && dummy_tile(&tx, &ty)) sm_dt[sm_ndt++] = (V2I){ tx, ty };
+    return sm_ndt;
+}
+static int is_dt(V2I t) { for (int i = 0; i < sm_ndt; i++) if (sm_dt[i].x == t.x && sm_dt[i].y == t.y) return 1; return 0; }
+static int ring_of(V2I t) {                              /* tiles between it and the scarecrow (Chebyshev; 1 = next to it) */
+    int best = 1 << 30;
+    for (int i = 0; i < sm_ndt; i++) { int dx = abs(t.x - sm_dt[i].x), dy = abs(t.y - sm_dt[i].y), d = dx > dy ? dx : dy; if (d < best) best = d; }
+    return best;
+}
+/* the game's right click on the ground for one unit (MoveOrder.SameTarget): new MoveTask(tile, 0, 0), new
+   DirectOrderRequested(unit, task), MoveOrder._tick.EnqueueEvent(event, false). 0 = sent */
+static int order_tile(Obj mv, Obj unit, V2I t) {
+    Obj tick = f_mo_tick >= 0 ? FLD(mv, f_mo_tick, Obj) : NULL;
+    const void *vm = tick && mi_enq && x_vmethod ? x_vmethod(tick, mi_enq) : NULL;
+    if (!vm || !x_new || !k_mtask || !k_dor || !m_mt_ctor.fn || !m_dor_ctor.fn) return -1;
+    Obj task = x_new(k_mtask), ev = x_new(k_dor); if (!task || !ev) return -1;
+    CM_CALL(m_mt_ctor, void, Obj, V2I, int32_t, int32_t, const void *)(task, t, 0, 0, m_mt_ctor.mi);
+    CM_CALL(m_dor_ctor, void, Obj, Obj, Obj, const void *)(ev, unit, task, m_dor_ctor.mi);
+    ((void (*)(Obj, Obj, bool, const void *))(*(void *const *)vm))(tick, ev, false, vm);
+    return 0;
+}
+/* ON: a free tile next to the scarecrow for each unit (ring 1, then 2, 3 when the ring is full or blocked), the pairs
+   taken nearest first; a tile a squad unit stands on counts as free (it moves too) */
+static void pick_near(Obj mp, int n) {
+    V2I c[96]; int nc = 0, used[96] = { 0 }, done[SM_MAX] = { 0 };
+    for (int r = 1; r <= 3 && nc < n; r++) {
+        for (int i = 0; i < sm_ndt; i++)
+            for (int dx = -r; dx <= r; dx++) for (int dy = -r; dy <= r; dy++) {
+                V2I t = { sm_dt[i].x + dx, sm_dt[i].y + dy };
+                if (nc >= 96 || ring_of(t) != r) continue;
+                int dup = 0; for (int k = 0; k < nc; k++) dup |= c[k].x == t.x && c[k].y == t.y;
+                if (dup || is_dt(t)) continue;
+                if (m_movable.fn && !CM_CALL(m_movable, bool, Obj, V2I, const void *)(mp, t, m_movable.mi)) continue;
+                int mine = 0; for (int k = 0; k < n; k++) mine |= sm_u[k].from.x == t.x && sm_u[k].from.y == t.y;
+                if (!mine && m_occupied.fn && CM_CALL(m_occupied, bool, Obj, V2I, bool, const void *)(mp, t, false, m_occupied.mi)) continue;
+                c[nc++] = t;
+            }
+    }
+    for (int step = 0; step < n; step++) {               /* nearest (unit, tile) pair first */
+        int bu = -1, bt = -1; long bd = 0;
+        for (int u = 0; u < n; u++) for (int k = 0; k < nc; k++) {
+            if (done[u] || used[k]) continue;
+            long dx = c[k].x - sm_u[u].from.x, dy = c[k].y - sm_u[u].from.y, d = dx * dx + dy * dy;
+            if (bu < 0 || d < bd) { bu = u; bt = k; bd = d; }
+        }
+        if (bu < 0) break;
+        done[bu] = used[bt] = 1; sm_u[bu].to = c[bt];
+    }
+}
 static void sm_tick(void) {
-    if (sm_state || arena || title_up || !m_near.fn || !m_allpu.fn) return;
-    Obj mv = cm_il_hget(h_move), mp = cm_il_hget(h_map), pd = mp, l = mp ? CM_CALL(m_allpu, Obj, Obj, bool, const void *)(mp, false, m_allpu.mi) : NULL;
+    if (sm_state || arena || title_up || !m_allpu.fn) return;
+    Obj mv = cm_il_hget(h_move), mp = cm_il_hget(h_map), l = mp ? CM_CALL(m_allpu, Obj, Obj, bool, const void *)(mp, false, m_allpu.mi) : NULL;
     int32_t n = l ? FLD(l, 0x18, int32_t) : 0; Obj items = l ? FLD(l, 0x10, Obj) : NULL;
-    int tx = 0, ty = 0;
-    if (!mv || !items || n <= 0 || !dummy_tile(&tx, &ty)) {
-        static unsigned w; if (w++ % 300 == 0 && w < 1000) cmw_log("tf: start move waits: move %d map %d list %d n %d", mv != NULL, pd != NULL, l != NULL, (int)n);
+    if (!mv || !items || n <= 0 || !dummy_tiles(mp)) {
+        static unsigned w; if (w++ % 300 == 0 && w < 1000) cmw_log("tf: start move waits: move %d map %d list %d n %d", mv != NULL, mp != NULL, l != NULL, (int)n);
         sm_frames = 0; return; }
     if (++sm_frames < 30) return;                        /* the world settled for 30 frames */
-    sm_state = 1;
-    uint64_t at = (uint64_t)(uint32_t)tx | ((uint64_t)(uint32_t)ty << 32);
-    for (int32_t i = 0; i < n && i < 64; i++) {
-        Obj u = FLD(items, 0x20 + 8 * i, Obj); if (!u) continue;
-        CM_CALL(m_near, void, Obj, Obj, uint64_t, const void *)(mv, u, at, m_near.mi); sm_sent++;
+    sm_state = 1; sm_worlds++;
+    sm_near = tf_ui_start_near(); sm_n = 0;
+    Obj us[SM_MAX];
+    for (int32_t i = 0; i < n && sm_n < SM_MAX; i++) {
+        Obj u = FLD(items, 0x20 + 8 * (size_t)i, Obj); if (!u || f_ue_guid < 0) continue;
+        us[sm_n] = u; memcpy(sm_u[sm_n].g.b, (char *)u + f_ue_guid, 16);
+        sm_u[sm_n].from = sm_u[sm_n].to = tile_of(mp, sm_u[sm_n].g); sm_n++;
     }
-    cmw_log("tf: DPS Check: start move: %d squad unit(s) sent next to the scarecrow (%d,%d)", (int)n, tx, ty);
+    if (sm_near) pick_near(mp, sm_n);                    /* a unit left without a free tile keeps its own */
+    int exact = !sm_legacy && m_logpos.fn && f_mo_tick >= 0 && mi_enq && x_new && m_mt_ctor.fn && m_dor_ctor.fn, sent = 0;
+    sm_how = exact ? 1 : m_near.fn ? 2 : 0;
+    for (int i = 0; i < sm_n; i++) {
+        if (exact) { if (!order_tile(mv, us[i], sm_u[i].to)) sent++; continue; }
+        if (!m_near.fn) break;                           /* the 0.1.48 order: within 2 tiles of the scarecrow's tile */
+        V2I at = sm_near || sm_legacy ? sm_dt[0] : sm_u[i].from;
+        CM_CALL(m_near, void, Obj, Obj, V2I, const void *)(mv, us[i], at, m_near.mi); sent++;
+    }
+    sm_sent += (unsigned long)sent;
+    char t[400]; size_t o = 0; t[0] = 0;
+    for (int i = 0; i < sm_n && o + 40 < sizeof t; i++)
+        o += (size_t)snprintf(t + o, sizeof t - o, " (%d,%d)->(%d,%d)", sm_u[i].from.x, sm_u[i].from.y, sm_u[i].to.x, sm_u[i].to.y);
+    cmw_log("tf: DPS Check: start move (%s, %s): %d of %d squad unit(s), scarecrow (%d,%d) %d tile(s):%s",
+            sm_near ? "next to the scarecrow" : "own tile", sm_how == 1 ? "move to a tile" : sm_how == 2 ? "MoveOrder.Near" : "no order",
+            sent, sm_n, sm_ndt ? sm_dt[0].x : 0, sm_ndt ? sm_dt[0].y : 0, sm_ndt, t);
 }
 /* Summons (lead 2026-10-25, as damage meters do): what a squad unit's summon does counts for that unit: in the log under its
    header as "<summon> (summon)", in the meter in its row with the summon as its own skill row. -1 = not a squad unit's. */
 static int owner_of(int ui) {
     if (ui < 0 || ui >= nunit || !unitv[ui].has_summoner) return -1;
-    for (int i = 0; i < nunit; i++) if (i != ui && unitv[i].is_player && !memcmp(unitv[i].guid, unitv[ui].summoner, 16)) return i;
-    return -1;
+    int o = u_find(unitv[ui].summoner);                  /* one entry per Guid: the hash finds it */
+    return o >= 0 && o != ui && unitv[o].is_player ? o : -1;
 }
 static int squad_summon(Obj e) {                         /* a summon of a squad unit already seen (it has acted: it cast it) */
     if (!e) return 0;
     void *kc = x_obj_class(e); static void *k_ue; static int32_t f_us = -1;
     if (!k_ue) { k_ue = cm_il_class("Refactor", "UnitEntity"); f_us = cm_il_field(k_ue, "<Summoner>k__BackingField"); }
     if (!k_ue || f_us < 0 || (kc != k_ue && !(x_subclass && x_subclass(kc, k_ue, false))) || !*((uint8_t *)e + f_us)) return 0;
-    for (int i = 0; i < nunit; i++) if (unitv[i].is_player && !memcmp(unitv[i].guid, (uint8_t *)e + f_us + 4, 16)) return 1;
-    return 0;
+    int o = u_find((const uint8_t *)e + f_us + 4);
+    return o >= 0 && unitv[o].is_player;
 }
 static int involved(Obj user, Obj tgt) {                 /* a squad unit (or its summon) or the scarecrow takes part */
     return (tgt && is_dummy_e(tgt)) || squad_summon(user) || (user && m_isplayer.fn && CM_CALL(m_isplayer, bool, Obj, const void *)(user, m_isplayer.mi))
@@ -448,7 +584,9 @@ static void ev_add(int kind, Obj user, Obj tgt, const char *key, int basic, floa
     if (nhit == caphit) { size_t nc = caphit ? caphit * 2 : 2048; tf_hit *p = realloc(hitv, nc * sizeof *p); if (!p) return; hitv = p; caphit = nc; }
     tf_hit *h = &hitv[nhit]; memset(h, 0, sizeof *h);
     h->t = tf_dps_clock(); h->tick = game_tick(); h->kind = kind; h->dmg = amt; h->over = over; h->res = res; h->basic = basic;
-    h->unit = ent_of(user ? user : tgt); h->target = ent_of(tgt); h->on_dummy = unitv[h->target].is_dummy;
+    h->unit = ent_of(user ? user : tgt); h->target = ent_of(tgt);
+    if (h->unit < 0 || h->target < 0) return;            /* no memory for the entity table: this event is left out */
+    h->on_dummy = unitv[h->target].is_dummy;
     snprintf(h->skill_key, sizeof h->skill_key, "%s", key);
     if (key[0]) key_name(key, basic, h->skill, sizeof h->skill);
     else snprintf(h->skill, sizeof h->skill, "%s", unitv[h->unit].name);   /* no skill / affecter behind it: the source itself (an item) */
@@ -844,6 +982,9 @@ void tf_dps_world(const char *stem) {
                                                          /* (a restart also loads the title's background world first: not that one) */
     cm_il_hset(&h_view, NULL); cm_il_hset(&h_sr, NULL); shown_c = shown_m = -1;
     cm_il_hset(&h_ins, NULL); cm_il_hset(&h_ins_sr, NULL); ins_c = ins_m = -1; cm_il_hset(&h_dummy_ent, NULL);
+    /* the start move's MoveOrder and map belong to the world before (review 24b: after a Restart the move could go to the
+       old world): the new world's SwitchMode comes after this (its save is read first) and gives them again */
+    cm_il_hset(&h_move, NULL); cm_il_hset(&h_map, NULL);
     sm_state = 0; sm_frames = 0;
     dps_on = on;
 }
@@ -920,15 +1061,30 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     }
     m_near = cm_il_method("Refactor.Control", "MoveOrder", "Near", 2, NULL);
     m_allpu = cm_il_method("Refactor", "InMapDataInterface", "GetAllPlayerUnits", 1, NULL);
+    m_logpos = cm_il_method("Refactor", "InMapDataInterface", "GetLogicalPosition", 1, NULL);
+    m_occpos = cm_il_method("Refactor", "InMapDataInterface", "TryGetOccupyPositionsNoAlloc", 2, NULL);
+    m_movable = cm_il_method("Refactor", "InMapDataInterface", "IsMovable", 1, NULL);
+    m_occupied = cm_il_method("Refactor", "InMapDataInterface", "IsOccupied", 2, NULL);
+    m_cbld = cm_il_method("Refactor", "InMapDataInterface", "GetCombatableBuildingsOnMap", 0, NULL);
+    k_mtask = cm_il_class("Refactor.Task", "MoveTask"); m_mt_ctor = cm_il_method("Refactor.Task", "MoveTask", ".ctor", 3, NULL);
+    k_dor = cm_il_class("Refactor.Main.Event", "DirectOrderRequested"); m_dor_ctor = cm_il_method("Refactor.Main.Event", "DirectOrderRequested", ".ctor", 2, NULL);
+    { void *k_tfh = cm_il_class("Refactor", "ITickFlowHandler"); mi_enq = k_tfh ? H->find_method(k_tfh, "EnqueueEvent", 2) : NULL; }
+    f_mo_tick = cm_il_field(cm_il_class("Refactor.Control", "MoveOrder"), "_tick");
+    f_ue_guid = cm_il_field(cm_il_class("Refactor", "UnitEntity"), "<Guid>k__BackingField"); f_be_guid = cm_il_field(k_bld, "<Guid>k__BackingField");
+    *(void **)&x_new = H->il2cpp_fn("il2cpp_object_new");
+    cmw_log("tf: DPS Check: start move to a tile: %s (task %d %d, order %d %d, enqueue %d, tick %d, map %d %d %d %d %d, guid %d %d)",
+            m_logpos.fn && f_mo_tick >= 0 && mi_enq && x_new && m_mt_ctor.fn && m_dor_ctor.fn ? "ok" : "MISSING: MoveOrder.Near instead",
+            k_mtask != NULL, m_mt_ctor.fn != NULL, k_dor != NULL, m_dor_ctor.fn != NULL, mi_enq != NULL, f_mo_tick,
+            m_logpos.fn != NULL, m_occpos.fn != NULL, m_movable.fn != NULL, m_occupied.fn != NULL, m_cbld.fn != NULL, f_ue_guid, f_be_guid);
     { const char *RCo = "Refactor.Control";
       f_dm_cmd = cm_il_field(cm_il_class(RCo, "DefaultMode"), "_command"); f_dc_flow = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_flow");
       f_dc_check = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_check"); f_cf_move = cm_il_field(cm_il_class(RCo, "CommandFlow"), "_move");
       f_cc_map = cm_il_field(cm_il_class(RCo, "CommandCheck"), "_map");
       k_dmode = cm_il_class(RCo, "DefaultMode"); f_cmp_proc = cm_il_field(cm_il_class("Refactor.Main.Processor", "ControlModeProcessor"), "_processor"); }
-    if (m_near.fn && m_allpu.fn && f_dm_cmd >= 0 && f_dc_flow >= 0 && f_dc_check >= 0 && f_cf_move >= 0 && f_cc_map >= 0 && k_dmode && f_cmp_proc >= 0) {
+    if ((m_near.fn || m_mt_ctor.fn) && m_allpu.fn && f_dm_cmd >= 0 && f_dc_flow >= 0 && f_dc_check >= 0 && f_cf_move >= 0 && f_cc_map >= 0 && k_dmode && f_cmp_proc >= 0) {
         int r = H->hook_method(self, "Refactor.Main.Processor", "ControlModeProcessor", "SwitchMode", 1, (void *)h_csm, (void **)&o_csm);
         cmw_log("tf: DPS Check: start move %s (%d)", r ? "hook refused" : "on", r);
-        if (r) m_near.fn = NULL;
+        if (r) m_allpu.fn = NULL;                         /* no DefaultMode: no start move */
     } else cmw_log("tf: DPS Check: start move off (fields %d %d %d %d %d)", f_dm_cmd, f_dc_flow, f_dc_check, f_cf_move, f_cc_map);
     if (m_isplayer.fn) {
         int r = H->hook_method(self, "Refactor.Combat", "CombatUtility", "GetClosestSingleEnemy", 2, (void *)h_cse, (void **)&o_cse);
@@ -1092,6 +1248,21 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
         return 0;
     }
     if (!strcmp(s, "restart")) { snprintf(out, cap, "{\"rc\":%d}", tf_restart()); return 0; }
+    if (!strncmp(s, "sm_legacy ", 10)) { sm_legacy = atoi(s + 10); snprintf(out, cap, "{\"sm_legacy\":%d}", sm_legacy); return 0; }
+    if (!strcmp(s, "sm")) {                              /* the last start move: each unit's tile then, its target, its tile now */
+        Obj mp = cm_il_hget(h_map);
+        o += (size_t)snprintf(out + o, cap - o, "{\"state\":%d,\"done\":%d,\"near\":%d,\"how\":%d,\"worlds\":%lu,\"sent\":%lu,\"legacy\":%d,\"dt\":[",
+                              sm_state, sm_state, sm_near, sm_how, sm_worlds, sm_sent, sm_legacy);
+        for (int i = 0; i < sm_ndt && o + 40 < cap; i++) o += (size_t)snprintf(out + o, cap - o, "%s[%d,%d]", i ? "," : "", sm_dt[i].x, sm_dt[i].y);
+        o += (size_t)snprintf(out + o, cap - o, "],\"u\":[");
+        for (int i = 0; i < sm_n && o + 160 < cap; i++) {
+            V2I now = mp && sm_state ? tile_of(mp, sm_u[i].g) : (V2I){ 0, 0 };
+            o += (size_t)snprintf(out + o, cap - o, "%s{\"from\":[%d,%d],\"to\":[%d,%d],\"now\":[%d,%d],\"ring_from\":%d,\"ring_now\":%d}", i ? "," : "",
+                                  sm_u[i].from.x, sm_u[i].from.y, sm_u[i].to.x, sm_u[i].to.y, now.x, now.y, ring_of(sm_u[i].from), ring_of(now));
+        }
+        snprintf(out + o, cap - o, "]}");
+        return 0;
+    }
     if (!strncmp(s, "fb ", 3)) { fb_use = atoi(s + 3); snprintf(out, cap, "{\"fb\":%d}", fb_use); return 0; }   /* our own panel, as with no chat */
     if (!strcmp(s, "fb_state")) {
         Obj t = fb_txt ? cm_text_of(fb_txt) : NULL;
@@ -1206,6 +1377,14 @@ __attribute__((visibility("default"))) int tf_dps_test_log(const char *s, char *
         for (size_t i = (size_t)atol(s + 5); i < nhit && o + 300 < cap; i++)
             o += (size_t)snprintf(out + o, cap - o, "%zu %.4f %d %d %d %lld %d %d %d %s|%s\n", i, (double)hitv[i].dmg, hitv[i].res, hitv[i].unit, hitv[i].kind,
                                   hitv[i].tick, hitv[i].target, hitv[i].on_dummy, hitv[i].basic, hitv[i].skill_key, hitv[i].skill);
+        return (int)o;
+    }
+    if (!strcmp(s, "guids")) {                           /* "<index> <guid hex>": one entry per entity (item 25) */
+        for (int i = 0; i < nunit && o + 60 < cap; i++) {
+            o += (size_t)snprintf(out + o, cap - o, "%d ", i);
+            for (int k = 0; k < 16; k++) o += (size_t)snprintf(out + o, cap - o, "%02x", unitv[i].guid[k]);
+            o += (size_t)snprintf(out + o, cap - o, "\n");
+        }
         return (int)o;
     }
     if (!strcmp(s, "units")) {                           /* "<index> <is_player> <is_dummy> <name>" */

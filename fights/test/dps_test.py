@@ -35,6 +35,8 @@ SOLO = '--solo' in sys.argv or bool(os.environ.get('DPS_PATH'))
 DEMO = os.environ.get('DPS_DEMO')                              # lead task 19 B: visible owner demo, left open
 PATH1 = os.environ.get('DPS_PATH')                            # lead task 8 (item 13 not reproduced): world | custom                                   # owner 2026-11-01 (item 13): a 1-unit DPS Check shows the meter, one row
 LIVE_HP = '--no-live-hp' not in sys.argv
+START = os.environ.get('DPS_START')                            # item 28: Advanced > "Start Next to the Scarecrow": near (on) | own (off)
+MANY = os.environ.get('DPS_MANY')                              # item 25: a Custom fight, 4 units against 3 x 30 monsters (> 64 entities)
 PLACE = os.environ.get('DPS_PLACE')                            # placement-only run (UI scale / window size), its tag
 UISCALE = os.environ.get('DPS_UISCALE')
 WIN = os.environ.get('DPS_WIN')                                # e.g. 1920x1080
@@ -183,7 +185,21 @@ def tfs():
     return ((req('state').get('cm') or {}).get('fights') or {}).get('tf') or {}
 
 
-def start_fight():
+def set_start_near(want):
+    """item 28 (owner 2026-11-02, off by default): Test Fights > Advanced > "Start Next to the Scarecrow", by the player's click"""
+    cmf(cmd='scroll', name='fights:sec.advanced', pos=0); time.sleep(0.8)
+    if req('rect', target='fights:r.startnear').get('rc', -1) <= 0:
+        click('fights:sec.advanced', 1.5)
+    cmf(cmd='scroll', name='fights:r.startnear', pos=0); time.sleep(0.8)
+    if bool(tfs().get('startnear')) != want:
+        click('fights:r.startnear', 1.0)
+    if bool(tfs().get('startnear')) != want:
+        log('start option: screen click missed; the widget click', cmf(cmd='click', name='fights:r.startnear')); time.sleep(1.0)
+    shot('advanced_startnear_' + ('on' if want else 'off'))
+    check(f'(item 28) Advanced > "Start Next to the Scarecrow" {"on" if want else "off"}', bool(tfs().get('startnear')) == want, tfs().get('startnear'))
+
+
+def start_fight(prep=None, world=None):
     ok = False
     for _ in range(3):                                            # the title column differs without multiplayer: by label first
         rows = column()
@@ -199,7 +215,16 @@ def start_fight():
     check(f'the {n}-unit team is the squad, mode DPS Check', tf.get('squad') == n and tf.get('mode') == 'dps', json.dumps(tf))
     sw_left = [n for n in ('speech', 'healnum', 'chatlog', 'effects') if req('rect', target=f'fights:r.dps_{n}').get('rc', -1) > 0]
     check('round 2: no DPS switches on the Test Fights start screen (they are on the in-game meter)', not sw_left, sw_left)
+    check('(item 28) "Start Next to the Scarecrow" is off by default (owner 2026-11-02)', tfs().get('startnear') == 0, tfs().get('startnear'))
+    if START:
+        set_start_near(START == 'near')
+    if os.environ.get('DPS_SMLEGACY'):                            # item 28 (a): the 0.1.48 start order (MoveOrder.Near), to show it
+        log('sm_legacy', dps('sm_legacy 1'))
+    if prep:
+        prep()
     click('fights:start', 1)
+    if world:
+        world(); return
     until(lambda: (lambda s: s.get('on') == 1 and s.get('title') == 0)(dps('state')), 'the DPS Check world', 600, 3)
     time.sleep(8)
 
@@ -1032,8 +1057,128 @@ def hold_check(tag, secs=60):
           per and min(per.values()) >= 5 and (m.get('dps5') or 0) > 0 and (not noauto or not skills), json.dumps(info['hold'][tag], ensure_ascii=False))
 
 
+def scarecrow_xy():
+    b = next((x for x in dps('pos').get('b', []) if 'scarecrow' in (x.get('pk', '') + x.get('go', '')).lower()), None)
+    return b.get('s') if b else None
+
+
+def cam_on_scarecrow():
+    """the camera starts on the squad's spawn, the scarecrow ~36 tiles away (off screen in a 960 x 540 copy): pan it there for
+    the shot (a drag with the middle button, then the top / bottom edge), each try measured by the scarecrow's screen point"""
+    W, H = 960, 540
+    tries = []
+    for how in ('drag2', 'drag0', 'edge'):
+        for _ in range(8):
+            p = scarecrow_xy()
+            if not p:
+                return tries
+            if 60 < p[0] < W - 60 and 60 < p[1] < H - 60:
+                tries.append((how, 'on screen', p)); log('camera', tries); return tries
+            dx, dy = W / 2 - p[0], H / 2 - p[1]
+            k = min(1.0, 200 / max(1.0, (dx * dx + dy * dy) ** 0.5))
+            if how.startswith('drag'):
+                req('drag_xy', x=W / 2, y=H / 2, dx=dx * k, dy=dy * k, button=int(how[-1])); time.sleep(1.5)
+            else:
+                req('hover_xy', x=W / 2, y=H - 2 if dy < 0 else 2); time.sleep(2.0); req('hover_xy', x=W / 2, y=H / 2); time.sleep(0.5)
+            q = scarecrow_xy(); tries.append((how, p, q))
+            if q == p:
+                break
+    log('camera', tries)
+    return tries
+
+
+def start_check(tag, near, worlds0=0):
+    """item 28: the DPS Check's start move, from the game's map tiles (InMapDataInterface.GetLogicalPosition): near = each
+    squad unit on its own free tile next to the scarecrow; own = each unit on the tile the test put it on"""
+    until(lambda: (lambda x: x.get('state') == 1 and x.get('done') == 1 and x.get('worlds', 0) > worlds0)(dps('sm')), f'the start move ({tag})', 180, 1)
+    unit_spots_settled(); time.sleep(1)
+    s = dps('sm'); info.setdefault('start', {})[tag] = s; log(f'start {tag}', json.dumps(s))
+    p = dps('pos').get('b', [])                                   # screen points of the scarecrow and the squad (a crop of the shot)
+    info['start'][tag]['screen'] = [(b.get('go', '')[:24], b.get('s')) for b in p if b.get('u') == 1 and b.get('on') or 'scarecrow' in (b.get('pk', '') + b.get('go', '')).lower()]
+    info['start'][tag]['camera'] = cam_on_scarecrow()
+    click('dps:fold', 1.0); shot('start_' + tag); click('dps:fold', 1.0)   # the meter folded: it covers the scarecrow's room
+    us = s.get('u') or []
+    if s.get('legacy'):                                           # the 0.1.48 order: shown and logged, not checked
+        log(f'start {tag} (0.1.48 order): tiles from the scarecrow', [u.get('ring_now') for u in us]); return s
+    if near:
+        ok = bool(us) and all(u['ring_now'] == 1 and u['now'] == u['to'] for u in us) and len({tuple(u['now']) for u in us}) == len(us)
+        what = 'every squad unit ends on its own free tile next to the scarecrow'
+    else:
+        ok = bool(us) and all(u['now'] == u['from'] for u in us)
+        what = 'every squad unit stays on the tile the test put it on'
+    check(f'(item 28, {tag}) {what} (game map tiles), sent as the game\'s move order to a tile', ok and s.get('how') == 1 and s.get('near') == int(near), json.dumps(s))
+    return s
+
+
+def run_start():
+    """item 28 + review 24b: the start move at the start and again after Restart Test Floor (the new world's own objects)"""
+    near = START == 'near'
+    start_fight()
+    s0 = start_check('start', near)
+    click('dps:restart', 2)
+    until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0 and x.get('hits', 9) < 3)(dps('state')), 'the restarted world', 600, 3)
+    s1 = start_check('restart', near, s0.get('worlds', 0))
+    check('(24b) Restart Test Floor: one more start move, in the new world', s1.get('worlds', 0) == s0.get('worlds', 0) + 1 and s1.get('state') == 1,
+          json.dumps({'worlds': [s0.get('worlds'), s1.get('worlds')], 'sent': [s0.get('sent'), s1.get('sent')]}))
+
+
+def prep_many():
+    cmf(cmd='set', name='fights:r.mode', index=2); time.sleep(1.5)
+    cmf(cmd='set', name='fights:r.moncount', index=29); time.sleep(0.5)
+    cmf(cmd='type', name='fights:r.monq', text='Weak'); time.sleep(1.2)   # weak monsters: the squad kills many, they all take part
+    ctl = cmf(cmd='state').get('controls') or {}
+    hits = sorted(n for n in ctl if n.startswith('fights:r.hit'))[:3]
+    log('many: monsters', [(n, (ctl.get(n) or {}).get('t')) for n in hits])
+    for n in hits:
+        cmf(cmd='click', name=n); time.sleep(1.0)
+    if len(hits) < 3:                                             # fewer than 3 kinds: the same kind again (each click adds 30, at most 30 a kind)
+        cmf(cmd='type', name='fights:r.monq', text='Rat'); time.sleep(1.2)
+        for i in range(3 - len(hits)):
+            cmf(cmd='click', name=f'fights:r.hit{i}'); time.sleep(1.0)
+    cmf(cmd='scroll', name='fights:sec.advanced', pos=0); time.sleep(0.8)
+    if req('rect', target='fights:r.meter').get('rc', -1) <= 0:
+        click('fights:sec.advanced', 1.5)
+    if not tfs().get('meter'):
+        cmf(cmd='click', name='fights:r.meter'); time.sleep(1.0)
+    t = tfs(); log('many', json.dumps(t)[:600])
+    check('(item 25) a Custom fight of the 4 units, DPS Meter on', t.get('mode') == 'arena' and t.get('squad') == 4 and t.get('meter') == 1, json.dumps(t)[:300])
+
+
+def run_many():
+    """item 25 (owner 2026-11-02: "no limit or very high limit"): more than 64 entities in one logged fight. The table held 64
+    entries; every later entity shared entry 63 (its damage went to the wrong row)"""
+    start_fight(prep_many, lambda: until(lambda: (lambda x: x.get('shown', 0) + x.get('small', 0) > 0)(meter()), 'the Custom fight world', 600, 3))
+    time.sleep(8)
+    p = dps('pos').get('b', []); sq = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' in b.get('go', '')]
+    foes = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' not in b.get('go', '')]
+    log('many: squad', len(sq), 'monsters', len(foes))
+    for u in sq:                                                  # each unit: the player's attack order on the nearest monster
+        if foes:
+            f = min(foes, key=lambda f: (f['w'][0] - u['w'][0]) ** 2 + (f['w'][1] - u['w'][1]) ** 2)
+            req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(0.8); req('click_xy', x=f['s'][0], y=f['s'][1] + 12, button=1); time.sleep(0.8)
+    gs = []
+    t0 = time.time()
+    while time.time() - t0 < 240:
+        gs = [l.split(' ')[1] for l in dlog('guids').split('\n') if l.strip()]
+        if len(gs) > 70:
+            break
+        time.sleep(5)
+    un = units_dump(); hs = hits_dump(0); m = meter()
+    names = [u['name'] for u in un.values()]; sq = [i for i, u in un.items() if u['player']]
+    bad = [h for h in hs if not (0 <= h['unit'] < len(gs) and 0 <= h['target'] < len(gs))]
+    rows = [u.get('name') for u in (m.get('units') or [])]
+    info['many'] = {'entries': len(gs), 'distinct': len(set(gs)), 'squad': [un[i]['name'] for i in sq], 'events': len(hs), 'rows': rows, 'secs': round(time.time() - t0)}
+    log('many', json.dumps(info['many'], ensure_ascii=False)); shot('many_meter')
+    check('(item 25) more than 64 entities in the log, each with its own entry (no shared entry), each name its own',
+          len(gs) > 64 and len(set(gs)) == len(gs) and len(set(names)) == len(names) == len(gs), json.dumps(info['many'], ensure_ascii=False)[:600])
+    check('(item 25) every event points at entries in the table; the meter rows are squad units only (at most 4)',
+          not bad and len(sq) <= 4 and set(rows) <= {un[i]['name'] for i in sq}, json.dumps({'bad': bad[:3], 'rows': rows, 'squad': [un[i]['name'] for i in sq]}, ensure_ascii=False))
+
+
 def run_hold():
     start_fight()
+    if START:                                                     # item 28: the start move first (the one-hit fix holds with the option off and on)
+        start_check('start', START == 'near')
     at = select_dummy()
     check('the scarecrow selected by a click', at is not None)
     if not at:
@@ -1042,7 +1187,9 @@ def run_hold():
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow', n >= 1, n)
     time.sleep(10)
-    hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on'))
+    hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on') + (f' start {START}' if START else ''))
+    if START:
+        log('after the hold: the units\' tiles', json.dumps(dps('sm')))
 
 
 info = {}
@@ -1100,7 +1247,7 @@ def main():
         HP.room_for(1)
         HP.start(X, 'http://127.0.0.1:9', {'DSL_UNITS_TEST': DRV, 'DSL_CRASHREP_TEST': crash, 'DSMP_UNITS_LIB': LIB})
         until(lambda: req('state', timeout=10).get('title_column'), 'the title', 1500, 3); time.sleep(6)
-        run_heal() if HEAL else run_hold() if os.environ.get('DPS_HOLD') else run_paths() if PATH1 else run_solo() if SOLO else run()
+        run_heal() if HEAL else run_hold() if os.environ.get('DPS_HOLD') else run_many() if MANY else run_start() if START else run_paths() if PATH1 else run_solo() if SOLO else run()
     except BaseException as e:
         log(traceback.format_exc())
         check('run finished', False, repr(e))

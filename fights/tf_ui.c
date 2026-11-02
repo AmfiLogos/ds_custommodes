@@ -195,11 +195,14 @@ static struct {
     int src;                                    /* 0 My Units, 1 Gallery, 2 World units (a save's units) */
     char ids[8][17]; int nids; char team[96];   /* My Units picks; team = the picked team's name ("" = single units) */
     struct { char world[40], guid[40], name[96]; } sv[8]; int nsv;   /* World units picks: world (campaign guid) + unit guid */
-    int waff;                                   /* World units: bring the units' affecters from the save (default off) */
+    int waff;                                   /* World units: bring the units' affecters from the save (owner 2026-11-02, item 29:
+                                                   "should be turned on by default") */
     int tod;                                    /* time of day of the test world: 0 Day (08:00, default), 1 Night (21:00) */
     int weather;                                /* weather of the test world: an index of WEATHER_ID (0 Clear, the default) */
     int meter;                                  /* the DPS meter in a Custom / Boss fight (owner 2026-11-01: "Optionally, can be
                                                    toggled from the fight test"); off by default; a DPS Check always shows it */
+    int startnear;                              /* DPS Check: every unit first walks next to the scarecrow (owner 2026-11-02, item 28:
+                                                   "You can make an option for it"; off by default, his answer 14:21) */
     int team_i;                                 /* the picked team's place in My Units, -1 = single units */
     char *gal_builds; char gal_title[160]; char gal_names[8][96]; int gal_n;
     int seeded;
@@ -232,7 +235,7 @@ static int gal_read(void) {                                      /* 0 = st.gal_*
     free(b);
     return st.gal_builds ? 0 : -1;
 }
-#define NKEPT 20
+#define NKEPT 21
 static const char *mode_id(void);
 /* the game's WeatherType names (enum WeatherType Sunny 0 / Rain 1 / HeavyRain 2): the save's WeatherDatas values,
    fights/sg_glue.js setWeather; the shown names are the game's TEXTKEY_Shared_Weather<id>_NAME */
@@ -240,7 +243,7 @@ static const char *const WEATHER_ID[3] = { "Sunny", "Rain", "HeavyRain" };
 static int pref_kv(int i, char *v, size_t n, const char **key) {   /* the i-th kept choice: its key, its value now; -1 = none */
     static const char *const K[NKEPT] = { "fights.mode", "fights.boss", "fights.msat", "fights.combat", "fights.mgmt_own", "fights.mgmt",
         "fights.kits", "fights.insc", "fights.mons", "fights.moncount", "fights.monq", "fights.src", "fights.ids", "fights.sv",
-        "fights.svn", "fights.waff", "fights.tod", "fights.gal", "fights.weather", "fights.meter" };
+        "fights.svn", "fights.bring_aff", "fights.tod", "fights.gal", "fights.weather", "fights.meter", "fights.startnear" };
     if (i < 0 || i >= NKEPT) return -1;
     *key = K[i]; v[0] = 0; size_t k = 0;
     switch (i) {
@@ -264,6 +267,7 @@ static int pref_kv(int i, char *v, size_t n, const char **key) {   /* the i-th k
     case 17: snprintf(v, n, "%d", st.gal_builds != NULL); break;   /* the build itself: fights_gallery.txt */
     case 18: snprintf(v, n, "%s", WEATHER_ID[st.weather]); break;
     case 19: snprintf(v, n, "%d", st.meter); break;
+    case 20: snprintf(v, n, "%d", st.startnear); break;
     }
     return 0;
 }
@@ -321,7 +325,12 @@ static void prefs_load(void) {
             cm_pref_dec(nm, st.sv[st.nsv].name, sizeof st.sv[0].name); st.nsv++;
         }
     }
-    if (!cm_pref_get("fights.waff", v, sizeof v)) st.waff = atoi(v) != 0;
+    /* "Bring Buffs and Effects from the Save" is on by default since 0.1.49 (owner 2026-11-02, item 29). 0.1.48 kept every
+       choice under "fights.waff" at any change, so its "0" is mostly the old default, not a choice: the new key starts from
+       the new default; a player's choice from now on is kept. */
+    if (!cm_pref_get("fights.bring_aff", v, sizeof v)) st.waff = atoi(v) != 0;
+    if (!cm_pref_get("fights.waff", v, sizeof v)) cm_pref_set("fights.waff", NULL);
+    if (!cm_pref_get("fights.startnear", v, sizeof v)) st.startnear = atoi(v) != 0;
     if (!cm_pref_get("fights.tod", v, sizeof v)) st.tod = !strcmp(v, "night");
     if (!cm_pref_get("fights.weather", v, sizeof v)) for (int i = 0; i < 3; i++) if (!strcmp(WEATHER_ID[i], v)) st.weather = i;
     if (!cm_pref_get("fights.meter", v, sizeof v)) st.meter = atoi(v) != 0;
@@ -340,6 +349,7 @@ static void seed_choices(void) {
     st.msat = 0; for (int i = 0; i < P.nmsat; i++) if (P.msat_keys[i] == P.msat_def) st.msat = i;
     for (int i = 0; i < P.nkits; i++) st.kit[i] = P.kits[i].on;
     st.kit_insc = 1; st.mon_count = 3; st.team_i = -1;
+    st.waff = 1;                                         /* owner 2026-11-02 (item 29): save buffs and effects on by default */
     /* the difficulty chosen last time (owner v0.1.11 #3: "choosing Hard stays Hard"), by tier id: a tier this game data
        no longer has falls back to the wiki's default */
     char v[96];
@@ -988,6 +998,8 @@ static void moncount_change(void *ud, DSLObj w) { (void)ud; st.mon_count = U->va
 static void tod_change(void *ud, DSLObj w) { (void)ud; st.tod = U->value_get(w) != 0; prefs_save(); }
 static void meter_change(void *ud, DSLObj w) { (void)ud; st.meter = U->toggle_get(w) != 0; prefs_save(); }
 int tf_ui_meter_on(void) { return st.meter; }
+int tf_ui_start_near(void) { return st.startnear; }
+static void startnear_change(void *ud, DSLObj w) { (void)ud; st.startnear = U->toggle_get(w) != 0; prefs_save(); }
 static void weather_change(void *ud, DSLObj w) { (void)ud; int v = U->value_get(w); st.weather = v >= 0 && v < 3 ? v : 0; prefs_save(); }
 static const char *mon_name(const char *k);
 static void mon_add(void *ud, DSLObj w) {
@@ -1313,6 +1325,12 @@ static void paint_right(void) {
         cmw_named(U->toggle(right, 0, y, w, TR("DPS Meter"), st.meter, meter_change, NULL), CMW_TOGGLE, "fights:r.meter", meter_change, NULL, TR("DPS Meter"));
         y += 40;
         y += txt(right, NULL, 12, y, w - 12, TR("Custom and Boss fights: the DPS meter counts your units' damage to the enemies. A DPS Check always shows it."), 14, SUB) + 6;
+        /* DPS Check start (owner 2026-11-02, item 28: "You can make an option for it"; off by default): on = each unit first
+           walks to its own free tile next to the scarecrow; off = the units start where the test puts them */
+        const char *ln = TR("Start Next to the Scarecrow");
+        cmw_named(U->toggle(right, 0, y, w, ln, st.startnear, startnear_change, NULL), CMW_TOGGLE, "fights:r.startnear", startnear_change, NULL, ln);
+        y += 40;
+        y += txt(right, NULL, 12, y, w - 12, TR("DPS Check: each unit first walks to a free tile next to the scarecrow. Off: the units start where the test puts them."), 14, SUB) + 6;
     }
     U->scroll_height(vp, y + 16);
     keep_set(1, vp, ky, y + 16 - PANEL_H);
@@ -1410,10 +1428,10 @@ static void test_state(char *out, size_t n) {
     for (char *p = ws; *p; p++) if (*p == '"' || *p == '\\') *p = ' ';
 
     snprintf(out, n, "\"tf\":{\"engine\":%d,\"busy\":%d,\"mode\":\"%s\",\"squad\":%d,\"src\":%d,\"status\":\"%.300s\",\"tag\":\"%s\",\"combat\":\"%s\",\"mgmt\":\"%s\",\"team\":%d,"
-             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"snames\":\"%s\",\"waff\":%d,\"boss_cut\":%d,\"meter\":%d}",
+             "\"max\":%d,\"worlds\":\"%s\",\"wsel\":%d,\"wunits\":\"%s\",\"werr\":\"%.200s\",\"spicks\":\"%s\",\"snames\":\"%s\",\"waff\":%d,\"boss_cut\":%d,\"meter\":%d,\"startnear\":%d}",
              engine_state, busy, P.ok ? mode_id() : "", st.src == 1 ? st.gal_n : st.src == 2 ? st.nsv : st.nids, st.src, status, P.tag,
              P.ok && st.combat < P.ncombat ? P.combat[st.combat] : "", P.ok && P.nmgmt ? P.mgmt[mgmt_index()] : "", st.team_i,
-             P.max_squad, ws, wsel, us, wu_err, ps, pn, st.waff, boss_cut, st.meter);
+             P.max_squad, ws, wsel, us, wu_err, ps, pn, st.waff, boss_cut, st.meter, st.startnear);
     for (char *p = out; *p; p++) if (*p == '\n') *p = ' ';
 }
 

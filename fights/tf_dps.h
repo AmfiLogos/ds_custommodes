@@ -50,6 +50,7 @@ typedef struct tf_unit {
 } tf_unit;
 int    tf_dps_arena(void);                   /* 1 = the meter runs in a Custom / Boss fight (its Advanced switch): damage to enemies */
 int    tf_ui_meter_on(void);                 /* tf_ui.c: the Test Fights switch "DPS Meter" (Custom / Boss fights) */
+int    tf_ui_start_near(void);               /* tf_ui.c: Test Fights > Advanced "Start Next to the Scarecrow" (DPS Check; off) */
 int    tf_dps_active(void);                  /* 1 = a DPS Check world is loaded and shown (not the title) */
 size_t tf_dps_hits(const tf_hit **out);      /* this fight's hits, oldest first; the pointer is valid until the next hit */
 const tf_unit *tf_dps_unit(int i);           /* NULL past the end */

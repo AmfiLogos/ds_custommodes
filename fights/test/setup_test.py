@@ -25,6 +25,9 @@ catches):
       test call tf_test_weather = MapWeatherHandler._nowWeather, and every region of the game's own save) also from an
       Abyss room, whose template holds Rain; with Heavy Rain picked it shows Heavy Rain; the pick is kept after a test and
       a restart, and Advanced stays open.
+  (7) a default is wrong (owner 2026-11-02): "Bring Buffs and Effects from the Save" must be on at the first open, also
+      when the settings file is a 0.1.48 one that kept it off ("fights.waff": "0", written by main()); "Start Next to the
+      Scarecrow" (Advanced) must be off.
   setup_test.py   env: HM_BUILD = a loader build folder (dsload.dylib trusting the dev key, mods/multiplayer, mods/custom-modes)
                        LD_ROOT = a ds_modloader checkout (loader/test helpers; default ~/ds_launcher)
                        TS_WIN = a window size for the hover check (e.g. 1920x1080; default 960x540); TS_UISCALE = UI Scale
@@ -203,6 +206,7 @@ def set_choices():
         cmf(cmd='click', name='fights:r.insc'); time.sleep(0.8)
     adv_open()
     cmf(cmd='set', name='fights:r.tod', index=1); time.sleep(0.5)     # Night (the weather stays Clear: the default's check)
+    cmf(cmd='click', name='fights:r.startnear'); time.sleep(0.5)       # Start Next to the Scarecrow: on
     click('fights:l.src0', 1.5); click('fights:l.team0', 1.5)         # My Units: the 4-unit team
     click('fights:l.src2', 2.0); cmf(cmd='click', name='fights:l.waff'); time.sleep(0.8)
     click('fights:l.world0', 2.5); click('fights:l.world0.pick', 2.0)   # World units: Pick 1-4 of the seed save
@@ -291,6 +295,10 @@ def run():
     k0 = kept(); log('defaults', k0)
     check('[first open] Time of Day defaults to Day', k0.get('tod') == 'day', k0)
     check('[first open] Weather defaults to Clear (Sunny)', k0.get('weather') == 'Sunny', k0)
+    # item 29 (owner 2026-11-02: "buffs and effects from the save should be turned on by default"): on, also for a player
+    # whose 0.1.48 settings kept the old default off (main() writes "fights.waff": "0" before the first start)
+    check('[first open] "Bring Buffs and Effects from the Save" is on, also after a 0.1.48 settings file with it off', k0.get('bring_aff') == '1' and 'waff' not in k0, k0)
+    check('[first open] "Start Next to the Scarecrow" is off (owner 2026-11-02)', k0.get('startnear') == '0', k0)
     c0 = controls()
     check('[first open] "Advanced" is folded: its header shows, Weather and Time of Day do not', 'fights:sec.advanced' in c0 and 'fights:r.tod' not in c0 and 'fights:r.weather' not in c0,
           sorted(k for k in c0 if 'sec.' in k or k in ('fights:r.weather', 'fights:r.tod')))
@@ -299,7 +307,7 @@ def run():
         return
     set_choices()
     k1 = kept(); log('set', k1)
-    want = ('mode', 'boss', 'combat', 'mgmt_own', 'kits', 'mons', 'moncount', 'monq', 'src', 'ids', 'sv', 'svn', 'waff', 'tod')
+    want = ('mode', 'boss', 'combat', 'mgmt_own', 'kits', 'mons', 'moncount', 'monq', 'src', 'ids', 'sv', 'svn', 'bring_aff', 'tod', 'startnear')
     same = [k for k in want if k1.get(k) == k0.get(k)]
     check('every choice was changed from its default (setup of the check)', not same and k1.get('src') == '2' and k1.get('tod') == 'night',
           {k: (k0.get(k), k1.get(k)) for k in same})
@@ -365,6 +373,11 @@ def main():
             os.makedirs(os.path.dirname(aside), exist_ok=True); shutil.move(DATA, aside)
         HP.make_copy(X)
         tf_fresh.fresh_settings(DATA, OUT)
+        # a 0.1.48 player's file: that version kept every choice at any change, so "fights.waff": "0" was mostly its old
+        # default, not a choice (item 29: the new default "on" must reach them)
+        os.makedirs(os.path.join(DATA, 'Mods', 'custom-modes'), exist_ok=True)
+        json.dump({'format': 'custom-modes-settings', 'version': 1, 'values': {'fights.waff': '0'}},
+                  open(os.path.join(DATA, 'Mods', 'custom-modes', 'settings.json'), 'w'), indent=1)
         pk = {'custom-modes': zip_dir(os.path.join(HP.BUILD, 'mods', 'custom-modes'), 'custom-modes'), 'font-probe': probe_pkg()}
         HP.kit(X, pk, ['custom-modes', 'font-probe'], ['multiplayer', 'custom-modes', 'font-probe'])
         for f in ('OutGame.json', 'UserCampaignLog.json'):
