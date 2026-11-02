@@ -150,7 +150,13 @@ static void m_start(size_t i, double t) {                /* from hit i on, the t
     M.running = 1; M.armed = 0; M.t0 = t; M.rep0 = tf_dps_repaired();
     m_span_open(i); m_dirty = 1;
 }
-static int counts_dmg(const tf_hit *h) { return h->kind == TFK_DMG && h->on_dummy; }   /* the DPS Check's measure */
+static int counts_dmg(const tf_hit *h) {               /* the DPS Check's measure: damage to the scarecrow; in a Custom / Boss
+                                                           fight (task 24): a squad unit's (or its summon's) damage to a non-squad unit */
+    if (h->kind != TFK_DMG) return 0;
+    if (!tf_dps_arena()) return h->on_dummy;
+    const tf_unit *s = tf_dps_unit(h->unit), *t = tf_dps_unit(h->target);
+    return s && s->is_player && t && !t->is_player;
+}
 static void m_count(size_t i, const tf_hit *h) {
     const tf_unit *src = tf_dps_unit(h->unit);
     if (h->kind == TFK_ABSORB) { M.absorbed += h->dmg; m_dirty = 1; return; }

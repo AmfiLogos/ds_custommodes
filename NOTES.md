@@ -630,3 +630,11 @@
   tables are wrong there = the negative control) and `units/test/export_test.py` (in game: the opened link loads exactly
   the ticked units per the builder's own save import + computeBuild; pub switch kept; after a wiki data update the
   button still opens and the wiki reads the same unit; a new link format = refused, no open).
+
+- DPS meter in Custom / Boss fights (lead task 24, owner 2026-11-01: "Optionally, can be toggled from the fight test"):
+  Test Fights > Advanced > "DPS Meter" (fights.meter, off by default). tf_dps_world turns the log and meter on for a
+  wiki-made test world when it is on (tf_dps_arena() = 1); tf_meter counts_dmg then counts a squad unit's (or its
+  summon's) damage to a non-squad unit instead of damage to the scarecrow. The start move (sm_tick) never runs there.
+  Guard: dps_test DPS_PATH=custom DPS_ARENA_METER=1 (meter, one row, damage > 0) / =0 (small Restart panel);
+  dps_test --heal: meter damage = the squad's damage to enemies.
+- The meter's scale fits H_FULL (Stats and Settings open), never the fold state (task 21). Guard: section_checks.

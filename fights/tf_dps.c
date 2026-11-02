@@ -50,6 +50,7 @@ typedef struct { float x, y; } V2;
 typedef struct { float x, y, z; } V3;
 
 static const DSLHost *H; static const DSLUi *U;
+static int arena;                                        /* the world is a Custom / Boss fight with the meter on, not a DPS Check */
 static int dps_on;                                       /* the world loaded last is a DPS Check save */
 static unsigned nworld;                                  /* world loads seen (log lines once per world) */
 static int title_up = 1;                                 /* the title menu shows (checked every 30 frames) */
@@ -230,6 +231,7 @@ const tf_unit *tf_dps_unit(int i) { return i >= 0 && i < nunit ? &unitv[i] : NUL
 int tf_dps_units(void) { return nunit; }
 double tf_dps_repaired(void) { return repaired; }
 int tf_dps_active(void) { return dps_on && !title_up; }
+int tf_dps_arena(void) { return arena; }
 static long long game_tick(void) {
     Obj mf = cm_il_hget(h_mf), th = cm_alive(mf) && f_mf_th >= 0 ? FLD(mf, f_mf_th, Obj) : NULL;
     return th && f_th_tick >= 0 ? (long long)FLD(th, f_th_tick, int64_t) : 0;
@@ -398,7 +400,7 @@ static int dummy_tile(int *tx, int *ty) {                /* the scarecrow's tile
     return 0;
 }
 static void sm_tick(void) {
-    if (sm_state || title_up || !m_near.fn || !m_allpu.fn) return;
+    if (sm_state || arena || title_up || !m_near.fn || !m_allpu.fn) return;
     Obj mv = cm_il_hget(h_move), mp = cm_il_hget(h_map), pd = mp, l = mp ? CM_CALL(m_allpu, Obj, Obj, bool, const void *)(mp, false, m_allpu.mi) : NULL;
     int32_t n = l ? FLD(l, 0x18, int32_t) : 0; Obj items = l ? FLD(l, 0x10, Obj) : NULL;
     int tx = 0, ty = 0;
@@ -826,7 +828,8 @@ static void tick(void *ud) {
 
 static int force_any;                                    /* test: the log and meter in any wiki-made test world (a Custom fight) */
 void tf_dps_world(const char *stem) {
-    int on = tfw_dps_made(stem) || (force_any && tfw_wiki_made(stem)); nworld++;
+    int dm = tfw_dps_made(stem), on = dm || ((force_any || tf_ui_meter_on()) && tfw_wiki_made(stem)); nworld++;
+    arena = on && !dm;                                   /* a Custom / Boss fight with the meter switch on (task 24) */
     ngrp = 0;                                            /* a group left from the world before never reaches the new log */
     if (on || dps_on) cmw_log("tf: %s: DPS Check log and panel %s%s", stem, on ? "on" : "off", restarting ? " (restart)" : "");
     if (on) { log_clear(); fb_off = 0; fb_n = (size_t)-1; restart_line = restarting ? 30 : 0; restarting = 0; }   /* the line once the world shows */

@@ -778,7 +778,8 @@ def run_heal():
     full = hits_dump(0)                                           # every event (the meter's spans may reach past the lines' last tick)
     hs = sum(h['dmg'] for h in full if h['kind'] == 1 and inspan(h['i']) and un.get(h['unit'], {}).get('player'))
     asum = sum(h['dmg'] for h in full if h['kind'] == 2 and inspan(h['i']))
-    dsum = sum(h['dmg'] for h in full if h['kind'] == 0 and h['on_dummy'] and inspan(h['i']))
+    # a Custom fight (task 24): damage dealt = the squad's damage to non-squad units (a DPS Check: to the scarecrow)
+    dsum = sum(h['dmg'] for h in full if h['kind'] == 0 and inspan(h['i']) and un.get(h['unit'], {}).get('player') and not un.get(h['target'], {}).get('player'))
     check('the meter\'s Healing = the sum of the squad\'s heal lines it measured; Absorbed = the sum of the absorbs; damage dealt holds neither',
           abs(m.get('heal', -1) - hs) < 0.01 and abs(m.get('absorbed', -1) - asum) < 0.01 and abs(m.get('total', -1) - dsum) < 0.01 and hs > 0,
           json.dumps({'meter': [m.get('heal'), m.get('absorbed'), m.get('total')], 'logged': [hs, asum, dsum], 'spans': spans[:3]}))
@@ -979,13 +980,37 @@ def run_paths():
         cmf(cmd='set', name='fights:r.moncount', index=0); time.sleep(0.5)
         cmf(cmd='type', name='fights:r.monq', text='Rat'); time.sleep(1.2); cmf(cmd='click', name='fights:r.hit0'); time.sleep(1.0)
         t = tfs(); check('(task 8, custom) one unit, Custom fight', t.get('squad') == 1 and t.get('mode') == 'arena', json.dumps(t)[:300])
+        want = os.environ.get('DPS_ARENA_METER') == '1'               # task 24: Advanced > "DPS Meter" (off by default)
+        cmf(cmd='scroll', name='fights:sec.advanced', pos=0); time.sleep(0.8)
+        if req('rect', target='fights:r.meter').get('rc', -1) <= 0:
+            click('fights:sec.advanced', 1.5)
+        if bool(tfs().get('meter')) != want:
+            cmf(cmd='scroll', name='fights:r.meter', pos=0); time.sleep(0.8); click('fights:r.meter', 1.0)
+        if bool(tfs().get('meter')) != want:
+            log('task 24: screen click missed; the widget click', cmf(cmd='click', name='fights:r.meter')); time.sleep(1.0)
+        check(f'(task 24) Advanced > DPS Meter set {"on" if want else "off"}', bool(tfs().get('meter')) == want, tfs().get('meter'))
         click('fights:start', 1)
         until(lambda: (lambda x: x.get('shown', 0) + x.get('small', 0) > 0)(meter()), 'the Custom fight world', 600, 3)
         time.sleep(15)
         m = solo_meter('custom', want_full=False)
         info['custom_fight_meter'] = {'shown': m.get('shown'), 'small': m.get('small')}
-        check('(task 8, custom) recorded: a Custom fight shows the small "Restart Test Floor" panel, not the DPS meter (by design: the meter is the DPS Check\'s)',
-              m.get('small') == 1 and m.get('shown') == 0, json.dumps({k: m.get(k) for k in ('shown', 'small')}))
+        if want:                                                  # the unit's attack order on the nearest monster (a player's right click)
+            p = dps('pos').get('b', []); sq = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' in b.get('go', '')]
+            foes = [b for b in p if b.get('u') == 1 and b.get('on') and 'PlayerUnit' not in b.get('go', '')]
+            for u in sq[:1]:
+                if foes:
+                    f = min(foes, key=lambda f: (f['w'][0] - u['w'][0]) ** 2 + (f['w'][1] - u['w'][1]) ** 2)
+                    req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(0.8); req('click_xy', x=f['s'][0], y=f['s'][1] + 12, button=1); time.sleep(0.8)
+            log('task 24: squad', len(sq), 'foes', len(foes), 'ev', dps('state').get('ev'))
+            t0 = time.time()
+            while time.time() - t0 < 60 and not (meter().get('units') or []):
+                time.sleep(3)
+            m = meter(); us = m.get('units') or []; log('task 24: ev', dps('state').get('ev'))
+            check('(task 24) DPS Meter on: a Custom fight shows the meter, with a row for the unit\'s damage to the monsters',
+                  m.get('shown') == 1 and len(us) == 1 and (m.get('total') or 0) > 0, json.dumps({k: m.get(k) for k in ('shown', 'small', 'rows_n', 'total')}))
+        else:
+            check('(task 24) DPS Meter off (the default): a Custom fight shows the small "Restart Test Floor" panel, not the DPS meter',
+                  m.get('small') == 1 and m.get('shown') == 0, json.dumps({k: m.get(k) for k in ('shown', 'small')}))
 
 
 def hold_check(tag, secs=60):

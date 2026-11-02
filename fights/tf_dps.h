@@ -48,6 +48,8 @@ typedef struct tf_unit {
     uint8_t summoner[16];        /* ... of this Guid: its events count for that unit when it is a squad unit (lead 2026-10-25) */
     char base[96];               /* the name before the repeat number ("Strange Seed" for "Strange Seed 2") */
 } tf_unit;
+int    tf_dps_arena(void);                   /* 1 = the meter runs in a Custom / Boss fight (its Advanced switch): damage to enemies */
+int    tf_ui_meter_on(void);                 /* tf_ui.c: the Test Fights switch "DPS Meter" (Custom / Boss fights) */
 int    tf_dps_active(void);                  /* 1 = a DPS Check world is loaded and shown (not the title) */
 size_t tf_dps_hits(const tf_hit **out);      /* this fight's hits, oldest first; the pointer is valid until the next hit */
 const tf_unit *tf_dps_unit(int i);           /* NULL past the end */

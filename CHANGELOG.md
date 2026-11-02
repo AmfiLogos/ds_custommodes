@@ -44,6 +44,9 @@ DPS meter:
   <!-- roadmap: dps-start-near -->
 - Folding "Stats", "Settings" or the whole DPS meter no longer changes its size. Before, a folded meter was drawn bigger
   (text, buttons and width). Now only its height changes. <!-- roadmap: dps-fold-size -->
+- Test Fights > Advanced has a new "DPS Meter" switch for Custom and Boss fights (off by default). When it is on, the
+  DPS meter shows in that fight and counts your units' damage to the enemies. A DPS Check always shows the meter.
+  <!-- roadmap: dps-meter-arena -->
 
 ### 0.1.47 (2026-10-26)
 
