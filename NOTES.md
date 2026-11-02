@@ -328,7 +328,7 @@
   alive squad unit gets the game's own move order MoveOrder.Near(unit, scarecrow tile) once. Proven: ANY player move
   order before the attack order makes a no-torch staff unit keep hitting (Mariela 1 -> 22 hits a minute, also after a
   move 19 tiles away, DPS_PREMOVE); the save putting her next to the scarecrow with no move order does not (still 1 hit).
-  The MoveOrder and InMapDataInterface come from DefaultMode.ActivateMode (_command._flow._move, _command._check._map);
+  The MoveOrder and InMapDataInterface come from ControlModeProcessor.SwitchMode._processor (the DefaultMode: _command._flow._move, _command._check._map; not DefaultMode.ActivateMode: an empty method that shares its code with 8695 others on Windows);
   their constructors are never seen by a hook. Guard: `DPS_PATH=world DPS_HOLD_WORLD=1 DPS_NOAUTO=1` (Mariela >= 5 hits
   in 60 s), `DPS_HOLD=1` fixtures 1 / 4 units.
 - Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,

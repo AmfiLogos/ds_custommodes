@@ -368,7 +368,8 @@ static Obj h_cse(Obj user, Obj inmap, const void *mi) {
    gets the game's own move order (MoveOrder.Near, as a right click on the ground) to the scarecrow: each ends on a free
    tile next to it, inside every unit's attack range. Once per DPS Check world, before any hit; the player's own orders
    after it are never touched. No stat, gear or option change. */
-typedef void (*dma_fn)(Obj, const void *); static dma_fn o_dma;
+typedef void (*csm_fn)(Obj, int32_t, const void *); static csm_fn o_csm;
+static int32_t f_cmp_proc = -1; static void *k_dmode;
 static uintptr_t h_move, h_map;                          /* the map's MoveOrder and InMapDataInterface, from the game's DefaultMode */
 static int32_t f_dm_cmd = -1, f_dc_flow = -1, f_dc_check = -1, f_cf_move = -1, f_cc_map = -1;
 static void dm_take(Obj dm) {                            /* DefaultMode._command: ._flow._move and ._check._map */
@@ -379,7 +380,14 @@ static void dm_take(Obj dm) {                            /* DefaultMode._command
         cm_il_hset(&h_move, mv); cm_il_hset(&h_map, mp); cmw_log("tf: DPS Check: start move: the map's orders found");
     }
 }
-static void h_dma(Obj self, const void *mi) { o_dma(self, mi); dm_take(self); }
+/* ControlModeProcessor.SwitchMode (the game switches the map's control mode; a world load ends in the default mode): its
+   _processor is then the DefaultMode. Not DefaultMode.ActivateMode: on Windows that empty method shares its code with
+   8695 others (the hook would see all of them, lead task 26); SwitchMode has its own code on both platforms. */
+static void h_csm(Obj self, int32_t mode, const void *mi) {
+    o_csm(self, mode, mi);
+    Obj p = self && f_cmp_proc >= 0 ? FLD(self, f_cmp_proc, Obj) : NULL;
+    if (p && k_dmode && x_obj_class(p) == k_dmode) dm_take(p);
+}
 static cm_m m_allpu;
 static cm_m m_near;
 static int sm_state, sm_frames;                          /* 0 waiting, 1 done (this world); frames the world was ready */
@@ -915,9 +923,10 @@ int tf_dps_init(const DSLHost *host, DSLPlugin *self) {
     { const char *RCo = "Refactor.Control";
       f_dm_cmd = cm_il_field(cm_il_class(RCo, "DefaultMode"), "_command"); f_dc_flow = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_flow");
       f_dc_check = cm_il_field(cm_il_class(RCo, "DefaultCommand"), "_check"); f_cf_move = cm_il_field(cm_il_class(RCo, "CommandFlow"), "_move");
-      f_cc_map = cm_il_field(cm_il_class(RCo, "CommandCheck"), "_map"); }
-    if (m_near.fn && m_allpu.fn && f_dm_cmd >= 0 && f_dc_flow >= 0 && f_dc_check >= 0 && f_cf_move >= 0 && f_cc_map >= 0) {
-        int r = H->hook_method(self, "Refactor.Control", "DefaultMode", "ActivateMode", 0, (void *)h_dma, (void **)&o_dma);
+      f_cc_map = cm_il_field(cm_il_class(RCo, "CommandCheck"), "_map");
+      k_dmode = cm_il_class(RCo, "DefaultMode"); f_cmp_proc = cm_il_field(cm_il_class("Refactor.Main.Processor", "ControlModeProcessor"), "_processor"); }
+    if (m_near.fn && m_allpu.fn && f_dm_cmd >= 0 && f_dc_flow >= 0 && f_dc_check >= 0 && f_cf_move >= 0 && f_cc_map >= 0 && k_dmode && f_cmp_proc >= 0) {
+        int r = H->hook_method(self, "Refactor.Main.Processor", "ControlModeProcessor", "SwitchMode", 1, (void *)h_csm, (void **)&o_csm);
         cmw_log("tf: DPS Check: start move %s (%d)", r ? "hook refused" : "on", r);
         if (r) m_near.fn = NULL;
     } else cmw_log("tf: DPS Check: start move off (fields %d %d %d %d %d)", f_dm_cmd, f_dc_flow, f_dc_check, f_cf_move, f_cc_map);
