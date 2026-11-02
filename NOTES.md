@@ -25,6 +25,10 @@
 - Owner: "keep ALL test settings, ALWAYS, also after the game restarts". Every Test Fights choice is in ONE list,
   tf_ui.c `pref_kv` (saved by `prefs_save` at each change, read by `prefs_load` when the wiki files are ready; text through
   `cm_pref_enc`, a Gallery build through `cm_pref_blob_set`). A new choice = one new line in `pref_kv`, nothing else.
+- A changed DEFAULT needs a NEW key when old files hold the old default as a value (prefs_save writes every key at any
+  change). "Bring Buffs and Effects from the Save" (owner 2026-11-02: on by default): key `fights.bring_aff` (absent =
+  on); the 0.1.48 key `fights.waff` is dropped at load. Guard: setup_test.py writes a 0.1.48 file with
+  `fights.waff: 0` and checks the switch is on at the first open.
 - Owner: sections "should be able to be kind of collapsed ... they just take a lot of space". Every heading of the window
   goes through tf_ui.c `sec()` (the kit's `dsl_section`, kept under `custom-modes.fights.<id>`), never `head()` alone.
 - Hover cards open NEXT TO the hovered element (owner 2026-11-01): the kit's card (dsl_ui.c `tip_choose`) and ours
@@ -331,6 +335,28 @@
   The MoveOrder and InMapDataInterface come from ControlModeProcessor.SwitchMode._processor (the DefaultMode: _command._flow._move, _command._check._map; not DefaultMode.ActivateMode: an empty method that shares its code with 8695 others on Windows);
   their constructors are never seen by a hook. Guard: `DPS_PATH=world DPS_HOLD_WORLD=1 DPS_NOAUTO=1` (Mariela >= 5 hits
   in 60 s), `DPS_HOLD=1` fixtures 1 / 4 units.
+- 2026-11-02 (item 28, owner: the units did NOT end next to the scarecrow). Cause: MoveOrder.Near = new
+  MoveNearByTask(tile) whose InteractionRange is 2 (game code: get_InteractionRange returns 2), so a unit stops once it is
+  within 2 tiles of the scarecrow's tile (measured in the fixture world: 2-4 tiles away, also after Restart;
+  `DPS_START=near DPS_SMLEGACY=1` shows the 0.1.48 order). Fix: the game's exact move (MoveOrder.SameTarget's way: new
+  MoveTask(tile, 0, 0), new DirectOrderRequested(unit, task), MoveOrder._tick.EnqueueEvent(event, false); objects by
+  il2cpp_object_new + their constructors, EnqueueEvent through the interface method), tiles from InMapDataInterface
+  (GetLogicalPosition, TryGetOccupyPositionsNoAlloc for the scarecrow's tiles, IsMovable, IsOccupied). Test Fights >
+  Advanced "Start Next to the Scarecrow" (fights.startnear, off by default, owner): on = each unit to its own free tile
+  next to the scarecrow (nearest pairs first); off = to the tile it stands on. Review 24b: tf_dps_world clears
+  h_move / h_map (the new world's SwitchMode gives them again; "orders found" is logged after each Restart).
+  Guards: `DPS_START=near|own` (game map tiles after the start and after Restart Test Floor), tf_dps_test "sm".
+- 2026-11-02, the one-hit stop is SIGHT (this corrects "proven: ANY player move order" above). Staff unit, no torch,
+  Auto Skill off, 60 s after the attack order: moved first to (452,141), 5 tiles from the scarecrow: 21 hits; moved first
+  to (445,141), also 5 tiles away: 0 more hits (the scarecrow outside the unit's lit area in the shot); next to it: 21.
+  From the spawn (37 tiles away) the game's attack walk stops at range 5 on (445,141): 1 hit, whatever came before (an
+  own-tile order, a 1-tile step and back, a 37-tile walk out and back). A no-move start (p0/p1 above) also failed: the
+  unit's sight seems to need a move after the load. So with the switch off the stop can come back for ranged units with
+  no torch (lead / owner choice pending: options in ext/nvfights2 notes). Guard: `DPS_HOLD=1 DPS_NOTORCH=1 DPS_NOAUTO=1
+  DPS_SOLO_UNIT=1 DPS_START=near --solo` (21 hits); with `DPS_START=own` it fails today (1 hit).
+- Entity table (item 25): one entry per Guid, grown on demand (realloc; callers keep indexes) with an open-addressing
+  Guid hash; it held 64 and every later entity shared entry 63. Guard: `DPS_MANY=1` (Custom fight, 4 units against
+  3 x 30 weak monsters, meter on): 78 entries, all Guids and names distinct, meter rows = the squad.
 - Switches (cm_prefs, also in the Test Fights setup under the DPS card): Scarecrow speech OFF, Scarecrow heal numbers OFF,
   DPS log in chat ON, Start on first hit ON. Speech and the "+200" are their view iterators ended at once
   (AffecterFX_SelfRepair.OnFXCall, StatusResultFX.HandleFX: "<>1__state" = -1); the sim is untouched, the repair goes on.

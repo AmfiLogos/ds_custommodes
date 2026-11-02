@@ -11,6 +11,19 @@ Test Fights:
   portrait, its in-game look (the character as the game draws it on the map, with its gear), its name and its level.
   Point at a card to see its race and background. It works for My Units, World Units and Wiki Build Gallery builds,
   and changes as soon as you tick or untick a unit.
+- "Bring Buffs and Effects from the Save" (World Units) is now on by default: units from your world bring their food
+  buffs and other effects into the test. If you turn it off, the window keeps that choice.
+- New switch in Test Fights > Advanced: "Start Next to the Scarecrow" (off by default). When it is on, each unit walks
+  to its own free tile next to the scarecrow at the start of a DPS Check, and again after "Restart Test Floor". When it
+  is off, the units start where the test puts them. A unit with a staff and no torch that attacks the scarecrow from
+  its longest range can hit once and then stand still, because from there the scarecrow is out of its sight: move it
+  closer, or turn the switch on.
+
+DPS meter:
+- 0.1.48 said that every unit first walks next to the scarecrow. It did not: the units stopped 2 to 4 tiles away. With
+  the new switch on, they now stand right next to it.
+- The DPS meter and the DPS log keep every unit and monster apart in big fights. Before, from the 65th unit or monster
+  in one fight, all the later ones shared one row, so a summon's or a monster's damage could count for the wrong one.
 
 ### 0.1.48 (2026-11-02)
 
@@ -47,7 +60,8 @@ DPS meter:
   Before, it sat squeezed in the title bar next to the "-" / "+" buttons. <!-- roadmap: dps-waiting-text -->
 - The DPS meter's "Stats" and "Settings" blocks fold: click their title. They stay folded for the next test and after
   a game restart. The buttons, the unit list and "Restart Test Floor" always show. <!-- roadmap: test-sections-fold -->
-- In a DPS Check, every unit first walks next to the scarecrow. Before, a unit with a staff and no torch could hit once
+- In a DPS Check, every unit first gets a move order toward the scarecrow (it stopped 2 to 4 tiles away, not next to
+  it: see 0.1.49). Before, a unit with a staff and no torch could hit once
   and then stand still, so the DPS meter counted almost nothing. Your own orders after the start are kept.
   <!-- roadmap: dps-start-near -->
 - Folding "Stats", "Settings" or the whole DPS meter no longer changes its size. Before, a folded meter was drawn bigger
