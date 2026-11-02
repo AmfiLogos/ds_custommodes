@@ -20,6 +20,7 @@ Dungeon Settlers Modded is made of three repos. Each item below is listed once, 
 
 ## Done
 
+- **0.1.50 (2026-11-02, kit v0.1.32).** Unit and team names with quotes, accents written as codes (like \u00ef) or emoji now show as written in My Units, on the Test Fights squad cards, in Bring Units, World Units and the Gallery.
 - **0.1.49 (2026-11-02, kit v0.1.31).** Test Fights shows a card for each unit of the squad: portrait, in-game look, name and level. "Bring Buffs and Effects from the Save" is on by default. A new Advanced switch, "Start Next to the Scarecrow", puts each unit on its own tile next to the scarecrow in a DPS Check. The DPS meter keeps every unit and monster apart in big fights.
 - **0.1.48 (2026-11-02, kit v0.1.30).** Test Fights keep all your choices, also after a restart, and every section folds. A new Advanced section: Time of Day (day by default), Weather (clear by default) and a DPS Meter switch for Custom and Boss fights. Test units start with Auto Skill off. "Open in Wiki Builder" sends your world's units to the wiki's Character Builder. The DPS meter shows every unit, keeps its size when you fold it, and in a DPS Check every unit first gets a move order toward the scarecrow.
 - **0.1.47 (2026-10-26, kit v0.1.29).** Less stutter while you play. Test Fights World Units shows four unit cards at once. Units picked from a save keep that save's Auto Skill choices. Test worlds stay out of the Load list and the Steam Cloud backup for good. "DPS Log in Chat" acts at once, and the DPS meter and the DPS log have "-" and "+" size buttons.

@@ -4,7 +4,7 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.50)
+### 0.1.50 (2026-11-02)
 
 My Units:
 - Unit and team names with quotes now show their quotes in My Units, on the Test Fights squad cards and in Bring Units
