@@ -18,3 +18,4 @@ fights/tf_card.c
 fights/tf_wikisave.c
 fights/tf_dps.c
 fights/tf_meter.c
+fights/tf_squad.c

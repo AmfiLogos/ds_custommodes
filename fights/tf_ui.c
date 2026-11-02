@@ -18,6 +18,7 @@
 #include "cm_prefs.h"
 #include "cm_gtip.h"
 #include "tf_card.h"
+#include "tf_squad.h"
 #include "mu_save.h"
 #include <stdint.h>
 #include "i18n/ds_i18n.h"
@@ -1318,23 +1319,38 @@ static void paint_right(void) {
     keep_set(1, vp, ky, y + 16 - PANEL_H);
     thumb_add(1, right_sc, vp, RW - 5, 0, PANEL_H, y + 16);
 }
+/* the units going in, in pick order (Start sends the same ones), for the squad row */
+static int squad_picks(tfs_pick *pk, int max) {
+    static char nm[8][64]; int n = 0; if (max > 8) max = 8;
+    if (st.src == 1) for (int i = 0; st.gal_builds && i < st.gal_n && n < max; i++) { pk[n] = (tfs_pick){ .src = TFS_GAL, .gal_json = st.gal_builds, .gal_i = i, .name = st.gal_names[i] }; n++; }
+    else if (st.src == 2) for (int i = 0; i < st.nsv && n < max; i++) { const mu_world *w = world_of(st.sv[i].world);
+        pk[n] = (tfs_pick){ .src = TFS_SAVE, .path = w ? w->path : NULL, .guid = st.sv[i].guid, .name = st.sv[i].name }; n++; }
+    else for (int i = 0; i < st.nids && n < max; i++) { mu_info in; if (unit_info_by_id(st.ids[i], &in, NULL)) continue;
+        snprintf(nm[n], sizeof nm[n], "%s", in.name);
+        pk[n] = (tfs_pick){ .src = TFS_LIB, .id = st.ids[i], .build = jget(mu_find(lib, st.ids[i]), "build"), .name = nm[n], .level = in.lvl }; n++; }
+    return n;
+}
 static void paint_status(void) {
     char sq[400]; int n = st.src == 1 ? (st.gal_builds ? st.gal_n : 0) : st.src == 2 ? st.nsv : st.nids;
     if (n > P.max_squad && P.max_squad) n = P.max_squad;
     snprintf(sq, sizeof sq, TR("Squad: %d / %d"), n, P.max_squad ? P.max_squad : 4);
-    char all[1700], shown[1740]; snprintf(all, sizeof all, "%s%s%s", sq, status[0] ? "\n" : "", status);
-    snprintf(shown, sizeof shown, "%s%s%s%s%s", sq, status[0] ? "\n" : "", status_warn ? "<color=#EA9F3D>" : "", status, status_warn ? "</color>" : "");
+    char all[1700], shown[1740]; snprintf(all, sizeof all, "%s%s%s", sq, status[0] ? "\n" : "", status);   /* all: the test's text (as before) */
     if (w_status) U->destroy(w_status);                               /* only the problem shows orange, not the squad count */
     /* Try again only while the files failed and a new try can help (not for a game build that differs); the status box
        stops before it (they overlapped). A long message (problems found) grows the box upward, the lists get shorter:
        it never runs past the window's bottom. */
     int retry = engine_state == 3 && !eng_mism;
     float sw = (retry ? WIN_W - 24 - 220 - 180 : WIN_W - 24 - 220) - 12 - 24;
-    w_status = cmw_named(U->text(body, 24, BODY_H - 76, sw, 70, shown, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, MAIN), CMW_TEXT, "fights:status", NULL, NULL, all);
-    float ph = pref_h(w_status, sw), sh = ph + 4 > 70 ? ph + 4 : 70;
-    if (sh > 230) sh = 230;                                           /* past that the kit sizes the text down */
+    /* the squad row (owner 2026-11-02, PLAN_v013 item 30: "where you have written squad 4/4 ... display the avatar and the
+       NPC icon of each unit"): "Squad: n / 4" and a card per unit going in (tf_squad.h); the message under it */
+    shown[0] = 0; if (status[0]) snprintf(shown, sizeof shown, "%s%s%s", status_warn ? "<color=#EA9F3D>" : "", status, status_warn ? "</color>" : "");
+    w_status = cmw_named(U->text(body, 24, BODY_H - 76, sw, 24, shown, 15, DSL_TXT_LEFT | DSL_TXT_WRAP, MAIN), CMW_TEXT, "fights:status", NULL, NULL, all);
+    float ph = status[0] ? pref_h(w_status, sw) : 0, mh = status[0] ? (ph + 4 > 24 ? ph + 4 : 24) : 0, sh = TFS_ROW_H + (mh ? mh + 2 : 0);
+    if (sh > 230) { sh = 230; mh = 230 - TFS_ROW_H - 2; }               /* past that the kit sizes the text down */
     foot_x = sh - 70;
-    if (foot_x > 0) U->place(w_status, 24, BODY_H - 76 - foot_x, sw, sh);
+    U->place(w_status, 24, BODY_H - 76 - foot_x + TFS_ROW_H + 2, sw, mh ? mh : 1);
+    { tfs_pick pk[8]; int np = squad_picks(pk, P.max_squad ? P.max_squad : 4);
+      tfs_draw(body, 24, BODY_H - 76 - foot_x, sw, TFS_ROW_H, sq, MAIN, 15, pk, np, P.max_squad ? P.max_squad : 4); }
     if (w_div) U->place(w_div, 24, BODY_H - 84 - foot_x, WIN_W - 48, 1);
     if (w_retry) U->set_active(w_retry, retry);
     U->set_enabled(w_start, engine_state == 2 && !busy);

@@ -638,3 +638,20 @@
   Guard: dps_test DPS_PATH=custom DPS_ARENA_METER=1 (meter, one row, damage > 0) / =0 (small Restart panel);
   dps_test --heal: meter damage = the squad's damage to enemies.
 - The meter's scale fits H_FULL (Stats and Settings open), never the fold state (task 21). Guard: section_checks.
+
+## Test Fights: the squad cards (owner 2026-11-02, PLAN_v013 item 30)
+- Owner: "where you have written squad 4/4 ... display the avatar and the NPC icon of each unit that we are bringing to
+  the fight. With maybe their name as well"; "npc icon is the ingame sprite". `fights/tf_squad.c` draws, right after the
+  "Squad: n / 4" label (tf_ui.c `paint_status`, at each repaint of the footer), one card per unit going in: the portrait,
+  the in-game sprite, the name and "Lv N"; a free slot is a faint empty frame. Hover = the kit's hover card (name, level,
+  race, background). Same card for My Units (Unit Builder units too), World units and Wiki Build Gallery builds.
+- RULE (template): a unit's two looks come from `units/mu_look.c` only (avatar = `mu_icon(CM_ICON_PORTRAIT)`, in-game
+  sprite = `mu_look_sprite`). The in-game sprite is the game's own compositor: `Refactor.UnitVisual.PaintAll` after
+  `SetProfileData(UnitProfileData)` + `RefreshAllEquipment(BodyPartsStringDictionary)` on a copy of the prefab
+  `UNIT_PlayerUnit_<UnitVisualType>` (`ResourceLoader.LoadUnitObject`); the picture = `UnitVisual._generatedMainSprite`.
+  World units go through `mu_save_build_obj` (the save cache), so a repaint never parses a save.
+- Each card sits in its own slot holder (`mu_plate`): the kit's hover card then goes beside the card (tip_choose: no free
+  side of the window near the bottom row), not at the screen's edge.
+- GUARD: `fights/test/squad_test.py` (one hidden copy): one card per squad unit for each source, each with a portrait
+  sprite and an in-game sprite, its own name in pick order, the cards follow a change (one unticked = 3 / 4), the hover
+  card titled with the unit's name next to the card. Test exports: `tf_test_squad`, `tf_test_squad_gal`.
