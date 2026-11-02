@@ -1254,6 +1254,18 @@ __attribute__((visibility("default"))) int tf_dps_test(const char *s, char *out,
         o += (size_t)snprintf(out + o, cap - o, "{\"state\":%d,\"done\":%d,\"near\":%d,\"how\":%d,\"worlds\":%lu,\"sent\":%lu,\"legacy\":%d,\"dt\":[",
                               sm_state, sm_state, sm_near, sm_how, sm_worlds, sm_sent, sm_legacy);
         for (int i = 0; i < sm_ndt && o + 40 < cap; i++) o += (size_t)snprintf(out + o, cap - o, "%s[%d,%d]", i ? "," : "", sm_dt[i].x, sm_dt[i].y);
+        static cm_m m_vis; if (!m_vis.fn) m_vis = cm_il_method("Refactor", "InMapDataInterface", "IsInPlayerVision", 1, NULL);
+        o += (size_t)snprintf(out + o, cap - o, "],\"vis\":[");   /* the scarecrow's tiles in the squad's shared sight (InMapDataInterface.IsInPlayerVision) */
+        for (int i = 0; i < sm_ndt && o + 40 < cap; i++)
+            o += (size_t)snprintf(out + o, cap - o, "%s%d", i ? "," : "", mp && m_vis.fn ? (int)CM_CALL(m_vis, bool, Obj, V2I, const void *)(mp, sm_dt[i], m_vis.mi) : -1);
+        static cm_m m_gdist; if (!m_gdist.fn) m_gdist = cm_il_method("Refactor.Combat", "CombatUtility", "GetDistanceWithEnemy", 3, NULL);
+        o += (size_t)snprintf(out + o, cap - o, "],\"dist\":[");  /* each player unit's combat distance to the scarecrow (CombatUtility.GetDistanceWithEnemy) */
+        Obj dm = cm_il_hget(h_dummy_ent), pl = mp && m_allpu.fn ? CM_CALL(m_allpu, Obj, Obj, bool, const void *)(mp, false, m_allpu.mi) : NULL;
+        Obj pit = pl ? FLD(pl, 0x10, Obj) : NULL; int32_t pn = pl ? FLD(pl, 0x18, int32_t) : 0;
+        for (int32_t i = 0; pit && dm && m_gdist.fn && i < pn && o + 20 < cap; i++) {
+            Obj u = FLD(pit, 0x20 + 8 * (size_t)i, Obj); if (!u) continue;
+            o += (size_t)snprintf(out + o, cap - o, "%s%d", i ? "," : "", CM_CALL(m_gdist, int32_t, Obj, Obj, Obj, const void *)(u, dm, mp, m_gdist.mi));
+        }
         o += (size_t)snprintf(out + o, cap - o, "],\"u\":[");
         for (int i = 0; i < sm_n && o + 160 < cap; i++) {
             V2I now = mp && sm_state ? tile_of(mp, sm_u[i].g) : (V2I){ 0, 0 };

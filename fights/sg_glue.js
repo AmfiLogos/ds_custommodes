@@ -164,6 +164,100 @@ var CMF = (function () {
     e.BaseWeatherChangeMin = until; e.DungeonWeatherChangeMin = until;
   }
 
+  // Wall torches in the DPS Check world (owner 2026-11-02: "Tu peux ajouter des torches à intervalle régulier le long des
+  // murs"). A ranged unit keeps hitting the scarecrow only while some squad unit SEES it (the squad's sight is shared):
+  // a lone staff unit with no torch item that the game's attack walk stops 5 tiles away saw it from the dark and hit
+  // once. The game has no wall-mounted torch: its light buildings are Torch Stand, Candle Stand, Lantern Stand, Bonfire
+  // and Stone Fireplace (BuildingTable SubType Light). Torch Stand (BUILDING_TorchStand: Ally, Durability 250, no
+  // DefaultTraits) goes on the floor tiles that touch a wall, at least TORCH_GAP tiles apart, in every room of the world
+  // (not in the 2-tile corridors). Its record is the shape the game writes for a building (a copy of one the save
+  // holds: status / entity info / affecters / work option), ally, with AFFECTER_IndestructibleBuilding like every
+  // scenery building of the template, so a fight cannot break it. It has no attack and no aura: the damage numbers do
+  // not change.
+  // Where a torch may stand: a room floor tile (RawDungeonSaveData Rooms Area; a tile in no room's Area is a wall, a
+  // pillar or rock) with a wall on one side and two free floor tiles in front of it (a narrow passage stays as wide as
+  // it was); not within 2 tiles of a corridor tile (the room's doorway), not next to a building or a unit the save
+  // already holds, not within 2 tiles of the scarecrow (the tiles Start Next to the Scarecrow uses); and only where every
+  // floor tile the squad can reach stays reachable. The tiles nearest the scarecrow are taken first, so its own walls
+  // always get the first torches.
+  var TORCH_KEY = 'BUILDING_TorchStand', TORCH_DUR = 250, TORCH_GAP = 6;
+  function addTorches(save) {
+    var rooms = ((save.RawDungeonSaveData || {}).Rooms) || {}, ecs = save.EntityContainerSaveData || {};
+    var bc = (ecs.BuildingContainerSaveData || {}).Dungeon, pos = (ecs.EntityPositions || {}).Dungeon;
+    var ec = save.EntityComponentSaveData.EntityComponents;
+    if (!bc || !pos) return 0;
+    var dk = ((DSB.savegen || {}).dummy || {}).k, bsd = bc.BuildingSaveData || {}, don = null, dummy = null;
+    Object.keys(bsd).forEach(function (g) {
+      var c = ec[g];
+      if (bsd[g].Key === dk && pos[g]) dummy = { x: Math.floor(pos[g].x), y: Math.floor(pos[g].y) };
+      if (!don && bsd[g].Key !== dk && c && comp(c, 0) && comp(c, 1) && comp(c, 3) && comp(c, 14)) don = c;
+    });
+    if (!don || !dummy) return 0;
+    function id(x, y) { return x + ',' + y; }
+    var floor = {}, door = [], cand = [];
+    Object.keys(rooms).forEach(function (rk) {
+      var corr = rooms[rk].Type === 99 || rk.indexOf('Corridor') === 0;
+      (rooms[rk].Area || []).forEach(function (p) { floor[id(p.x, p.y)] = 1; (corr ? door : cand).push({ x: p.x, y: p.y }); });
+    });
+    var busy = {};                                     // a tile a building or a unit of the save stands on
+    Object.keys(pos).forEach(function (g) { busy[id(Math.floor(pos[g].x), Math.floor(pos[g].y))] = 1; });
+    function near(t, list, r) { for (var i = 0; i < list.length; i++) if (Math.abs(list[i].x - t.x) <= r && Math.abs(list[i].y - t.y) <= r) return true; return false; }
+    function nearBusy(t) { for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) if (busy[id(t.x + dx, t.y + dy)]) return true; return false; }
+    var D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    function okTile(t) {
+      if (busy[id(t.x, t.y)] || nearBusy(t) || near(t, door, 2) || near(t, [dummy], 2)) return false;
+      for (var i = 0; i < 4; i++) {                    // a wall on this side, two floor tiles on the other
+        var d = D4[i];
+        if (!floor[id(t.x + d[0], t.y + d[1])] && floor[id(t.x - d[0], t.y - d[1])] && floor[id(t.x - 2 * d[0], t.y - 2 * d[1])]) return true;
+      }
+      return false;
+    }
+    var start = { x: dummy.x, y: dummy.y }, lit = {};
+    function reach() {                                  // floor tiles a unit can walk to from the scarecrow's side
+      var seen = {}, q = [start], n = 0; seen[id(start.x, start.y)] = 1;
+      while (q.length) {
+        var t = q.pop(); n++;
+        for (var i = 0; i < 4; i++) {
+          var x = t.x + D4[i][0], y = t.y + D4[i][1], k = id(x, y);
+          if (floor[k] && !seen[k] && !lit[k] && !(busy[k] && k !== id(start.x, start.y))) { seen[k] = 1; q.push({ x: x, y: y }); }
+        }
+      }
+      return n;
+    }
+    cand = cand.filter(okTile).sort(function (a, b) {
+      var da = (a.x - dummy.x) * (a.x - dummy.x) + (a.y - dummy.y) * (a.y - dummy.y);
+      var db = (b.x - dummy.x) * (b.x - dummy.x) + (b.y - dummy.y) * (b.y - dummy.y);
+      return da - db || a.y - b.y || a.x - b.x;
+    });
+    var put = [], all = reach();
+    cand.forEach(function (t) {
+      for (var i = 0; i < put.length; i++) {
+        var dx = put[i].x - t.x, dy = put[i].y - t.y;
+        if (dx * dx + dy * dy < TORCH_GAP * TORCH_GAP) return;
+      }
+      lit[id(t.x, t.y)] = 1;
+      var n = reach();
+      if (n !== all - 1) { delete lit[id(t.x, t.y)]; return; }
+      all = n; put.push(t);
+    });
+    bc.BuildingRotations = bc.BuildingRotations || {};
+    put.forEach(function (t) {
+      var g = newGuid(ec), comps = JSON.parse(JSON.stringify(don));
+      var st = comp(comps, 0), ei = comp(comps, 1), af = comp(comps, 3);
+      st.Stats = { PhysicalAttackPower: 0.0, MagicAttackPower: 0.0, FinalDamageMultiplier: 1.0,
+                   Durability: TORCH_DUR, MaxDurability: TORCH_DUR };
+      st.StateStats = null; st.ProgressionStats = null; st.GeneratedStats = null; st.PermanentStats = null;
+      ei.Faction = 2; ei.IsDead = false; ei.Option = 0;
+      af.AffecterHolders = [{ Key: 'AFFECTER_IndestructibleBuilding', Stack: 1, Duration: 0.0, InitialDuration: 0.0 }];
+      af.InactiveMoodCauseHolders = [];
+      ec[g] = comps;
+      bsd[g] = { Guid: g, Key: TORCH_KEY };
+      bc.BuildingRotations[g] = 0;
+      pos[g] = { x: t.x + 0.5, y: t.y + 0.5 };
+    });
+    return put.length;
+  }
+
   // World units (owner 2026-10-25: "when loading units from save directly bring over the items they carry", "Give the
   // option to import their affecters from save as is"). A build taken straight from a save holds `_cm`, made by the game
   // side from the save (units/mu_worlds.c mu_save_fight_build; keys the game does not know are already left out):
@@ -295,9 +389,10 @@ var CMF = (function () {
       autoSkill(r.save, builds);
       setClock(r.save, o.tod);
       setWeather(r.save, o.weather);
+      var torches = o.mode === 'dps' ? addTorches(r.save) : 0;
       return { file: JSON.stringify(r.save, null, 2), filename: r.filename, problems: r.problems,
         notes: r.notes, warnings: r.warnings, added: r.added, roster: r.roster, room: r.room || null,
-        clan: r.clan };
+        clan: r.clan, torches: torches };
     });
   }
 

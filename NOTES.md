@@ -354,6 +354,17 @@
   unit's sight seems to need a move after the load. So with the switch off the stop can come back for ranged units with
   no torch (lead / owner choice pending: options in ext/nvfights2 notes). Guard: `DPS_HOLD=1 DPS_NOTORCH=1 DPS_NOAUTO=1
   DPS_SOLO_UNIT=1 DPS_START=near --solo` (21 hits); with `DPS_START=own` it fails today (1 hit).
+- 2026-11-02, task 5: the "SIGHT" cause above is WRONG. With wall torches (below) the unit still stops after 1 hit on
+  (445,141), and there tf_dps_test "sm" reads: the scarecrow's tile IS in the squad's sight (InMapDataInterface.
+  IsInPlayerVision = 1) and the unit IS in range (CombatUtility.GetDistanceWithEnemy = 5, Magic Missile range 5); also
+  after Restart. The real cause of the stop is not found yet (open). Not ruled out: the line of fire from that tile, the
+  attack task ending after its first cast.
+- Wall torches (owner 2026-11-02, "Tu peux ajouter des torches à intervalle régulier le long des murs"): fights/sg_glue.js
+  addTorches puts the game's Torch Stand (no wall-mounted torch exists) on floor tiles that touch a wall, >= 6 tiles
+  apart, nearest to the scarecrow first, in every room of the DPS Check world (not the corridors); never on or next to
+  a saved building or unit, a doorway or the scarecrow's ring 1-2, and only where every reachable floor tile stays
+  reachable. 29 in the golem template. Record: a copy of a saved building's four components, ally, Durability 250,
+  AFFECTER_IndestructibleBuilding. Guard: dps_test torch_check (>= 10 Torch Stands, at the start and after Restart).
 - Entity table (item 25): one entry per Guid, grown on demand (realloc; callers keep indexes) with an open-addressing
   Guid hash; it held 64 and every later entity shared entry 63. Guard: `DPS_MANY=1` (Custom fight, 4 units against
   3 x 30 weak monsters, meter on): 78 entries, all Guids and names distinct, meter rows = the squad.

@@ -1187,9 +1187,33 @@ def run_hold():
     n = order_attack(at)
     check('the squad ordered to attack the scarecrow', n >= 1, n)
     time.sleep(10)
-    hold_check(('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on') + (f' start {START}' if START else ''))
+    tag = ('solo' if SOLO else '4-unit') + (' auto off' if os.environ.get('DPS_NOAUTO') else ' auto on') + (f' start {START}' if START else '')
+    hold_check(tag)
     if START:
         log('after the hold: the units\' tiles', json.dumps(dps('sm')))
+        torch_check('start')
+        # task 5 (owner 2026-11-02, wall torches): the same proof in the world Restart Test Floor makes
+        s0 = dps('sm'); click('dps:restart', 2)
+        until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0 and x.get('hits', 9) < 3)(dps('state')), 'the restarted world', 600, 3)
+        start_check('restart', START == 'near', s0.get('worlds', 0))
+        torch_check('restart')
+        at = select_dummy()
+        check('(restart) the scarecrow selected by a click', at is not None)
+        if not at:
+            return
+        n = order_attack(at)
+        check('(restart) the squad ordered to attack the scarecrow', n >= 1, n)
+        time.sleep(10)
+        hold_check(tag + ' after Restart')
+
+
+def torch_check(tag):
+    """task 5 (owner 2026-11-02: "Tu peux ajouter des torches à intervalle régulier le long des murs"): the DPS Check world has
+    the game's Torch Stands along its walls (fights/sg_glue.js addTorches)"""
+    p = dps('pos').get('b', [])
+    t = [b for b in p if 'torchstand' in (b.get('pk', '') + b.get('go', '')).lower()]
+    log(f'torches {tag}', len(t), [b.get('w') for b in t][:40])
+    check(f'(task 5, {tag}) Torch Stands stand in the DPS Check world', len(t) >= 10, len(t))
 
 
 info = {}

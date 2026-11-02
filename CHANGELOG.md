@@ -18,6 +18,7 @@ Test Fights:
   is off, the units start where the test puts them. A unit with a staff and no torch that attacks the scarecrow from
   a tile at the edge of its range can hit once and then stand still (the cause is not known yet): move it closer, or
   turn the switch on.
+- Torch Stands now light the walls of the DPS Check world, at regular intervals. They do not change any damage.
 
 DPS meter:
 - 0.1.48 said that every unit first walks next to the scarecrow. It did not: the units stopped 2 to 4 tiles away. With
