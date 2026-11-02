@@ -974,13 +974,18 @@ def run_paths():
             check('(task 8, world) the save copy\'s world lists units', False, json.dumps(t)[:400]); return
         click(f"fights:l.wtick{os.environ.get('DPS_WUNIT', '0')}", 2); t = tfs()
         check('(task 8, world) one world unit is the squad, mode DPS Check', t.get('squad') == 1 and t.get('mode') == 'dps', json.dumps(t)[:400])
+        if os.environ.get('DPS_WORLD_START'):                     # DPS_WORLD_START=near|own: "Start Next to the Scarecrow" on|off for this path
+            set_start_near(os.environ['DPS_WORLD_START'] == 'near')
         click('fights:start', 1)
         until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0)(dps('state')), 'the DPS Check world', 600, 3); time.sleep(8)
         log('path world: stem', dps('state').get('stem'), meter().get('shown'))
         if not attack_and_wait('world'):
             return
         if os.environ.get('DPS_HOLD_WORLD'):
-            hold_check('world unit ' + os.environ.get('DPS_WUNIT', '0')); return
+            log('hold world: start move (each unit: start tile dt, scarecrow sight vis, combat distance)', json.dumps(dps('sm'))[:1500])
+            log('hold world: scarecrow', scarecrow_xy(), 'player units', json.dumps([x for x in dps('pos').get('b', []) if x.get('u') == 1])[:600])
+            hold_check('world unit ' + os.environ.get('DPS_WUNIT', '0'))
+            log('hold world: after the hold', json.dumps(dps('sm'))[:1500]); return
         if os.environ.get('DPS_DIAG'):                              # task 11: what the world unit does after its first hit
             log('diag hits', json.dumps(hits_dump(0), ensure_ascii=False)[:1500])
             for k in range(6):
