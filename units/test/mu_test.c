@@ -14,7 +14,8 @@
  * 10. the card of a library unit (mu_build_of -> mu_card_of)
  * 11. "Delete team" (owner 2026-10-25): "Team and units" deletes exactly the team's units that are in no other team
  *     (the number the box shows), a unit also in another team stays there, other teams keep all their units, the file
- *     read back says the same; "Team only" keeps every unit */
+ *     read back says the same; "Team only" keeps every unit
+ * 12. names with JSON escapes (\u, \", surrogate pairs) read as the exact text everywhere (t_names) */
 #include "myunits.h"
 #include "wk_link.h"
 #include "mu_link.h"
@@ -209,8 +210,8 @@ static void t_store(const char *tmpdir, const char *link) {
     jfree(bad); jfree(arr);
     CHECK(!mu_rename(lib, one, "Renamed \"x\""), "store: rename");
     mu_info inf; int found = 0;
-    for (size_t i = 0; i < mu_count(lib); i++) if (!mu_info_at(lib, i, &inf) && !strcmp(inf.id, one)) found = strstr(inf.name, "Renamed") && strstr(inf.name, "x") && !strchr(inf.name, '"');
-    CHECK(found, "store: renamed name shown (quotes as spaces)");
+    for (size_t i = 0; i < mu_count(lib); i++) if (!mu_info_at(lib, i, &inf) && !strcmp(inf.id, one)) found = !strcmp(inf.name, "Renamed \"x\"");
+    CHECK(found, "store: renamed name shown as typed (quotes kept, escaped once in the file)");
     char two[2][17]; memcpy(two[0], ids[0], 17); memcpy(two[1], one, 17); char tid[17];
     CHECK(!mu_team_new(lib, NULL, two, 2, tid, e, sizeof e) && mu_team_count(lib) == 2, "store: save as team: %s", e);
     char nm[200], tids[MU_TEAM_MAX][17];
@@ -339,6 +340,48 @@ static void t_card_lib(const char *tmpdir) {
     jfree(v); free(j); jfree(lib);
 }
 
+/* 12. names written with JSON escapes (lane nvmyunits 2026-11-02: "Anaïs", Björn "BJ" and an emoji showed their escapes as
+ *     spaces in the My Units list and on the Test Fights squad card): the library file holds \u escapes, \" and a
+ *     surrogate pair; every reader gives the exact UTF-8 (fe_json.c jstr_utf8), a cut never splits a character */
+static void t_names(const char *fx, const char *tmpdir) {
+    char p[600], e[400]; snprintf(p, sizeof p, "%s/launcher_library.json", fx);
+    jv *src = jload(p, e, sizeof e), *su = src ? jget(src, "units") : NULL;
+    CHECK(su && su->t == JN_ARR && su->cnt, "names: fixture builds: %s", e); if (!su || su->t != JN_ARR || !su->cnt) { jfree(src); return; }
+    static const char *raw[3] = { "Ana\\u00efs", "Bj\\u00f6rn \\\"BJ\\\"", "\\ud83d\\ude00 Smile" };     /* as JSON writers put them */
+    static const char *want[3] = { "Ana\xC3\xAFs", "Bj\xC3\xB6rn \"BJ\"", "\xF0\x9F\x98\x80 Smile" };
+    static const char *id[3] = { "00000000000000a1", "00000000000000a2", "00000000000000a3" };
+    jv *lib = jobj(), *units = jarr(), *teams = jarr(), *uids = jarr();
+    jset(lib, "format", jstrv(MU_FORMAT)); jset(lib, "version", jnum_i(MU_VERSION)); jset(lib, "game_build", jstrv("25846389"));
+    for (int i = 0; i < 3; i++) {
+        jv *u = jobj(); jset(u, "id", jstrv(id[i])); jset(u, "name", jstrv(raw[i]));
+        jset(u, "build", jcopy(jget(su->v[0], "build"))); jpush(units, u); jpush(uids, jstrv(id[i]));
+    }
+    jv *tm = jobj(); jset(tm, "id", jstrv("00000000000000b1")); jset(tm, "name", jstrv("T\\u00e9am \\\"One\\\""));
+    jset(tm, "author", jstrv("Zo\\u00e9 \\\"Z\\\" \\ud83d\\ude00")); jset(tm, "unit_ids", uids); jpush(teams, tm);
+    jset(lib, "units", units); jset(lib, "teams", teams); jfree(src);
+    snprintf(p, sizeof p, "%s/lib_names/library.json", tmpdir); setenv("DSMP_UNITS_LIB", p, 1);
+    CHECK(!mu_save(lib, e, sizeof e), "names: save: %s", e); jfree(lib);
+    lib = mu_load(e, sizeof e); CHECK(lib && mu_count(lib) == 3, "names: load back: %s", e); if (!lib) return;
+    mu_info inf;
+    for (int i = 0; i < 3; i++)                                       /* the My Units list, Test Fights squad cards, Bring Units */
+        CHECK(!mu_info_at(lib, (size_t)i, &inf) && !strcmp(inf.name, want[i]), "names: list name %d: got [%s] want [%s]", i, inf.name, want[i]);
+    char nm[200], ids[MU_TEAM_MAX][17], au[128];
+    CHECK(mu_team_at(lib, 0, nm, sizeof nm, ids) == 3 && !strcmp(nm, "T\xC3\xA9" "am \"One\""), "names: team name [%s]", nm);
+    CHECK(mu_team_author(lib, 0, au, sizeof au) && !strcmp(au, "Zo\xC3\xA9 \"Z\" \xF0\x9F\x98\x80"), "names: team author [%s]", au);
+    /* the copy a match / the card gets: the library name (the build-name rule: no quote in a build name, 48 bytes) */
+    CHECK(!mu_build_of(lib, id[0], &B[0], e, sizeof e) && !strcmp(B[0].name, want[0]), "names: build name 0 [%s] %s", B[0].name, e);
+    CHECK(!mu_build_of(lib, id[2], &B[0], e, sizeof e) && !strcmp(B[0].name, want[2]), "names: build name 2 [%s] %s", B[0].name, e);
+    /* a rename writes the text once escaped: read back exactly */
+    CHECK(!mu_rename(lib, id[1], want[1]) && !mu_info_at(lib, 1, &inf) && !strcmp(inf.name, want[1]), "names: rename keeps [%s]", inf.name);
+    /* cuts: never half a character (the game would show broken text) */
+    jv *t1 = jstrv("\\u00e9\\u00e9"), *t2 = jstrv("\xC3\xA9\xC3\xA9"), *t3 = jstrv("\\ud83d x");
+    char s4[4], s8[8];
+    CHECK(jstr_utf8(t1, s4, sizeof s4) == 2 && !strcmp(s4, "\xC3\xA9"), "names: escaped cut [%s]", s4);
+    CHECK(jstr_utf8(t2, s4, sizeof s4) == 2 && !strcmp(s4, "\xC3\xA9"), "names: raw UTF-8 cut [%s]", s4);
+    CHECK(jstr_utf8(t3, s8, sizeof s8) == 5 && !strcmp(s8, "\xEF\xBF\xBD x"), "names: lone surrogate = U+FFFD [%s]", s8);
+    jfree(t1); jfree(t2); jfree(t3); jfree(lib);
+}
+
 static void t_timeout(void) {
     /* a dead address (TEST-NET-1, never routed): the GET gives up within the 5 s limit */
     char e[300]; int st = 0; struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
@@ -365,6 +408,7 @@ int main(int argc, char **argv) {
     t_click(tmp, team3 && *team3 ? team3 : link);
     t_fold();
     t_card_lib(tmp);
+    t_names(fx, tmp);
     if (getenv("NET")) { t_net(); t_timeout(); }
     printf("%d PASS, %d FAIL\n", pass, failc);
     return failc ? 1 : 0;

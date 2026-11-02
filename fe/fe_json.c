@@ -136,6 +136,66 @@ int jtruthy(const jv *v) {
 }
 char *jstrdup_raw(const jv *v) { return strdup(v && v->t == JN_STR ? v->s : ""); }
 
+/* ---------------------------------------------------------------- text (see fe_json.h jstr_utf8) */
+static long hex4_at(const char *s, size_t left) {                     /* 4 hex digits -> 0..0xFFFF, -1 when not */
+    if (left < 4) return -1;
+    long v = 0;
+    for (int i = 0; i < 4; i++) {
+        int c = (unsigned char)s[i], h = c >= '0' && c <= '9' ? c - '0' : (c | 32) >= 'a' && (c | 32) <= 'f' ? (c | 32) - 'a' + 10 : -1;
+        if (h < 0) return -1;
+        v = v * 16 + h;
+    }
+    return v;
+}
+static size_t utf8_put(char *b, unsigned cp) {
+    if (cp < 0x80) { b[0] = (char)cp; return 1; }
+    if (cp < 0x800) { b[0] = (char)(0xC0 | cp >> 6); b[1] = (char)(0x80 | (cp & 63)); return 2; }
+    if (cp < 0x10000) { b[0] = (char)(0xE0 | cp >> 12); b[1] = (char)(0x80 | (cp >> 6 & 63)); b[2] = (char)(0x80 | (cp & 63)); return 3; }
+    b[0] = (char)(0xF0 | cp >> 18); b[1] = (char)(0x80 | (cp >> 12 & 63)); b[2] = (char)(0x80 | (cp >> 6 & 63)); b[3] = (char)(0x80 | (cp & 63)); return 4;
+}
+size_t jstr_utf8(const jv *v, char *o, size_t n) {
+    if (!n) return 0;
+    o[0] = 0;
+    if (!v || v->t != JN_STR) return 0;
+    const char *s = v->s; size_t L = v->n, k = 0;
+    for (size_t i = 0; i < L; ) {
+        char b[8]; size_t bl = 1;
+        unsigned char c0 = (unsigned char)s[i];
+        if (c0 != '\\' || i + 1 >= L) {                                  /* raw text: a UTF-8 character moves whole */
+            int want = c0 >= 0xF0 ? 3 : c0 >= 0xE0 ? 2 : c0 >= 0xC0 ? 1 : 0;
+            b[0] = (char)c0; i++;
+            while (want-- > 0 && i < L && ((unsigned char)s[i] & 0xC0) == 0x80) b[bl++] = s[i++];
+        } else {
+            char c = s[i + 1]; i += 2;
+            switch (c) {
+            case 'n': b[0] = '\n'; break;
+            case 't': b[0] = '\t'; break;
+            case 'r': b[0] = '\r'; break;
+            case 'b': b[0] = '\b'; break;
+            case 'f': b[0] = '\f'; break;
+            case 'u': {
+                long u = hex4_at(s + i, L - i); unsigned cp = 0xFFFD;
+                if (u >= 0) {
+                    i += 4; cp = (unsigned)u;
+                    if (cp >= 0xD800 && cp < 0xDC00 && i + 6 <= L && s[i] == '\\' && s[i + 1] == 'u') {
+                        long lo = hex4_at(s + i + 2, L - i - 2);
+                        if (lo >= 0xDC00 && lo < 0xE000) { cp = 0x10000 + ((cp - 0xD800) << 10) + ((unsigned)lo - 0xDC00); i += 6; }
+                    }
+                    if ((cp >= 0xD800 && cp < 0xE000) || cp == 0) cp = 0xFFFD;   /* never broken bytes, never a cut string */
+                }
+                bl = utf8_put(b, cp);
+                break;
+            }
+            default: b[0] = c; break;                                     /* \" \\ \/ */
+            }
+        }
+        if (k + bl >= n) break;                                           /* never half a character */
+        memcpy(o + k, b, bl); k += bl;
+    }
+    o[k] = 0;
+    return k;
+}
+
 /* ---------------------------------------------------------------- parse */
 typedef struct { const char *p, *e; char *err; size_t errn; int depth; } P;
 static void ws(P *p) { while (p->p < p->e && (*p->p == ' ' || *p->p == '\n' || *p->p == '\r' || *p->p == '\t')) p->p++; }

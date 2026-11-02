@@ -122,26 +122,7 @@ static void set_msg(const char *m, uint32_t col) {
     snprintf(W.msg, sizeof W.msg, "%s", m ? m : ""); W.msg_col = col;
     if (W.status) U->set_text(W.status, W.msg);
 }
-static void sraw(const jv *v, char *out, size_t n) {          /* a JSON string's text (escapes resolved for \" \\ \n) */
-    if (!n) return; out[0] = 0;
-    if (!v || v->t != JN_STR) return;
-    size_t k = 0;
-    for (size_t i = 0; i < v->n && k + 1 < n; i++) {
-        char c = v->s[i];
-        if (c == '\\' && i + 1 < v->n) {
-            char d = v->s[++i];
-            if (d == 'n') c = '\n'; else if (d == 't') c = ' ';
-            else if (d == 'u' && i + 4 < v->n) {                 /* \uXXXX -> UTF-8 (BMP) */
-                unsigned u = 0; sscanf(v->s + i + 1, "%4x", &u); i += 4;
-                if (u < 0x80) c = (char)u;
-                else if (u < 0x800) { if (k + 2 >= n) break; out[k++] = (char)(0xC0 | (u >> 6)); c = (char)(0x80 | (u & 0x3F)); }
-                else { if (k + 3 >= n) break; out[k++] = (char)(0xE0 | (u >> 12)); out[k++] = (char)(0x80 | ((u >> 6) & 0x3F)); c = (char)(0x80 | (u & 0x3F)); }
-            } else c = d;
-        }
-        out[k++] = c;
-    }
-    out[k] = 0;
-}
+static void sraw(const jv *v, char *out, size_t n) { jstr_utf8(v, out, n); }   /* a JSON string's text (fe_json.h: the one decoder) */
 static void jesc(char *o, size_t cap, const char *s) {
     size_t n = 0;
     for (; *s && n + 3 < cap; s++) { if (*s == '"' || *s == '\\') o[n++] = '\\'; if ((unsigned char)*s < 0x20) continue; o[n++] = *s; }

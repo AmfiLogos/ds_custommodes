@@ -47,6 +47,11 @@ int   jstreq(const jv *v, const char *s);                             /* JN_STR 
 double jnumv(const jv *v);                                            /* JN_NUM value, 0 otherwise */
 int   jtruthy(const jv *v);
 char *jstrdup_raw(const jv *v);                                       /* malloc'd raw copy of a string ("" if not a string) */
+/* A string's TEXT as UTF-8 (the ONE decoder: every JSON text shown to the player or compared with game text goes through
+ * it; NOTES.md "RULE: JSON text on screen"). Escapes resolved: \" \\ \/ \b \f \n \r \t, \uXXXX with surrogate pairs; a
+ * lone surrogate, \u0000 or a bad \u = U+FFFD. Cut at a whole character to fit n (NUL included). Not a string = "".
+ * Returns the length written. Keys / ids stay raw (jstreq compares raw text). */
+size_t jstr_utf8(const jv *v, char *out, size_t n);
 int   jequal(const jv *a, const jv *b);                               /* structural, numbers by value */
 uint64_t jhash(const jv *v);                                          /* FNV-1a 64 of the canonical text (sorted keys) */
 char *jcanon(const jv *v, size_t *len);                               /* sorted keys, compact */

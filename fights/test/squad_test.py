@@ -9,6 +9,8 @@ game, saves, library or screen). Fails when (the breaks this catches):
       paint it);
   (3) a card shows another unit's name, or the cards do not follow the squad (a unit unticked = its card goes, the label
       says 3 / 4).
+  (4) a My Units name written with JSON escapes (\\u00ef, \\", an emoji as a surrogate pair) shows its escapes instead of
+      the name (lane nvmyunits; the host guard is units/test/mu_test.c t_names).
 Uses setup_test.py's driver helpers (the same hidden copy rules). Writes one screenshot of the window (squad_<source>.png).
   squad_test.py   env: HM_BUILD (a loader build: dev-key dsload.dylib, mods/multiplayer, mods/custom-modes), LD_ROOT,
                        SQ_WIN = window size (default 1728x1117), SQ_UISCALE (default 1.1), SQ_OUT = output folder
@@ -35,9 +37,19 @@ def safe(s):
     return ''.join(' ' if c in '"\\' or ord(c) < 0x20 else c for c in s)
 
 
-def lib_name(s):
-    """a My Units name as the window lists it (myunits.c mu_info_at: the library's raw JSON text, escapes as spaces)"""
-    return json.dumps(s, ensure_ascii=False)[1:-1].replace('\\', ' ').replace('"', ' ')
+# names written with JSON escapes (lane nvmyunits 2026-11-02: they showed their escapes as spaces): main() writes the library
+# with ensure_ascii, so the file holds \u00ef, \" and the emoji as a surrogate pair; the window must show the names as typed
+ESC_NAMES = ['Ana\u00efs', 'Bj\u00f6rn "BJ"', '\U0001F600 Smile']
+
+
+def lib_units():
+    """the 4 library units of the check: fixture builds, the first three named ESC_NAMES"""
+    units = [dict(u) for u in FX[:4]]
+    for i, u in enumerate(units):
+        u['id'] = f'{0xa0 + i:02x}' * 8
+        if i < len(ESC_NAMES):
+            u['name'] = ESC_NAMES[i]
+    return units
 
 
 def hover(tag, i, name):
@@ -95,7 +107,7 @@ def run():
     judge('nothing picked', [], 'Squad: 0 / 4')
     # My Units: the team of 4 (its tick picks all of them)
     ST.click('fights:l.src0', 1.5); ST.click('fights:l.team0', 2.0)
-    team = [lib_name(u['name']) for u in FX[:4]]
+    team = [u['name'] for u in lib_units()]
     judge('My Units team', team, 'Squad: 4 / 4')
     hover('My Units team', 0, team[0])
     shot('squad_my_units.png')
@@ -123,12 +135,10 @@ def main():
     g = threading.Thread(target=HP.guard, daemon=True); g.start()
     res = {}
     try:
-        units = [dict(u) for u in FX[:4]]
-        for i, u in enumerate(units):
-            u['id'] = f'{0xa0 + i:02x}' * 8
+        units = lib_units()
         os.makedirs(os.path.dirname(ST.LIB), exist_ok=True)
-        json.dump({'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,       # UTF-8 as the mod writes it
-                   'teams': [{'id': 'cc' * 8, 'name': 'Squad check', 'unit_ids': [u['id'] for u in units]}]}, open(ST.LIB, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
+        json.dump({'format': 'ds-launcher-units', 'version': 1, 'game_build': '25846389', 'units': units,       # \u escapes (ESC_NAMES)
+                   'teams': [{'id': 'cc' * 8, 'name': 'Squad check', 'unit_ids': [u['id'] for u in units]}]}, open(ST.LIB, 'w', encoding='utf-8'), indent=1, ensure_ascii=True)
         os.makedirs(ST.GAME_SAVES, exist_ok=True); shutil.copy2(ST.SAVE, os.path.join(ST.GAME_SAVES, os.path.basename(ST.SAVE)))
         if os.path.exists(ST.DATA):                                   # a fresh data folder each run (never deleted: set aside)
             aside = os.path.expanduser(f'~/ToDelete_{time.strftime("%Y-%m-%d")}/squad_test/data_{time.strftime("%H%M%S")}')

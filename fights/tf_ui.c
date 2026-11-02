@@ -70,25 +70,7 @@ static struct {
     unsigned names_gen;                                                     /* dsi_generation() + 1 they are for */
 } P;
 
-static void unesc(const char *s, char *o, size_t n) {           /* raw JSON string text -> UTF-8 */
-    size_t k = 0;
-    for (; s && *s && k + 4 < n; s++) {
-        if (*s != '\\') { o[k++] = *s; continue; }
-        s++;
-        if (*s == 'u' && isxdigit((unsigned char)s[1]) && isxdigit((unsigned char)s[2]) && isxdigit((unsigned char)s[3]) && isxdigit((unsigned char)s[4])) {
-            char hx[5] = { s[1], s[2], s[3], s[4], 0 }; unsigned c = (unsigned)strtoul(hx, NULL, 16); s += 4;
-            if (c < 0x80) o[k++] = (char)c;
-            else if (c < 0x800) { o[k++] = (char)(0xC0 | c >> 6); o[k++] = (char)(0x80 | (c & 63)); }
-            else { o[k++] = (char)(0xE0 | c >> 12); o[k++] = (char)(0x80 | (c >> 6 & 63)); o[k++] = (char)(0x80 | (c & 63)); }
-        } else if (*s == 'n') o[k++] = '\n';
-        else if (*s == 't') o[k++] = ' ';
-        else if (*s) o[k++] = *s;
-        else break;
-    }
-    o[k] = 0;
-    dsi_utf8_fix_end(o);                                          /* the cap may fall inside a character */
-}
-static void jtxt(const jv *v, char *o, size_t n) { o[0] = 0; if (v && v->t == JN_STR) { char *r = jstrdup_raw(v); unesc(r, o, n); free(r); } }
+static void jtxt(const jv *v, char *o, size_t n) { jstr_utf8(v, o, n); }        /* raw JSON string -> UTF-8 (fe_json.h) */
 static void jesc(const char *s, char *o, size_t n) {           /* UTF-8 -> JSON string body */
     size_t k = 0;
     for (; s && *s && k + 7 < n; s++) {

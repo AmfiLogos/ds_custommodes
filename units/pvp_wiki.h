@@ -55,3 +55,5 @@ int wk_code_fp(const char *code);
 int wk_fp(void);
 struct jv;
 int wk_from_json(const struct jv *build, wk_build *out, char *err, size_t errn);
+/* b->name from a UTF-8 text by the build-name rule (trim, 48 bytes, no quote / backslash / control). 1 = set, 0 = empty */
+int wk_name_set(wk_build *b, const char *utf8);

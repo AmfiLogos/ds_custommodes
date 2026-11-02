@@ -13,6 +13,7 @@ LINK = dsi_impl.c $(U)/mu_card.c $(U)/mu_link.c $(U)/mu_clip.c $(U)/myunits.c $(
   $(C)/fe/fe_json.c $(C)/fe/fe_save.c -framework CoreFoundation -framework CFNetwork -framework AppKit -lz -lm
 N ?= 1500
 test:
+	zsh one_decoder.sh
 	mkdir -p $(O) tmp old
 	nice -n 5 cc $(CF) -o $(O)/mu_test mu_test.c $(LINK)
 	[ ! -d tmp/run ] || mv tmp/run old/run_$$(date +%s)

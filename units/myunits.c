@@ -108,7 +108,8 @@ int mu_save(const jv *lib, char *err, size_t errn) {
     return 0;
 }
 
-static void raw_cpy(char *o, size_t n, const jv *v) { if (v && v->t == JN_STR) snprintf(o, n, "%.*s", (int)v->n, v->s); else if (n) o[0] = 0; }
+static void raw_cpy(char *o, size_t n, const jv *v) { if (v && v->t == JN_STR) snprintf(o, n, "%.*s", (int)v->n, v->s); else if (n) o[0] = 0; }   /* ids, keys */
+static void txt_cpy(char *o, size_t n, const jv *v) { if (!jstr_utf8(v, o, n) && n) o[0] = 0; }   /* names: the text (fe_json.h) */
 size_t mu_count(const jv *lib) { jv *u = jget(lib, "units"); return u && u->t == JN_ARR ? u->cnt : 0; }
 int mu_info_at(const jv *lib, size_t i, mu_info *o) {
     memset(o, 0, sizeof *o);
@@ -116,8 +117,7 @@ int mu_info_at(const jv *lib, size_t i, mu_info *o) {
     jv *x = u->v[i], *b = jget(x, "build");
     raw_cpy(o->id, sizeof o->id, jget(x, "id"));
     jv *nm = jget(x, "name"); if (!nm || nm->t != JN_STR || !nm->n) nm = jget(b, "name");
-    raw_cpy(o->name, sizeof o->name, nm);
-    for (char *p = o->name; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';   /* raw text: no escapes on screen */
+    txt_cpy(o->name, sizeof o->name, nm);
     raw_cpy(o->race, sizeof o->race, jget(b, "race"));
     raw_cpy(o->portrait, sizeof o->portrait, jget(b, "portrait"));
     o->lvl = (int)jnumv(jget(b, "lvl"));
@@ -132,8 +132,7 @@ const jv *mu_find(const jv *lib, const char *id) {
 size_t mu_team_count(const jv *lib) { jv *t = jget(lib, "teams"); return t && t->t == JN_ARR ? t->cnt : 0; }
 int mu_team_at(const jv *lib, size_t i, char *name, size_t namen, char ids[][17]) {
     jv *t = jget(lib, "teams"); if (!t || i >= t->cnt) { if (namen) name[0] = 0; return 0; }
-    raw_cpy(name, namen, jget(t->v[i], "name"));
-    for (char *p = name; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';
+    txt_cpy(name, namen, jget(t->v[i], "name"));
     jv *ui = jget(t->v[i], "unit_ids"); int n = 0;
     for (size_t k = 0; ui && ui->t == JN_ARR && k < ui->cnt && n < MU_TEAM_MAX; k++) {
         jv *id = ui->v[k]; if (!id || id->t != JN_STR || id->n != 16) continue;
@@ -301,10 +300,9 @@ int mu_source_of(const jv *lib, const char *id, mu_source *out) {
     memset(out, 0, sizeof *out);
     const jv *u = mu_find(lib, id); jv *o = u ? jget(u, "source") : NULL;
     if (!o || o->t != JN_OBJ || !jstreq(jget(o, "kind"), "snapshot")) return 0;
-    raw_cpy(out->world, sizeof out->world, jget(o, "world")); raw_cpy(out->campaign, sizeof out->campaign, jget(o, "campaign"));
-    raw_cpy(out->save, sizeof out->save, jget(o, "save")); raw_cpy(out->save_time, sizeof out->save_time, jget(o, "save_time"));
+    txt_cpy(out->world, sizeof out->world, jget(o, "world")); raw_cpy(out->campaign, sizeof out->campaign, jget(o, "campaign"));
+    txt_cpy(out->save, sizeof out->save, jget(o, "save")); raw_cpy(out->save_time, sizeof out->save_time, jget(o, "save_time"));
     raw_cpy(out->unit, sizeof out->unit, jget(o, "unit")); out->taken = (long long)jnumv(jget(o, "taken"));
-    for (char *p = out->world; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';   /* raw text: no escapes on screen */
     return 1;
 }
 /* where a team came from (owner 2026-10-17: a gallery team shows its builder's name): teams[i].author = the builder's
@@ -318,8 +316,7 @@ int mu_team_set_source(jv *lib, size_t i, const char *author, const char *galler
 int mu_team_author(const jv *lib, size_t i, char *out, size_t n) {
     jv *t = jget(lib, "teams"); if (n) out[0] = 0;
     if (!t || i >= t->cnt) return 0;
-    raw_cpy(out, n, jget(t->v[i], "author"));
-    for (char *p = out; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';
+    txt_cpy(out, n, jget(t->v[i], "author"));
     return out[0] != 0;
 }
 int mu_team_lead(const jv *lib, size_t i, mu_info *out) {
@@ -342,11 +339,7 @@ int mu_build_of(const jv *lib, const char *id, wk_build *out, char *err, size_t 
     if (wk_from_json(jget(u, "build"), out, e, sizeof e)) { snprintf(err, errn, "%s", e); return -1; }
     /* the library name wins over the build's own name field (the launcher renames the entry, not the build) */
     jv *nm = jget(u, "name");
-    if (nm && nm->t == JN_STR && nm->n) {
-        char t[64]; snprintf(t, sizeof t, "%.*s", (int)(nm->n < 48 ? nm->n : 48), nm->s);
-        int bad = strchr(t, '\\') != NULL;                                /* escaped text: keep the build's own name */
-        if (!bad) { size_t L = strlen(t); while (L > 0 && ((unsigned char)t[L] & 0xC0) == 0x80) L--; t[L] = 0; snprintf(out->name, sizeof out->name, "%s", t); }
-    }
+    if (nm && nm->t == JN_STR && nm->n) { char t[200]; txt_cpy(t, sizeof t, nm); wk_name_set(out, t); }   /* the build-name rule */
     return 0;
 }
 char *mu_fight_build_json(const jv *lib, const char *id, int (*key_text)(const char *key, char *out, size_t cap), size_t *len) {
@@ -355,7 +348,7 @@ char *mu_fight_build_json(const jv *lib, const char *id, int (*key_text)(const c
     jv *ln = jget(u, "name"), *bn = jget(b, "name");
     int renamed = 0;
     if (ln && ln->t == JN_STR && ln->n && !(bn && jequal(ln, bn))) {
-        char L[200], B[200], t[200]; raw_cpy(L, sizeof L, ln); raw_cpy(B, sizeof B, bn);
+        char L[200], B[200], t[200]; txt_cpy(L, sizeof L, ln); txt_cpy(B, sizeof B, bn);
         if (!strncmp(B, "TEXTKEY_", 8)) renamed = !(key_text && !key_text(B, t, sizeof t) && !strcmp(t, L));
         else if (!B[0]) {                                    /* mu_add_build / mu_add_team's label of an unnamed build */
             char r[64]; raw_cpy(r, sizeof r, jget(b, "race"));
@@ -375,7 +368,7 @@ jv *mu_entries(const jv *lib, char ids[][17], int n, const char *player_uid, cha
     for (int i = 0; i < n; i++) {
         wk_build b; char e[400], nt[600] = "";
         mu_info inf; memset(&inf, 0, sizeof inf);
-        const jv *u = mu_find(lib, ids[i]); if (u) raw_cpy(inf.name, sizeof inf.name, jget(u, "name"));
+        const jv *u = mu_find(lib, ids[i]); if (u) txt_cpy(inf.name, sizeof inf.name, jget(u, "name"));
         if (mu_build_of(lib, ids[i], &b, e, sizeof e)) { snprintf(err, errn, "%s: %s", inf.name[0] ? inf.name : ids[i], e); jfree(entries); return NULL; }
         jv *en = pb_entry(&b, player_uid, nt, sizeof nt, e, sizeof e);
         if (!en) { snprintf(err, errn, "%s: %s", inf.name[0] ? inf.name : ids[i], e); jfree(entries); return NULL; }

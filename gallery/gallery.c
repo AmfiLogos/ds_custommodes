@@ -16,48 +16,8 @@
 
 static const char *MAJORS[6] = { "Strength", "Constitution", "WillPower", "Intelligence", "Agility", "Perception" };
 
-/* ---- JSON string (raw, escapes kept by fe_json) -> UTF-8 */
-static void put_utf8(char *o, size_t n, size_t *k, unsigned cp) {
-    char b[4]; int L;
-    if (cp < 0x80) { b[0] = (char)cp; L = 1; }
-    else if (cp < 0x800) { b[0] = (char)(0xC0 | cp >> 6); b[1] = (char)(0x80 | (cp & 63)); L = 2; }
-    else if (cp < 0x10000) { b[0] = (char)(0xE0 | cp >> 12); b[1] = (char)(0x80 | (cp >> 6 & 63)); b[2] = (char)(0x80 | (cp & 63)); L = 3; }
-    else { b[0] = (char)(0xF0 | cp >> 18); b[1] = (char)(0x80 | (cp >> 12 & 63)); b[2] = (char)(0x80 | (cp >> 6 & 63)); b[3] = (char)(0x80 | (cp & 63)); L = 4; }
-    if (*k + (size_t)L < n) { memcpy(o + *k, b, (size_t)L); *k += (size_t)L; }
-}
-static unsigned hex4(const char *s) { unsigned v = 0; for (int i = 0; i < 4; i++) { int c = s[i]; v = v * 16 + (unsigned)(isdigit(c) ? c - '0' : (tolower(c) - 'a' + 10)); } return v; }
-static void unesc(const char *s, size_t len, char *o, size_t n) {
-    size_t k = 0;
-    if (!n) return;
-    for (size_t i = 0; i < len; i++) {
-        char c = s[i];
-        if (c != '\\' || i + 1 >= len) { if (k + 1 < n) o[k++] = c; continue; }
-        c = s[++i];
-        switch (c) {
-        case 'n': c = '\n'; break; case 't': c = '\t'; break; case 'r': c = '\r'; break;
-        case 'b': c = '\b'; break; case 'f': c = '\f'; break;
-        case 'u':
-            if (i + 4 < len) {
-                unsigned cp = hex4(s + i + 1); i += 4;
-                if (cp >= 0xD800 && cp < 0xDC00 && i + 6 < len && s[i + 1] == '\\' && s[i + 2] == 'u') {
-                    unsigned lo = hex4(s + i + 3);
-                    if (lo >= 0xDC00 && lo < 0xE000) { cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00); i += 6; }
-                }
-                put_utf8(o, n, &k, cp);
-            }
-            continue;
-        default: break;                         /* \" \\ \/ */
-        }
-        if (k + 1 < n) o[k++] = c;
-    }
-    o[k] = 0;
-    dsi_utf8_fix_end(o);                        /* raw UTF-8 bytes are copied one by one: the cap may fall inside one */
-}
-static void str_of(const jv *v, char *o, size_t n) {
-    if (!n) return;
-    o[0] = 0;
-    if (v && v->t == JN_STR) unesc(v->s, v->n, o, n);
-}
+/* ---- JSON string (raw, escapes kept by fe_json) -> UTF-8: fe_json.h jstr_utf8 (the one decoder) */
+static void str_of(const jv *v, char *o, size_t n) { jstr_utf8(v, o, n); }
 static int int_of(const jv *v) { return v && v->t == JN_NUM ? (int)(jnumv(v) + (jnumv(v) < 0 ? -0.5 : 0.5)) : 0; }
 static int arr_strs(const jv *a, char *base, size_t stride, int max) {
     int k = 0;
@@ -200,7 +160,7 @@ int gal_parse_item(const char *json, size_t n, gal_item *out, char **blob, char 
     const jv *b = jget(r, "blob");
     if (blob && b && b->t == JN_STR) {
         *blob = malloc(b->n + 1);
-        if (*blob) unesc(b->s, b->n, *blob, b->n + 1);
+        if (*blob) jstr_utf8(b, *blob, b->n + 1);
     }
     jfree(r);
     return 0;

@@ -4,6 +4,14 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
+### Unreleased (0.1.50)
+
+My Units:
+- Unit and team names with quotes now show their quotes in My Units, on the Test Fights squad cards and in Bring Units
+  (they showed as spaces). Names that the units file holds as codes (like \u00ef for "ï", which some other tools
+  write) now show the real letters and emoji. The same goes for world names in World Units and for the builder names
+  of Gallery teams.
+
 ### 0.1.49 (2026-11-02)
 
 Test Fights:

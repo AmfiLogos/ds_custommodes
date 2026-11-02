@@ -11,6 +11,14 @@
   root panel with no registration, and the test's sweep fails on it.
 - Full rule and how-to: ds_modloader loader/NOTES.md "Escape".
 
+## RULE: JSON text on screen goes through jstr_utf8 (2026-11-02, lane nvmyunits)
+- fe_json keeps strings RAW (escapes kept). Any JSON text shown to the player, typed into a field or compared with game
+  text (unit / team / author / world names, wiki labels) is read with `jstr_utf8` (fe/fe_json.h: \uXXXX with surrogate
+  pairs, \" \\ \/ \n ..., cut at a whole character). Ids and keys stay raw (jstreq compares raw text). Never a
+  hand-made decoder and never "escapes as spaces": six copies had drifted (My Units showed "Ana u00efs").
+- Guard: units/test/one_decoder.sh (a second \u decoder fails `make -C units/test test`) and mu_test.c `t_names`
+  ("Anaïs", Björn "BJ", an emoji pair through mu_info_at / mu_team_at / mu_team_author / mu_build_of).
+
 ## RULE: no scene search in a frame or a tick (2026-10-26, frame-time audit)
 - Never call FindObjectOfType / FindAnyObjectByType / FindObjectsOfType(All) from a frame tick, a timer tick or anything
   called every few frames: one search walks every object of the scene (2-10 ms in a world). Keep the object with

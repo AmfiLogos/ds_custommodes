@@ -250,26 +250,18 @@ static double num_of(const jv *v, int *ok) {                            /* a num
     return 0;
 }
 static long jround(double x) { return (long)floor(x + 0.5); }        /* JavaScript Math.round */
-/* a JSON string (raw, escapes kept) -> UTF-8 */
-static size_t junesc(const jv *v, char *o, size_t n) {
-    size_t k = 0; if (!v || v->t != JN_STR || !n) { if (n) o[0] = 0; return 0; }
-    for (size_t i = 0; i < v->n && k + 4 < n; i++) {
-        char c = v->s[i];
-        if (c != '\\' || i + 1 >= v->n) { o[k++] = c; continue; }
-        c = v->s[++i];
-        if (c == 'u' && i + 4 < v->n) {
-            unsigned u = 0; for (int j = 1; j <= 4; j++) { int h = v->s[i + j]; u = u * 16 + (unsigned)(h <= '9' ? h - '0' : (h | 32) - 'a' + 10); } i += 4;
-            if (u >= 0xD800 && u < 0xDC00 && i + 6 < v->n && v->s[i + 1] == '\\' && v->s[i + 2] == 'u') {
-                unsigned l = 0; for (int j = 3; j <= 6; j++) { int h = v->s[i + j]; l = l * 16 + (unsigned)(h <= '9' ? h - '0' : (h | 32) - 'a' + 10); }
-                if (l >= 0xDC00 && l < 0xE000) { u = 0x10000 + ((u - 0xD800) << 10) + (l - 0xDC00); i += 6; }
-            }
-            if (u < 0x80) o[k++] = (char)u;
-            else if (u < 0x800) { o[k++] = (char)(0xC0 | u >> 6); o[k++] = (char)(0x80 | (u & 63)); }
-            else if (u < 0x10000) { o[k++] = (char)(0xE0 | u >> 12); o[k++] = (char)(0x80 | (u >> 6 & 63)); o[k++] = (char)(0x80 | (u & 63)); }
-            else { o[k++] = (char)(0xF0 | u >> 18); o[k++] = (char)(0x80 | (u >> 12 & 63)); o[k++] = (char)(0x80 | (u >> 6 & 63)); o[k++] = (char)(0x80 | (u & 63)); }
-        } else o[k++] = c == 'n' ? '\n' : c == 't' ? '\t' : c == 'r' ? '\r' : c == 'b' ? '\b' : c == 'f' ? '\f' : c;
-    }
-    o[k] = 0; return k;
+/* the build-name rule (builder.js: String(b.name).trim(), DSBW.str 48 bytes of whole UTF-8 characters; no control or
+   JSON-breaking byte: wk_json writes the name as is). Empty after the trim = the name is left as it was. */
+int wk_name_set(wk_build *b, const char *nm) {
+    size_t a = 0, nl = strlen(nm);
+    while (a < nl && (nm[a] == ' ' || nm[a] == '\t' || nm[a] == '\n' || nm[a] == '\r')) a++;
+    while (nl > a && (nm[nl - 1] == ' ' || nm[nl - 1] == '\t' || nm[nl - 1] == '\n' || nm[nl - 1] == '\r')) nl--;
+    size_t len = nl - a; if (!len) return 0;
+    if (len > 48) { len = 48; while (len > 0 && ((unsigned char)nm[a + len] & 0xC0) == 0x80) len--; }
+    if (len >= sizeof b->name) len = sizeof b->name - 1;
+    memcpy(b->name, nm + a, len); b->name[len] = 0;
+    for (char *p = b->name; *p; p++) if ((unsigned char)*p < 32 || *p == '"' || *p == '\\') *p = ' ';
+    return 1;
 }
 static int key_list(errs *E, const jv *a, const char *const *tab, int tn, int *cnt, int *out, const char *what) {
     *cnt = 0;
@@ -317,13 +309,7 @@ int wk_from_json(const jv *j, wk_build *b, char *err, size_t errn) {
             b->tag[s][b->ntag[s]].idx = (int)idx; b->tag[s][b->ntag[s]].v = (float)(lo + (fr / 255.0) * (hi - lo)); b->ntag[s]++;
         }
     }
-    char nm[200]; size_t nl = junesc(jget(j, "name"), nm, sizeof nm);
-    { size_t a = 0; while (a < nl && (nm[a] == ' ' || nm[a] == '\t' || nm[a] == '\n' || nm[a] == '\r')) a++;      /* String(b.name).trim() */
-      while (nl > a && (nm[nl - 1] == ' ' || nm[nl - 1] == '\t' || nm[nl - 1] == '\n' || nm[nl - 1] == '\r')) nl--;
-      size_t len = nl - a; if (len > 48) { len = 48; while (len > 0 && ((unsigned char)nm[a + len] & 0xC0) == 0x80) len--; }   /* DSBW.str: 48 bytes, whole UTF-8 chars */
-      if (len >= sizeof b->name) len = sizeof b->name - 1;
-      memcpy(b->name, nm + a, len); b->name[len] = 0;
-      for (char *p = b->name; *p; p++) if ((unsigned char)*p < 32 || *p == '"' || *p == '\\') *p = ' '; }
+    char nm[200]; jstr_utf8(jget(j, "name"), nm, sizeof nm); wk_name_set(b, nm);
     v = jget(j, "portrait");
     if (v && v->t == JN_STR && WK_PORTRAITS[b->race]) for (int i = 0; i < WK_PORTRAITS_N[b->race]; i++)
         if (strlen(WK_PORTRAITS[b->race][i]) == v->n && !memcmp(WK_PORTRAITS[b->race][i], v->s, v->n)) { b->portrait = i; break; }

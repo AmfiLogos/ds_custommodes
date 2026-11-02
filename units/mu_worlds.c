@@ -58,10 +58,7 @@ static int name_guid(const char *f, char out[40]) {
     if (!p || !hex32_at(p + 11)) { out[0] = 0; return 0; }
     norm_guid(p + 11, 32, out); return 1;
 }
-static void raw_txt(char *o, size_t n, const jv *v) {
-    if (v && v->t == JN_STR) snprintf(o, n, "%.*s", (int)v->n, v->s); else if (n) o[0] = 0;
-    for (char *p = o; *p; p++) if (*p == '\\' || *p == '"') *p = ' ';  /* raw JSON text: no escapes on screen */
-}
+static void raw_txt(char *o, size_t n, const jv *v) { jstr_utf8(v, o, n); }   /* a save's JSON text -> UTF-8 (fe_json.h) */
 
 /* the CampaignSaveHeader object of a save: found as text and parsed alone (a save is 1-5 MB; the header sits in the
    middle, after the entity data), so a list of worlds never parses whole saves */
