@@ -677,6 +677,9 @@ def group_check(L, E, kinds=(0, 1, 2)):
     return alll, ev, ind, order, bad
 
 
+heal_auto = [0]
+
+
 def run_heal():
     """a Custom fight (monsters attack the squad); the log and meter forced on for it (test switch: the same code as in a
     DPS Check, which has no attacker)"""
@@ -728,6 +731,18 @@ def run_heal():
         if ev.get('heal', 0) >= 4 and ev.get('absorb', 0) >= 2:
             break
         time.sleep(3)
+    # task 23: summons need Auto Skill, OFF at the start since 0.1.48 (owner). After the basic heals, each squad unit gets
+    # Auto Skill on with its toggle in the unit panel (as a player); then the healer's Strange Seed and its summon's heals
+    if not os.environ.get('DPS_NOAUTO'):
+        for u in [b for b in dps('pos').get('b', []) if b.get('u') == 1 and b.get('on') and 'PlayerUnit' in b.get('go', '')]:
+            req('click_xy', x=u['s'][0], y=u['s'][1]); time.sleep(0.8)
+            tg = next((o for o in json.loads(req('call', fn='tf_dps_test', s='options').get('out') or '[]') if o.get('opt') == 1 and o.get('on')), None)
+            if tg:
+                r = tg['r']; req('click_xy', x=(r[0] + r[2]) / 2, y=(r[1] + r[3]) / 2); time.sleep(0.6); heal_auto[0] += 1
+        log('heal: Auto Skill turned on for', heal_auto[0])
+        t1 = time.time()
+        while time.time() - t1 < 90 and not any(h.get('kind') == 1 and h.get('skill', '').endswith('(summon)') for h in hits_dump(0)):
+            time.sleep(3)
     time.sleep(3); click('dps:stop', 0.5); time.sleep(1.0)
     shot('heal_fight_meter')
     st = dps('state'); m = meter()
@@ -838,7 +853,13 @@ def section_checks(tag):
           ok1 and m1.get('sec') == [1, 0, 0] and not sw_vis and not tv and rs and m1.get('rows_n') == m0.get('rows_n')
           and (m1.get('rect') or [0, 0, 0, 0])[3] - (m1.get('rect') or [0, 0, 0, 0])[1] < (m0.get('rect') or [0, 0, 0, 0])[3] - (m0.get('rect') or [0, 0, 0, 0])[1],
           json.dumps({'sec': [m0.get('sec'), m1.get('sec')], 'switch_shown': sw_vis, 'time_shown': tv, 'restart': rs, 'rows': [m0.get('rows_n'), m1.get('rows_n')], 'rect': [m0.get('rect'), m1.get('rect')]}))
-    click('dps:fold', 1.5); click('dps:fold', 1.5); m2 = meter()
+    def sw(m):                                                    # the panel's scale and width
+        r = m.get('rect') or [0, 0, 0, 0]; return ((m.get('place') or {}).get('s') or 0, r[2] - r[0])
+    def same(a, b):
+        return a[0] > 0 and b[0] > 0 and abs(a[0] - b[0]) <= 0.01 * a[0] and abs(a[1] - b[1]) <= max(1, 0.01 * a[1])
+    click('dps:fold', 1.5); mf = meter(); click('dps:fold', 1.5); m2 = meter()
+    check(f'(task 21, {tag}) folding Stats / Settings or the whole panel never changes the meter\'s scale or width (owner: "It shouldn\'t")',
+          same(sw(m0), sw(m1)) and same(sw(m0), sw(mf)), json.dumps({'open': sw(m0), 'sections_folded': sw(m1), 'panel_folded': sw(mf)}))
     check(f'(item 6, {tag}) still folded after the panel is folded and opened again', m2.get('sec') == [1, 0, 0], m2.get('sec'))
     click('dps:restart', 2)
     until(lambda: (lambda x: x.get('on') == 1 and x.get('title') == 0 and x.get('hits', 1) == 0)(dps('state')), 'the restarted world', 600, 3); time.sleep(8)

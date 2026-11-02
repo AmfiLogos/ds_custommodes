@@ -42,6 +42,8 @@ DPS meter:
 - In a DPS Check, every unit first walks next to the scarecrow. Before, a unit with a staff and no torch could hit once
   and then stand still, so the DPS meter counted almost nothing. Your own orders after the start are kept.
   <!-- roadmap: dps-start-near -->
+- Folding "Stats", "Settings" or the whole DPS meter no longer changes its size. Before, a folded meter was drawn bigger
+  (text, buttons and width). Now only its height changes. <!-- roadmap: dps-fold-size -->
 
 ### 0.1.47 (2026-10-26)
 

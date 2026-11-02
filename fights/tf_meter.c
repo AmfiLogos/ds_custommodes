@@ -52,10 +52,13 @@ typedef struct { float r, g, b, a; } Col;
 static float sec_h;                                       /* DSL_SECTION_H with the kit's sections, 0 without (always open) */
 static int sec_stats = 1, sec_sets = 1;                   /* open */
 static float Y_ROWS, H_FIXED;                             /* the list's top, everything but the list (panel units) */
+static float H_FULL;                                      /* H_FIXED with Stats and Settings open: the scale's fit (owner 2026-11-01:
+                                                             folding a section must not change the meter's size) */
 static void lay_y(void) {
     float yh = Y_SEC1 + sec_h + (sec_stats ? STATS_H : 4);        /* the rows' column names */
     Y_ROWS = yh + 20;
     H_FIXED = Y_ROWS + 6 + sec_h + (sec_sets ? 4 * TOG_H : 0) + 2 + 32 + PAD;   /* under the rows: the switches, Restart test */
+    H_FULL = Y_SEC1 + sec_h + STATS_H + 20 + 6 + sec_h + 4 * TOG_H + 2 + 32 + PAD;
 }
 #define MIN_ROWS 2
 /* columns inside a row (RW wide) */
@@ -736,7 +739,7 @@ static void place_now(void) {
         float x, y, s, avail, rh = rows_h > MIN_ROWS * ROW_H ? rows_h : MIN_ROWS * ROW_H, f = dsl_panel_size_get(U, p_root);
         /* owner 2026-10-26 (item 5: "should show all of the units ... that are in the fight"): the room asked for is the
            whole list, so the scale fits every row (never under 0.5); past that the list scrolls */
-        region(H_FIXED + rh, MW, &x, &y, &s, &avail);
+        region(H_FULL + rh, MW, &x, &y, &s, &avail);
         if (!moved_m && was_moved(p_root, PL.x, PL.y)) moved_m = 1;
         if (moved_m) {                                    /* the player's place: only size and scale from here on */
             x = PL.x; y = PL.y; s = PL.ds;
@@ -750,7 +753,8 @@ static void place_now(void) {
         if (h < H_FIXED + MIN_ROWS * ROW_H) h = H_FIXED + MIN_ROWS * ROW_H;
         float vh = h - H_FIXED, ty = Y_ROWS + vh + 6, ph = folded ? BAR + 1 : h, tw = ty + sec_h;
         view_h = vh;
-        { float fs = (PL.lw - 16) / MW; if ((PL.lh - 16) / ph < fs) fs = (PL.lh - 16) / ph;   /* all of it on the screen */
+        { float pf = H_FULL + MIN_ROWS * ROW_H;           /* the fit: never the fold state (only the height changes) */
+          float fs = (PL.lw - 16) / MW; if ((PL.lh - 16) / pf < fs) fs = (PL.lh - 16) / pf;   /* all of it on the screen */
           if (s > fs) s = fs;
           if (!moved_m) { if (x + MW * s > PL.lw - 8) x = PL.lw - 8 - MW * s; if (y + ph * s > PL.lh - 8) y = PL.lh - 8 - ph * s;
                           if (x < 8) x = 8; if (y < 8) y = 8; } }   /* a moved panel: the kit keeps it on the screen */
