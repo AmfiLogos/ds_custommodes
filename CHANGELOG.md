@@ -16,8 +16,8 @@ Test Fights:
 - New switch in Test Fights > Advanced: "Start Next to the Scarecrow" (off by default). When it is on, each unit walks
   to its own free tile next to the scarecrow at the start of a DPS Check, and again after "Restart Test Floor". When it
   is off, the units start where the test puts them. A unit with a staff and no torch that attacks the scarecrow from
-  its longest range can hit once and then stand still, because from there the scarecrow is out of its sight: move it
-  closer, or turn the switch on.
+  a tile at the edge of its range can hit once and then stand still (the cause is not known yet): move it closer, or
+  turn the switch on.
 
 DPS meter:
 - 0.1.48 said that every unit first walks next to the scarecrow. It did not: the units stopped 2 to 4 tiles away. With
