@@ -4,7 +4,7 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
-### Unreleased (0.1.49)
+### 0.1.49 (2026-11-02)
 
 Test Fights:
 - Next to "Squad: 4 / 4" at the bottom of Test Fights, each unit going into the fight now has a small card: its
