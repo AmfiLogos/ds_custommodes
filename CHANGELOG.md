@@ -4,6 +4,14 @@ What changed in each version, newest first. Downloads: the GitHub releases of th
 
 ## Units Laboratory (custom-modes)
 
+### Unreleased (0.1.49)
+
+Test Fights:
+- Next to "Squad: 4 / 4" at the bottom of Test Fights, each unit going into the fight now has a small card: its
+  portrait, its in-game look (the character as the game draws it on the map, with its gear), its name and its level.
+  Point at a card to see its race and background. It works for My Units, World Units and Wiki Build Gallery builds,
+  and changes as soon as you tick or untick a unit.
+
 ### 0.1.48 (2026-11-02)
 
 Test Fights:
